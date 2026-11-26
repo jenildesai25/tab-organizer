@@ -405,11 +405,7 @@ a {
   border: 0;
 }
 
-/* Atmosphere class kept for gradient shells; grain overlay removed for contrast. */
-.atmosphere > * {
-  position: relative;
-  z-index: 1;
-}
+/* .atmosphere marks gradient shells (popup/dashboard). No grain overlay. */
 
 /* Theme segmented control */
 .theme-toggle {
@@ -734,7 +730,7 @@ li.group-row {
 .group-item,
 li.group-row {
   display: grid;
-  grid-template-columns: 10px minmax(0, 1fr) auto auto;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
   width: 100%;
@@ -784,6 +780,7 @@ li.group-row:hover {
   display: block;
   font-weight: 650;
   letter-spacing: -0.015em;
+  color: var(--ink);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

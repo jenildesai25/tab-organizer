@@ -372,11 +372,7 @@ a {
   border: 0;
 }
 
-/* Atmosphere class kept for gradient shells; grain overlay removed for contrast. */
-.atmosphere > * {
-  position: relative;
-  z-index: 1;
-}
+/* .atmosphere marks gradient shells (popup/dashboard). No grain overlay. */
 
 /* Theme segmented control */
 .theme-toggle {

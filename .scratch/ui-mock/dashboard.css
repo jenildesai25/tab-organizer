@@ -324,9 +324,6 @@ main {
   font-weight: 650;
   letter-spacing: -0.015em;
   color: var(--ink);
-  field-sizing: content;
-  min-inline-size: 8ch;
-  max-inline-size: 100%;
 }
 
 .gm-copy input:hover {

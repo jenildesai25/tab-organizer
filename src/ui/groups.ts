@@ -132,16 +132,12 @@ function paintCompactRow(
   meta.textContent = metaLine(group, 'compact')
   copy.append(name, meta)
 
-  const count = document.createElement('span')
-  count.className = 'group-count'
-  count.setAttribute('aria-label', tabLabel(group.tabCount))
-  count.textContent = String(group.tabCount)
-
   const actions = document.createElement('div')
   actions.className = 'group-actions'
   paintActions(actions, group, state, handlers, true)
 
-  item.append(swatch, copy, count, actions)
+  // swatch | title + "N tabs" | ⋯ — no separate count column (avoids duplicate "2")
+  item.append(swatch, copy, actions)
   return item
 }
 
