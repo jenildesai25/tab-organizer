@@ -55,6 +55,8 @@ export type Settings = {
   cleanupAgeDays: number
   /** Sites, groups, and pages that must never be auto-closed. */
   protect: ProtectLists
+  /** When true, hand-renamed groups are also added to Protect. */
+  protectHandRenamed: boolean
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -65,6 +67,7 @@ export const DEFAULT_SETTINGS: Settings = {
   cleanupOn: false,
   cleanupAgeDays: DEFAULT_CLEANUP_AGE_DAYS,
   protect: { domains: [], groupIds: [], urlPatterns: [], groups: [] },
+  protectHandRenamed: false,
 }
 
 export async function loadSettings(): Promise<Settings> {
@@ -92,6 +95,7 @@ export async function loadSettings(): Promise<Settings> {
       }),
       groups: parseGroupFingerprints(protectRaw.groups),
     },
+    protectHandRenamed: stored.protectHandRenamed === true,
   }
 }
 

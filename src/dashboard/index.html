@@ -284,6 +284,22 @@
         <p class="lede">
           Don’t auto-close these sites, groups, or pages. Add a site below, protect a group from the Groups ⋯ menu, or protect the page you’re on from the popup.
         </p>
+        <div class="cleanup-age-presets" id="protect-presets" role="group" aria-label="Protect presets">
+          <button type="button" class="cleanup-age-chip" data-preset="mail">Mail</button>
+          <button type="button" class="cleanup-age-chip" data-preset="calendar">Calendar</button>
+          <button type="button" class="cleanup-age-chip" data-preset="banking">Banking</button>
+          <button type="button" class="cleanup-age-chip" data-preset="shopping">Shopping</button>
+        </div>
+        <label class="switch" for="protect-hand-renamed">
+          <span class="switch-copy">
+            <span class="switch-title">Protect groups I rename</span>
+            <span class="switch-hint">When you rename a group by hand, keep it out of auto-clean</span>
+          </span>
+          <span class="switch-control">
+            <input id="protect-hand-renamed" type="checkbox" role="switch" />
+            <span class="switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
         <label class="field" for="protect-domains">
           <span>Sites to protect</span>
           <textarea
