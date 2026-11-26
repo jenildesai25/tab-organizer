@@ -26,6 +26,12 @@ import {
   type CleanupUndoSnapshot,
 } from './domain/cleanup-undo.js'
 import {
+  IGNORED_WINDOWS_KEY,
+  normalizeIgnoredWindowIds,
+  pruneIgnoredWindowIds,
+  setWindowIgnored,
+} from './domain/ignored-windows.js'
+import {
   RULE_SUGGESTIONS_KEY,
   dismissRuleSuggestionVote,
   parseRuleSuggestionVotes,
@@ -318,6 +324,32 @@ export async function saveCleanupUndo(snapshot: CleanupUndoSnapshot): Promise<vo
 export async function clearCleanupUndo(): Promise<void> {
   const store = await undoStore()
   await store.remove(CLEANUP_UNDO_KEY)
+}
+
+/** Session-scoped: Chrome window ids do not survive a browser restart. */
+export async function loadIgnoredWindowIds(): Promise<number[]> {
+  const store = await undoStore()
+  const stored = await store.get(IGNORED_WINDOWS_KEY)
+  return normalizeIgnoredWindowIds(stored[IGNORED_WINDOWS_KEY])
+}
+
+export async function saveIgnoredWindowIds(ids: Iterable<number>): Promise<number[]> {
+  const store = await undoStore()
+  const next = normalizeIgnoredWindowIds([...ids])
+  await store.set({ [IGNORED_WINDOWS_KEY]: next })
+  return next
+}
+
+export async function setIgnoredWindow(windowId: number, ignored: boolean): Promise<number[]> {
+  const current = await loadIgnoredWindowIds()
+  return saveIgnoredWindowIds(setWindowIgnored(current, windowId, ignored))
+}
+
+export async function pruneIgnoredWindows(liveWindowIds: ReadonlySet<number>): Promise<number[]> {
+  const current = await loadIgnoredWindowIds()
+  const next = pruneIgnoredWindowIds(current, liveWindowIds)
+  if (next.length === current.length && next.every((id, index) => id === current[index])) return current
+  return saveIgnoredWindowIds(next)
 }
 
 const layoutsMutex = createAsyncMutex()

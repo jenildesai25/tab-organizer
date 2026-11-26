@@ -62,6 +62,8 @@ export type StateResult = {
   } | null
   /** Present while the last clean-up can still be undone. */
   cleanupUndo?: CleanupUndoHint | null
+  /** Focused window is temporarily ignored for auto-group and clean-up. */
+  windowIgnored?: boolean
 }
 
 export type CleanupPreviewResult =
@@ -223,3 +225,4 @@ export type ToBackground =
   | { type: 'dismiss-rule-suggestion'; domain: string; title: string }
   | { type: 'export-settings' }
   | { type: 'import-settings'; backup: unknown }
+  | { type: 'set-ignore-window'; windowId: number; ignored: boolean }

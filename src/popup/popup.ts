@@ -15,6 +15,7 @@ import { bindSweep, bindSweepAll, browserWindow } from '../ui/sweep.js'
 import { bindThemeToggle } from '../ui/theme.js'
 
 const organizer = document.querySelector<HTMLInputElement>('#organizer')!
+const ignoreWindow = document.querySelector<HTMLInputElement>('#ignore-window')!
 const llm = document.querySelector<HTMLInputElement>('#llm')!
 const llmControls = document.querySelector<HTMLDivElement>('#llm-controls')!
 const modelPickerRoot = document.querySelector<HTMLElement>('#model-picker')!
@@ -162,6 +163,7 @@ function renderGroupsSummary(): void {
 
 function renderState(state: StateResult): void {
   organizer.checked = state.organizerOn
+  ignoreWindow.checked = state.windowIgnored === true
   llmOn = state.llmOn
   llm.checked = state.llmOn
   selected = state.model
@@ -237,6 +239,23 @@ function openDashboardPage(hash = ''): void {
 organizer.addEventListener('change', () => {
   void (async () => {
     renderState(await send<StateResult>({ type: 'set-organizer', on: organizer.checked }))
+  })()
+})
+
+ignoreWindow.addEventListener('change', () => {
+  void (async () => {
+    const win = await browserWindow()
+    if (win?.id == null) {
+      ignoreWindow.checked = false
+      return
+    }
+    renderState(
+      await send<StateResult>({
+        type: 'set-ignore-window',
+        windowId: win.id,
+        ignored: ignoreWindow.checked,
+      }),
+    )
   })()
 })
 

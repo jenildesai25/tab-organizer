@@ -111,19 +111,23 @@ import {
   importSettingsBackup,
   loadActivityLog,
   loadCleanupUndo,
+  loadIgnoredWindowIds,
   listReadyRuleSuggestions,
   loadWorkspaceLayouts,
   forgetHandRenamedGroup,
   loadSettings,
   noteHandRenameForSuggestion,
+  pruneIgnoredWindows,
   rememberHandRenamedGroup,
   removeWorkspaceLayout,
   restoreHandRenamedGroups,
   saveCleanupUndo,
   saveWorkspaceLayout,
+  setIgnoredWindow,
   updateSettings,
   type Settings,
 } from './storage.js'
+import { isWindowIgnored } from './domain/ignored-windows.js'
 import { formatBackupSummary } from './domain/settings-backup.js'
 
 const sticky = new Set<number>()
@@ -531,6 +535,10 @@ async function run(windowId: number, mode: 'watch' | 'sweep'): Promise<string> {
   ) {
     return ''
   }
+  if (isWindowIgnored(await loadIgnoredWindowIds(), windowId)) {
+    if (mode === 'sweep') throw new Error('This window is set to Don’t touch.')
+    return ''
+  }
   const focused = (await focusedWindowId()) === windowId
   if (mode === 'watch' && !focused) return ''
   const win = await chrome.windows.get(windowId)
@@ -691,8 +699,10 @@ async function resolveCleanupWindowId(windowId?: number): Promise<number> {
 }
 
 async function collectCleanupTabs(scope: 'window' | 'all', windowId?: number): Promise<chrome.tabs.Tab[]> {
+  const ignored = await loadIgnoredWindowIds()
   if (scope === 'window') {
     const id = await resolveCleanupWindowId(windowId)
+    if (isWindowIgnored(ignored, id)) return []
     const win = await chrome.windows.get(id)
     if (win.incognito || (win.type !== undefined && win.type !== 'normal')) return []
     return chrome.tabs.query({ windowId: id })
@@ -702,6 +712,7 @@ async function collectCleanupTabs(scope: 'window' | 'all', windowId?: number): P
   const tabs: chrome.tabs.Tab[] = []
   for (const win of windows) {
     if (win.incognito || win.id == null) continue
+    if (isWindowIgnored(ignored, win.id)) continue
     const listed = await chrome.tabs.query({ windowId: win.id })
     tabs.push(...listed)
   }
@@ -945,12 +956,21 @@ async function currentState(): Promise<StateResult> {
   organizerOn = settings.organizerOn
   llmOn = settings.llmOn
   const undo = await loadCleanupUndo()
+  let windowIgnored = false
+  try {
+    const focused = await focusedWindowId()
+    const ignored = await loadIgnoredWindowIds()
+    windowIgnored = isWindowIgnored(ignored, focused)
+  } catch {
+    windowIgnored = false
+  }
   return {
     ...settings,
     status: statusLine(settings),
     retitle: retitleProgress,
     activeTab: await activeTabSnapshot(),
     cleanupUndo: cleanupUndoHint(undo),
+    windowIgnored,
   }
 }
 
@@ -1113,13 +1133,19 @@ async function handle(message: ToBackground): Promise<unknown> {
       return { ok: false, message: text, diag } satisfies SweepResult
     }
   }
+  if (message.type === 'set-ignore-window') {
+    const ids = await setIgnoredWindow(message.windowId, message.ignored === true)
+    return { ...(await currentState()), windowIgnored: isWindowIgnored(ids, message.windowId) }
+  }
   if (message.type === 'sweep-all') {
     try {
+      const ignored = await loadIgnoredWindowIds()
       const windows = await chrome.windows.getAll({ populate: false, windowTypes: ['normal'] })
       const summaries: string[] = []
       let organized = 0
       for (const win of windows) {
         if (win.incognito || win.id == null) continue
+        if (isWindowIgnored(ignored, win.id)) continue
         try {
           const summary = await run(win.id, 'sweep')
           organized += 1
@@ -2004,6 +2030,12 @@ async function boot(): Promise<void> {
   const live = await liveGroupSnapshots()
   applyHandRenamedIds(await restoreHandRenamedGroups(live))
   await rebindProtectGroups()
+  try {
+    const windows = await chrome.windows.getAll({ windowTypes: ['normal'] })
+    await pruneIgnoredWindows(new Set(windows.map((win) => win.id).filter((id): id is number => id != null)))
+  } catch {
+    // Ignore prune failures on boot.
+  }
 }
 
 void boot()
