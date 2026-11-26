@@ -1090,6 +1090,37 @@ async function handle(message: ToBackground): Promise<unknown> {
       return { ok: false, message: text, diag } satisfies SweepResult
     }
   }
+  if (message.type === 'sweep-all') {
+    try {
+      const windows = await chrome.windows.getAll({ populate: false, windowTypes: ['normal'] })
+      const summaries: string[] = []
+      let organized = 0
+      for (const win of windows) {
+        if (win.incognito || win.id == null) continue
+        try {
+          const summary = await run(win.id, 'sweep')
+          organized += 1
+          if (summary) summaries.push(summary)
+        } catch {
+          // Skip windows that cannot be organized; keep going.
+        }
+      }
+      if (organized === 0) {
+        return {
+          ok: false,
+          message: 'No normal windows could be organized.',
+        } satisfies SweepResult
+      }
+      const summary =
+        organized === 1
+          ? summaries[0] || 'Organized 1 window.'
+          : `Organized ${organized} windows.\n${summaries.join('\n')}`
+      return { ...(await currentState()), ok: true, summary } satisfies SweepResult
+    } catch (error) {
+      const text = error instanceof Error && error.message ? error.message : 'Could not organize windows.'
+      return { ok: false, message: text } satisfies SweepResult
+    }
+  }
   if (message.type === 'list-models') return listModels()
   if (message.type === 'test-ollama') return testOllama()
   if (message.type === 'list-groups') return listGroups(message.windowId)
