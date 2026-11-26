@@ -1,6 +1,6 @@
 {
   "version": "0.3.21",
-  "frames": 363,
+  "frames": 319,
   "fps": 12,
   "viewport": {
     "width": 1280,
@@ -9,7 +9,9 @@
   },
   "files": [
     "docs/demo/tab-organizer-demo.mp4",
-    "docs/demo/tab-organizer-demo.webm"
+    "docs/demo/tab-organizer-demo.webm",
+    "docs/demo/tab-organizer-demo.gif",
+    "docs/demo/tab-organizer-demo-poster.jpg"
   ],
-  "recordedAt": "2026-11-26T05:08:32.830Z"
+  "recordedAt": "2026-11-26T05:24:16.304Z"
 }

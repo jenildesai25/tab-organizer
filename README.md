@@ -4,11 +4,17 @@ Chrome extension (Manifest V3) that files tabs into **native Chrome tab groups**
 
 ## Demo
 
-Short walkthrough (~30s): popup (Organize, File new tabs, Local model + model picker) then dashboard Rules, Groups, and Activity.
+Short walkthrough (~25s): popup (**Organize this window**, File new tabs, Local model) then dashboard **Groups** and **Activity**.
+
+https://github.com/user-attachments/assets/ae3ac628-2e04-415c-a2ce-bc2baf9e26d9
+
+GIF fallback (same clip):
 
 ![Tab Organizer demo](docs/demo/tab-organizer-demo.gif)
 
-> **Chrome Web Store tip:** the store listing’s promotional video field expects a **YouTube URL**, not a file upload. Upload this same clip to YouTube (unlisted or public) and paste that URL into the developer dashboard. Screenshots are still required separately.
+Source files for Chrome Web Store / YouTube: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer-demo.mp4) (also `.webm`, poster JPG). Regenerate with `npm run build && npm run record:demo`.
+
+> **Chrome Web Store tip:** the store listing’s promotional video field expects a **YouTube URL**, not a file upload. Upload `docs/demo/tab-organizer-demo.mp4` to YouTube (unlisted or public) and paste that URL into the developer dashboard. Screenshots are still required separately.
 
 ## Prerequisites
 
