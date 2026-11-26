@@ -42,6 +42,7 @@ import { bindThemeToggle } from '../ui/theme.js'
 
 const status = document.querySelector<HTMLParagraphElement>('#status')!
 const organizer = document.querySelector<HTMLInputElement>('#organizer')!
+const ignoreWindow = document.querySelector<HTMLInputElement>('#ignore-window')!
 const quietHoursOn = document.querySelector<HTMLInputElement>('#quiet-hours-on')!
 const quietHoursStart = document.querySelector<HTMLInputElement>('#quiet-hours-start')!
 const quietHoursEnd = document.querySelector<HTMLInputElement>('#quiet-hours-end')!
@@ -721,6 +722,7 @@ function renderState(state: StateResult): void {
   quietHoursEnd.value = String(state.quietHoursEnd ?? 7)
   quietHoursStart.disabled = !quietHoursOn.checked
   quietHoursEnd.disabled = !quietHoursOn.checked
+  ignoreWindow.checked = state.windowIgnored === true
   paintProtect(state.protect)
   selected = state.model
   status.textContent = state.status
@@ -954,6 +956,23 @@ document.addEventListener('click', () => {
 organizer.addEventListener('change', () => {
   void (async () => {
     renderState(await send<StateResult>({ type: 'set-organizer', on: organizer.checked }))
+  })()
+})
+
+ignoreWindow.addEventListener('change', () => {
+  void (async () => {
+    const win = await browserWindow()
+    if (win?.id == null) {
+      ignoreWindow.checked = false
+      return
+    }
+    renderState(
+      await send<StateResult>({
+        type: 'set-ignore-window',
+        windowId: win.id,
+        ignored: ignoreWindow.checked,
+      }),
+    )
   })()
 })
 
