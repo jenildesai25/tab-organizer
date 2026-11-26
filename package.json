@@ -9,7 +9,9 @@
     "test:popup-ui": "node scripts/popup-ui-smoke.mjs",
     "eval:advisor": "tsx scripts/eval-advisor.ts",
     "build": "tsc --noEmit && node scripts/bundle.mjs",
-    "check": "tsc --noEmit"
+    "check": "tsc --noEmit",
+    "package:cws": "bash scripts/package-cws.sh",
+    "publish:wizard": "bash scripts/publish-cws-wizard.sh"
   },
   "dependencies": {
     "tldts": "^7.0.19"
