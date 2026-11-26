@@ -76,6 +76,8 @@ const cleanupNow = document.querySelector<HTMLButtonElement>('#cleanup-now')!
 const cleanupUndo = document.querySelector<HTMLButtonElement>('#cleanup-undo')!
 const cleanupNote = document.querySelector<HTMLElement>('#cleanup-note')!
 const protectDomains = document.querySelector<HTMLTextAreaElement>('#protect-domains')!
+const protectPresets = document.querySelector<HTMLElement>('#protect-presets')!
+const protectHandRenamed = document.querySelector<HTMLInputElement>('#protect-hand-renamed')!
 const saveProtectDomains = document.querySelector<HTMLButtonElement>('#save-protect-domains')!
 const protectActiveSite = document.querySelector<HTMLButtonElement>('#protect-active-site')!
 const protectActivePage = document.querySelector<HTMLButtonElement>('#protect-active-page')!
@@ -626,6 +628,7 @@ function renderState(state: StateResult): void {
   cleanupOn.checked = state.cleanupOn
   paintCleanupAge(state.cleanupAgeDays)
   paintCleanupUndo(state.cleanupUndo ?? null)
+  protectHandRenamed.checked = state.protectHandRenamed === true
   paintProtect(state.protect)
   selected = state.model
   status.textContent = state.status
@@ -966,6 +969,48 @@ cleanupUndo.addEventListener('click', () => {
       paintCleanupUndo(state?.cleanupUndo ?? null)
       cleanupUndo.disabled = cleanupUndo.hidden
     }
+  })()
+})
+
+protectPresets.addEventListener('click', (event) => {
+  const target = event.target
+  if (!(target instanceof Element)) return
+  const chip = target.closest<HTMLButtonElement>('[data-preset]')
+  if (!chip || !protectPresets.contains(chip)) return
+  const id = chip.dataset.preset
+  if (!id) return
+  void (async () => {
+    chip.disabled = true
+    try {
+      const result = await send<ProtectUpdateResult>({ type: 'apply-protect-preset', id })
+      if (result.ok) {
+        paintProtect(result.protect)
+        if (latestState) latestState = { ...latestState, protect: result.protect }
+        showProtectNote(result.summary)
+      } else {
+        showProtectNote(result.message)
+      }
+    } catch {
+      showProtectNote('Could not apply that protect preset.')
+    } finally {
+      chip.disabled = false
+    }
+  })()
+})
+
+protectHandRenamed.addEventListener('change', () => {
+  void (async () => {
+    renderState(
+      await send<StateResult>({
+        type: 'set-protect-hand-renamed',
+        on: protectHandRenamed.checked,
+      }),
+    )
+    showProtectNote(
+      protectHandRenamed.checked
+        ? 'Groups you rename by hand stay protected from auto-clean.'
+        : 'Renaming a group no longer auto-protects it.',
+    )
   })()
 })
 

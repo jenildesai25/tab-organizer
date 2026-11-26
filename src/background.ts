@@ -43,6 +43,10 @@ import {
   formatCleanupUndoSummary,
 } from './domain/cleanup-undo.js'
 import {
+  applyProtectPreset,
+  formatProtectPresetSummary,
+} from './domain/protect-presets.js'
+import {
   assignTabsToLayout,
   buildWorkspaceLayout,
   clampLayoutName,
@@ -164,6 +168,25 @@ async function rememberHandRenamed(groupId: number): Promise<void> {
   const live = await liveGroupSnapshots()
   const fingerprint = await fingerprintForGroup(groupId)
   applyHandRenamedIds(await rememberHandRenamedGroup(groupId, fingerprint, live))
+  const settings = await loadSettings()
+  if (!settings.protectHandRenamed || !fingerprint) return
+  await saveProtect((protect) => {
+    const set = new Set(protect.groupIds)
+    set.add(groupId)
+    const rebound = omitGroupBinding(
+      rebindGroupFingerprints(protect.groups, live),
+      groupId,
+      live.find((group) => group.id === groupId),
+      live,
+    )
+    rebound.push({ id: groupId, fingerprint })
+    const liveIds = new Set(live.map((group) => group.id))
+    return {
+      ...protect,
+      groupIds: [...new Set([...[...set].filter((id) => liveIds.has(id)), ...boundGroupIds(rebound)])],
+      groups: rebound.map((row) => row.fingerprint),
+    }
+  }, 'Protected hand-renamed group.')
 }
 
 async function forgetHandRenamed(groupId: number, title = ''): Promise<void> {
@@ -1068,6 +1091,50 @@ async function handle(message: ToBackground): Promise<unknown> {
       protect: { ...current.protect, domains: normalizeProtectDomains(message.domains) },
     }))
     return currentState()
+  }
+  if (message.type === 'apply-protect-preset') {
+    let summary = 'Unknown protect preset.'
+    const settings = await updateSettings((current) => {
+      const applied = applyProtectPreset(current.protect, message.id)
+      if (!applied) return current
+      summary = formatProtectPresetSummary(applied.preset, applied.addedDomains, applied.addedPatterns)
+      return { ...current, protect: applied.protect }
+    })
+    if (summary === 'Unknown protect preset.') {
+      return { ok: false, message: summary } satisfies ProtectUpdateResult
+    }
+    return { ok: true, protect: settings.protect, summary } satisfies ProtectUpdateResult
+  }
+  if (message.type === 'set-protect-hand-renamed') {
+    const settings = await updateSettings((current) => ({
+      ...current,
+      protectHandRenamed: message.on,
+    }))
+    if (message.on) {
+      const live = await liveGroupSnapshots()
+      for (const groupId of handRenamed) {
+        const fingerprint = await fingerprintForGroup(groupId)
+        if (!fingerprint) continue
+        await saveProtect((protect) => {
+          const set = new Set(protect.groupIds)
+          set.add(groupId)
+          const rebound = omitGroupBinding(
+            rebindGroupFingerprints(protect.groups, live),
+            groupId,
+            live.find((group) => group.id === groupId),
+            live,
+          )
+          rebound.push({ id: groupId, fingerprint })
+          const liveIds = new Set(live.map((group) => group.id))
+          return {
+            ...protect,
+            groupIds: [...new Set([...[...set].filter((id) => liveIds.has(id)), ...boundGroupIds(rebound)])],
+            groups: rebound.map((row) => row.fingerprint),
+          }
+        }, 'Protected hand-renamed group.')
+      }
+    }
+    return { ...(await currentState()), protectHandRenamed: settings.protectHandRenamed }
   }
   if (message.type === 'protect-group') {
     const fingerprint = message.protect ? await fingerprintForGroup(message.groupId) : null
