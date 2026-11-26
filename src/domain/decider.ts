@@ -2,6 +2,7 @@ import { titleIsUsable } from './feature-card.js'
 import {
   colorForKey,
   domainCovered,
+  groupTitleConflictsWithDomain,
   isLoopbackFilingKey,
   isStaleLoopbackGroupTitle,
   preferredSiteGroupTitle,
@@ -153,13 +154,23 @@ function eligible(tab: TabState, mode: DecideInput['mode'], input: DecideInput):
 }
 
 /**
- * True when the tab sits in a non-shared site group whose dominant domain does
- * not cover the tab's current site key (e.g. google.com group, now on whatsapp.com).
+ * True when the tab sits in a non-shared site group that does not belong to the
+ * tab's current site key. Covers two cases:
+ * - live dominantDomain no longer covers the tab (other tabs keep the old site)
+ * - group title still names a different auto site after a solo redirect flipped
+ *   dominantDomain (Capitaloneshopping title, now on brooksrunning.com)
  */
 function mismatchedSiteGroup(tab: TabState, input: DecideInput): boolean {
   if (tab.groupId === null || tab.card.domain === '') return false
   const group = input.groups.find((item) => item.id === tab.groupId)
-  if (!group || group.shared || group.dominantDomain == null) return false
+  if (!group || group.shared) return false
+  if (
+    !group.handRenamed &&
+    groupTitleConflictsWithDomain(group.title, tab.card.domain)
+  ) {
+    return true
+  }
+  if (group.dominantDomain == null) return false
   return !(
     domainCovered(tab.card.domain, group.dominantDomain) ||
     domainCovered(group.dominantDomain, tab.card.domain)
@@ -312,11 +323,24 @@ function actionsForRule(tabs: TabState[], rule: CompiledRule, input: DecideInput
   return actions
 }
 
+/**
+ * True when this open group is the site bucket for `domain`.
+ * Title that names this site wins. Dominant-domain match is accepted only when
+ * the title does not still name a different auto site (solo-redirect hole).
+ */
+function groupBelongsToSite(group: GroupState, domain: string): boolean {
+  if (group.shared) return false
+  const wanted = siteTitle(domain)
+  if (titlesMatch(group.title, wanted)) return true
+  if (group.dominantDomain !== domain) return false
+  if (group.handRenamed) return true
+  if (groupTitleConflictsWithDomain(group.title, domain)) return false
+  return true
+}
+
 /** Prefer one open group for a site: canonical title, then case-insensitive title, then lowest id. */
 function siteGroup(input: DecideInput, domain: string): GroupState | undefined {
-  const matches = input.groups
-    .filter((group) => !group.shared && group.dominantDomain === domain)
-    .sort((a, b) => a.id - b.id)
+  const matches = input.groups.filter((group) => groupBelongsToSite(group, domain)).sort((a, b) => a.id - b.id)
   if (matches.length === 0) return undefined
   const wanted = siteTitle(domain)
   return (

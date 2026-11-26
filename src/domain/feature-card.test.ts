@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { buildFeatureCard } from './feature-card.js'
 import {
+  domainImpliedBySiteTitle,
+  groupTitleConflictsWithDomain,
   isStaleLoopbackGroupTitle,
   hasStableSiteDisplay,
   preferredSiteGroupTitle,
@@ -91,5 +93,16 @@ describe('buildFeatureCard', () => {
     })
     expect(card.pathWords).toEqual(['users', 'home'])
     expect(JSON.stringify(card)).not.toContain('@')
+  })
+
+  it('implies a site key from an auto site-group title', () => {
+    expect(domainImpliedBySiteTitle('Capitaloneshopping')).toBe('capitaloneshopping.com')
+    expect(domainImpliedBySiteTitle('Brooksrunning')).toBe('brooksrunning.com')
+    expect(domainImpliedBySiteTitle('Google')).toBe('google.com')
+    expect(domainImpliedBySiteTitle('Shopping List')).toBe(null)
+    expect(groupTitleConflictsWithDomain('Capitaloneshopping', 'brooksrunning.com')).toBe(true)
+    expect(groupTitleConflictsWithDomain('Capitaloneshopping', 'capitaloneshopping.com')).toBe(false)
+    expect(groupTitleConflictsWithDomain('Brooksrunning', 'brooksrunning.com')).toBe(false)
+    expect(groupTitleConflictsWithDomain('Google', 'whatsapp.com')).toBe(true)
   })
 })

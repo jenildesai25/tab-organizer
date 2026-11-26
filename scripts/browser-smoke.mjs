@@ -448,6 +448,182 @@ function assertRefile(outcome) {
   return true
 }
 
+/**
+ * Solo-redirect hole: one tab in a site group navigates to another site.
+ * Live dominantDomain flips with the tab; the title still names the old site.
+ * Must move into (or create) the new site group — never stay under the old title.
+ * Also opens a fresh tab for the new site and asserts it does not join the old title.
+ */
+async function runSoloRedirectRefileFlow(dashboard) {
+  return dashboard.evaluate(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+    await chrome.runtime.sendMessage({ type: 'set-organizer', on: true })
+
+    const win = await chrome.windows.create({
+      url: ['https://www.google.com/'],
+      focused: true,
+      type: 'normal',
+    })
+    if (win?.id == null) throw new Error('windows.create returned no id')
+    const windowId = win.id
+    await chrome.windows.update(windowId, { focused: true })
+
+    await sleep(4500)
+    let tabs = await chrome.tabs.query({ windowId })
+    const seed = tabs.find((tab) => (tab.url || tab.pendingUrl || '').includes('google.com'))
+    if (seed?.id == null) throw new Error('Expected a Google seed tab')
+    const tabId = seed.id
+
+    let groups = await chrome.tabGroups.query({})
+    let googleGroup = groups.find((group) => (group.title || '').toLowerCase() === 'google')
+    if (!googleGroup) {
+      // Single tab may need a moment longer; nudge by ensuring candidate settle.
+      await sleep(3000)
+      groups = await chrome.tabGroups.query({})
+      googleGroup = groups.find((group) => (group.title || '').toLowerCase() === 'google')
+    }
+    if (!googleGroup) {
+      throw new Error(
+        `Expected organizer to create a Google group for the solo tab, got ${JSON.stringify(
+          groups.map((group) => group.title || group.id),
+        )}`,
+      )
+    }
+    const googleGroupId = googleGroup.id
+    const seedAfter = await chrome.tabs.get(tabId)
+    if (seedAfter.groupId !== googleGroupId) {
+      throw new Error(`Solo Google tab not in Google group ${googleGroupId}, got ${seedAfter.groupId}`)
+    }
+
+    await chrome.tabs.update(tabId, { url: 'https://www.whatsapp.com/' })
+
+    let afterWhatsapp = seedAfter
+    let whatsappGroup = null
+    for (let i = 0; i < 14; i += 1) {
+      await sleep(1000)
+      afterWhatsapp = await chrome.tabs.get(tabId)
+      groups = await chrome.tabGroups.query({})
+      whatsappGroup = groups.find((group) => (group.title || '').toLowerCase().includes('whatsapp'))
+      const stillUnderGoogleTitle =
+        afterWhatsapp.groupId != null &&
+        groups.some(
+          (group) =>
+            group.id === afterWhatsapp.groupId && (group.title || '').toLowerCase() === 'google',
+        )
+      if (whatsappGroup && afterWhatsapp.groupId === whatsappGroup.id && !stillUnderGoogleTitle) break
+    }
+
+    // Fresh tab for the new site must not join any leftover Google-titled group.
+    const fresh = await chrome.tabs.create({
+      windowId,
+      url: 'https://www.whatsapp.com/',
+      active: true,
+    })
+    if (fresh.id == null) throw new Error('tabs.create returned no id for fresh WhatsApp tab')
+    const freshId = fresh.id
+    let freshTab = fresh
+    let freshWhatsappGroup = null
+    for (let i = 0; i < 12; i += 1) {
+      await sleep(1000)
+      freshTab = await chrome.tabs.get(freshId)
+      groups = await chrome.tabGroups.query({})
+      freshWhatsappGroup = groups.find((group) => (group.title || '').toLowerCase().includes('whatsapp'))
+      const freshInGoogleTitle =
+        freshTab.groupId != null &&
+        groups.some(
+          (group) => group.id === freshTab.groupId && (group.title || '').toLowerCase() === 'google',
+        )
+      if (freshWhatsappGroup && freshTab.groupId === freshWhatsappGroup.id && !freshInGoogleTitle) break
+    }
+
+    const googleStill = groups.find(
+      (group) => (group.title || '').toLowerCase() === 'google' || group.id === googleGroupId,
+    )
+
+    return {
+      windowId,
+      tabId,
+      freshId,
+      googleGroupId,
+      groupAfterWhatsapp: afterWhatsapp.groupId,
+      whatsappGroupId: whatsappGroup?.id ?? null,
+      whatsappTitle: whatsappGroup?.title || '',
+      freshGroupId: freshTab.groupId,
+      freshWhatsappGroupId: freshWhatsappGroup?.id ?? null,
+      freshWhatsappTitle: freshWhatsappGroup?.title || '',
+      googleTitleAfter: googleStill?.title || '',
+      groups: groups.map((group) => ({ id: group.id, title: group.title || '' })),
+      finalUrl: afterWhatsapp.url || afterWhatsapp.pendingUrl || '',
+      freshUrl: freshTab.url || freshTab.pendingUrl || '',
+    }
+  })
+}
+
+function assertSoloRedirectRefile(outcome) {
+  console.log('\n--- Solo-redirect refile outcome ---')
+  console.log(JSON.stringify(outcome, null, 2))
+
+  if (!outcome || typeof outcome !== 'object') {
+    fail('Solo-redirect flow returned nothing', outcome)
+    return false
+  }
+
+  if (!(outcome.finalUrl || '').includes('whatsapp')) {
+    fail('Expected solo traveler URL to be whatsapp.com', outcome)
+    return false
+  }
+
+  if (outcome.groupAfterWhatsapp == null || outcome.groupAfterWhatsapp < 0) {
+    fail('Expected solo traveler to be in a group after navigation', outcome)
+    return false
+  }
+
+  if (outcome.groupAfterWhatsapp === outcome.googleGroupId) {
+    fail('Solo traveler stayed in the original Google group id after site change', outcome)
+    return false
+  }
+
+  const title = String(outcome.whatsappTitle || '').toLowerCase()
+  if (!title.includes('whatsapp')) {
+    fail('Expected solo traveler in a WhatsApp-titled group (not a renamed Google title)', outcome)
+    return false
+  }
+
+  if ((outcome.googleTitleAfter || '').toLowerCase().includes('whatsapp')) {
+    fail('Google group was renamed to WhatsApp instead of moving the tab', outcome)
+    return false
+  }
+
+  if (!(outcome.freshUrl || '').includes('whatsapp')) {
+    fail('Expected fresh tab URL to be whatsapp.com', outcome)
+    return false
+  }
+
+  if (outcome.freshGroupId == null || outcome.freshGroupId < 0) {
+    fail('Expected fresh WhatsApp tab to be grouped', outcome)
+    return false
+  }
+
+  const freshTitle = String(outcome.freshWhatsappTitle || '').toLowerCase()
+  if (!freshTitle.includes('whatsapp')) {
+    fail('Fresh WhatsApp tab joined a non-WhatsApp group', outcome)
+    return false
+  }
+
+  const freshInGoogle = (outcome.groups || []).some(
+    (group) =>
+      group.id === outcome.freshGroupId && String(group.title || '').toLowerCase() === 'google',
+  )
+  if (freshInGoogle) {
+    fail('Fresh WhatsApp tab incorrectly joined a Google-titled group', outcome)
+    return false
+  }
+
+  console.log('\nPASS: solo google→whatsapp refiled; fresh whatsapp tab stayed out of Google.')
+  return true
+}
+
 async function main() {
   requireDist()
   console.log(`Loading extension from ${dist}`)
@@ -472,6 +648,17 @@ async function main() {
       ),
     ])
     assertRefile(refile)
+
+    const solo = await Promise.race([
+      runSoloRedirectRefileFlow(dashboard),
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error(`Solo-redirect refile flow timed out after ${TIMEOUT_MS}ms`)),
+          TIMEOUT_MS,
+        ),
+      ),
+    ])
+    assertSoloRedirectRefile(solo)
 
     console.log(`\nBrowser mode used: ${mode}`)
     console.log(`Elapsed: ${((Date.now() - started) / 1000).toFixed(1)}s`)
