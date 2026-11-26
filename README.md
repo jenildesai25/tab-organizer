@@ -16,7 +16,7 @@ Local source files: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer
 - **Auto-group new tabs** — When you open a tab, Tab Organizer waits for the page to settle, then creates a group or joins an existing one, and reveals it when useful.
 - **Quiet hours** — Optional daily window (default 11pm–7am local) that pauses auto-group. **Organize this window** still runs.
 - **Moves with you** — If you navigate from one site to another (for example Google search → WhatsApp), the tab leaves the old group and lands in the right one.
-- **Plain-English rules** — Write short rules like “call linear Work” so sites get the group names you want (see [Rules](#rules-dashboard)).
+- **Plain-English rules** — Write short rules like “call linear Work” so sites get the group names you want (see [Rules](#rules-dashboard)). After you rename the same site group a couple of times, the dashboard suggests a matching rule.
 - **Local model (optional)** — Turn on Ollama on your machine when a rule or tab is unclear. Nothing is sent to a Tab Organizer server.
 - **AI rename groups** — Rewrite group titles from the tabs inside them; tabs stay where they are.
 - **Dashboard Groups** — Rename, recolor, or ungroup from the Groups panel.

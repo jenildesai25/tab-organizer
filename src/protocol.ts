@@ -2,6 +2,7 @@ import type { ActivityActor, ActivityEntry, ActivityFilter } from './domain/acti
 import type { SweepDiag } from './domain/sweep-diag.js'
 import type { CleanupUndoHint } from './domain/cleanup-undo.js'
 import type { ProtectLists } from './domain/tab-cleanup.js'
+import type { RuleSuggestion } from './domain/rule-suggestions.js'
 import type { WorkspaceLayout } from './domain/workspace-layout.js'
 import type { TabGroupView } from './domain/tab-groups.js'
 import type { ChromeColor, CompiledRule } from './domain/types.js'
@@ -12,6 +13,7 @@ export type { SweepDiag, SweepDiagSample } from './domain/sweep-diag.js'
 export type { CleanupUndoHint } from './domain/cleanup-undo.js'
 export type { ProtectLists } from './domain/tab-cleanup.js'
 export type { WorkspaceLayout, LayoutGroup } from './domain/workspace-layout.js'
+export type { RuleSuggestion } from './domain/rule-suggestions.js'
 export type { TabGroupView } from './domain/tab-groups.js'
 
 export type PreviewResult =
@@ -99,6 +101,8 @@ export type SaveLayoutResult =
 export type ApplyLayoutResult =
   | { ok: true; grouped: number; groups: number; summary: string }
   | { ok: false; message: string }
+
+export type RuleSuggestionsResult = { ok: true; suggestions: RuleSuggestion[] }
 
 export type ProtectUpdateResult =
   | { ok: true; protect: ProtectLists; summary: string }
@@ -206,3 +210,5 @@ export type ToBackground =
   | { type: 'save-layout'; name: string; windowId?: number }
   | { type: 'apply-layout'; id: string; windowId?: number }
   | { type: 'delete-layout'; id: string }
+  | { type: 'list-rule-suggestions' }
+  | { type: 'dismiss-rule-suggestion'; domain: string; title: string }
