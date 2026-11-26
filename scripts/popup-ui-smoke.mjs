@@ -193,6 +193,36 @@ async function openAndProbe(browser, extensionId, pagePath, criticalIds) {
     }
     await new Promise((r) => setTimeout(r, 400))
 
+    const themeToggle = document.querySelector('.theme-toggle')
+    const themeRect = themeToggle?.getBoundingClientRect()
+    const brand = document.querySelector('.brand-lockup, .hero-brand-row')
+    const brandRect = brand?.getBoundingClientRect()
+    const statusEl = document.getElementById('status')
+    const statusRect = statusEl?.getBoundingClientRect()
+    let themeOverlapsBrand = false
+    let themeOverlapsStatus = false
+    if (themeRect && brandRect) {
+      themeOverlapsBrand =
+        themeRect.left < brandRect.right - 2 &&
+        themeRect.right > brandRect.left + 2 &&
+        themeRect.top < brandRect.bottom - 2 &&
+        themeRect.bottom > brandRect.top + 2
+    }
+    if (themeRect && statusRect && statusEl && !statusEl.hidden) {
+      themeOverlapsStatus =
+        themeRect.left < statusRect.right - 2 &&
+        themeRect.right > statusRect.left + 2 &&
+        themeRect.top < statusRect.bottom - 2 &&
+        themeRect.bottom > statusRect.top + 2
+    }
+
+    const rootWidth = Math.round(
+      Math.max(document.documentElement.getBoundingClientRect().width, document.body.getBoundingClientRect().width),
+    )
+    const mainMax =
+      getComputedStyle(document.querySelector('main') || document.body).maxWidth || ''
+    const hasFloatingStack = !!document.querySelector('.hero-visual, .stack-card')
+
     return {
       found,
       themeButtons,
@@ -201,6 +231,12 @@ async function openAndProbe(browser, extensionId, pagePath, criticalIds) {
       grainBg: grainBg.slice(0, 120),
       paintErrors: paintErrors.filter(Boolean),
       bodyClass: document.body.className,
+      rootWidth,
+      mainMax,
+      themeOverlapsBrand,
+      themeOverlapsStatus,
+      hasFloatingStack,
+      pathname: location.pathname,
     }
   }, criticalIds)
 
@@ -273,6 +309,16 @@ async function main() {
     if (popup.probe.hasGrain) fail('Popup still has grain ::before', popup.probe)
     if (popup.probe.paintErrors.length) fail('Popup paint errors', popup.probe.paintErrors)
     if (popup.pageErrors.length) fail('Popup uncaught exceptions', popup.pageErrors)
+    if (popup.probe.rootWidth < 440) {
+      fail('Popup root width too narrow (want ≥440px)', popup.probe.rootWidth)
+    }
+    if (popup.probe.themeOverlapsBrand || popup.probe.themeOverlapsStatus) {
+      fail('Popup theme toggle overlaps brand/status', {
+        themeOverlapsBrand: popup.probe.themeOverlapsBrand,
+        themeOverlapsStatus: popup.probe.themeOverlapsStatus,
+        rootWidth: popup.probe.rootWidth,
+      })
+    }
     // Filter noisy extension chrome errors that aren't our null DOM bugs
     const realConsole = popup.consoleErrors.filter(
       (line) =>
@@ -291,6 +337,12 @@ async function main() {
     if (dash.probe.hasGrain) fail('Dashboard still has grain ::before', dash.probe)
     if (dash.probe.paintErrors.length) fail('Dashboard paint errors', dash.probe.paintErrors)
     if (dash.pageErrors.length) fail('Dashboard uncaught exceptions', dash.pageErrors)
+    if (dash.probe.hasFloatingStack) {
+      fail('Dashboard still has floating hero stack collage', dash.probe)
+    }
+    if (!/11\d{2}px/.test(dash.probe.mainMax || '')) {
+      fail('Dashboard main max-width should be ~1100px', dash.probe.mainMax)
+    }
     const realDashConsole = dash.consoleErrors.filter(
       (line) =>
         !/favicon/i.test(line) &&

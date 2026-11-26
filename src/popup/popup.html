@@ -11,30 +11,30 @@
   </head>
   <body class="atmosphere popup-body">
     <header class="popup-header">
-      <div class="brand-lockup">
-        <span class="brand-mark" aria-hidden="true">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <rect x="3" y="4" width="7" height="16" rx="2" fill="#0f766e" />
-            <rect x="12" y="4" width="9" height="7" rx="2" fill="#14b8a6" />
-            <rect x="12" y="13" width="9" height="7" rx="2" fill="#ea580c" />
-          </svg>
-        </span>
-        <div>
+      <div class="popup-header-row">
+        <div class="brand-lockup">
+          <span class="brand-mark" aria-hidden="true">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="4" width="7" height="16" rx="2" fill="#0f766e" />
+              <rect x="12" y="4" width="9" height="7" rx="2" fill="#14b8a6" />
+              <rect x="12" y="13" width="9" height="7" rx="2" fill="#ea580c" />
+            </svg>
+          </span>
           <h1>Tab Organizer</h1>
-          <p id="status" role="status">Organizer is off.</p>
+        </div>
+        <div class="popup-header-aside">
+          <div class="theme-toggle compact" role="group" aria-label="Color theme">
+            <button type="button" data-theme="light" aria-pressed="false">Light</button>
+            <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+            <button type="button" data-theme="system" aria-pressed="true">Sys</button>
+          </div>
+          <span id="ollama-pill" class="pill ollama-pill" hidden title="">
+            <span class="dot" aria-hidden="true"></span>
+            <span id="ollama-pill-label"></span>
+          </span>
         </div>
       </div>
-      <div class="popup-header-aside">
-        <div class="theme-toggle compact" role="group" aria-label="Color theme">
-          <button type="button" data-theme="light" aria-pressed="false">Light</button>
-          <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
-          <button type="button" data-theme="system" aria-pressed="true">Sys</button>
-        </div>
-        <span id="ollama-pill" class="pill ollama-pill" hidden title="">
-          <span class="dot" aria-hidden="true"></span>
-          <span id="ollama-pill-label"></span>
-        </span>
-      </div>
+      <p id="status" role="status">Organizer is off.</p>
     </header>
 
     <section class="organize" aria-label="Organize this window">

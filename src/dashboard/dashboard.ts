@@ -1,6 +1,6 @@
 import type { ActivityActor } from '../domain/activity-log.js'
 import type { ChromeColor, CompiledRule } from '../domain/types.js'
-import { TAB_GROUP_COLOR_HEX, type TabGroupView } from '../domain/tab-groups.js'
+import type { TabGroupView } from '../domain/tab-groups.js'
 import type { LocalModel } from '../ollama.js'
 import type {
   ActivityLogResult,
@@ -61,7 +61,6 @@ const snapModel = document.querySelector<HTMLElement>('#snap-model')!
 const healthConnected = document.querySelector<HTMLElement>('#health-connected')!
 const healthModels = document.querySelector<HTMLElement>('#health-models')!
 const healthWarm = document.querySelector<HTMLElement>('#health-warm')!
-const heroVisual = document.querySelector<HTMLElement>('#hero-visual')!
 const versionLabel = document.querySelector<HTMLElement>('#version-label')
 
 const RETITLE_LABEL = 'Rename all groups with AI'
@@ -209,21 +208,6 @@ function paintSnapshot(): void {
   }
 }
 
-function paintHeroVisual(): void {
-  heroVisual.replaceChildren()
-  const stack = groups.slice(0, 4)
-  const classes = ['stack-a', 'stack-b', 'stack-c', 'stack-d']
-  stack.forEach((group, index) => {
-    const card = document.createElement('div')
-    card.className = `stack-card ${classes[index]!}`
-    const sw = document.createElement('span')
-    sw.className = 'sw'
-    sw.style.setProperty('--c', TAB_GROUP_COLOR_HEX[group.color])
-    card.append(sw, document.createTextNode(`${group.title || 'Untitled'} · ${group.tabCount}`))
-    heroVisual.append(card)
-  })
-}
-
 function closeOverlays(): void {
   groupUi = { ...groupUi, openPickerId: null, openMenuId: null }
 }
@@ -347,7 +331,6 @@ function renderGroups(): void {
     renderGroupList(groupsList, groups, 'manage', groupUi, groupHandlers, renamedFlashIds)
   }
   paintSnapshot()
-  paintHeroVisual()
 }
 
 function syncRetitleControls(): void {

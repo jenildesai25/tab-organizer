@@ -1,12 +1,21 @@
-/* Chrome MV3 popup shell — ~400px utility surface */
+/* Chrome MV3 popup shell — ~480px utility surface */
+
+html {
+  width: 480px;
+}
+
+html,
+body.popup-body {
+  width: 480px;
+  max-width: 100vw;
+  box-sizing: border-box;
+}
 
 .popup-body {
-  width: 400px;
-  max-width: 100vw;
   min-height: 520px;
   max-height: 600px;
   margin: 0;
-  padding: 14px 14px 12px;
+  padding: 16px 18px 14px;
   overflow: auto;
   background:
     radial-gradient(420px 220px at 0% -10%, color-mix(in oklab, var(--glow-teal) 50%, transparent), transparent 60%),
@@ -16,17 +25,29 @@
 
 .popup-header {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+}
+
+.popup-header-row {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  min-width: 0;
 }
 
 .popup-header-aside {
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   flex: 0 0 auto;
+  position: relative;
+  z-index: 1;
 }
 
 .brand-lockup {
@@ -34,6 +55,7 @@
   gap: 10px;
   align-items: center;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .brand-mark {
@@ -55,12 +77,15 @@
   font-weight: 700;
   letter-spacing: -0.015em;
   line-height: 1.15;
+  white-space: nowrap;
 }
 
 #status {
-  margin: 3px 0 0;
+  margin: 0;
+  padding-inline-start: 44px;
   color: var(--ink-soft);
   font-size: 12px;
+  line-height: 1.35;
 }
 
 .organize {
@@ -173,7 +198,12 @@
 }
 
 /* Review frame when opened standalone in a wide browser */
-@media (min-width: 520px) {
+@media (min-width: 560px) {
+  html,
+  body.popup-body {
+    width: 480px;
+  }
+
   body.popup-body {
     margin: 32px auto;
     border: 1px solid color-mix(in oklab, var(--teal) 18%, var(--line));

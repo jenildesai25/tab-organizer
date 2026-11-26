@@ -13,42 +13,43 @@
     <a class="skip-link" href="#main">Skip to content</a>
 
     <header class="hero" aria-label="Tab Organizer">
-      <div class="hero-inner">
-        <div class="hero-top">
-          <p class="hero-kicker">Chrome · local-first · MV3</p>
-          <div class="theme-toggle" role="group" aria-label="Color theme">
-            <button type="button" data-theme="light" aria-pressed="false">Light</button>
-            <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
-            <button type="button" data-theme="system" aria-pressed="true">System</button>
-          </div>
+      <div class="hero-top">
+        <p class="hero-kicker">Chrome · local-first · MV3</p>
+        <div class="theme-toggle" role="group" aria-label="Color theme">
+          <button type="button" data-theme="light" aria-pressed="false">Light</button>
+          <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+          <button type="button" data-theme="system" aria-pressed="true">System</button>
         </div>
-        <div class="hero-brand-row">
-          <span class="brand-mark-inline" aria-hidden="true">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <rect x="3" y="4" width="7" height="16" rx="2" fill="#0f766e" />
-              <rect x="12" y="4" width="9" height="7" rx="2" fill="#14b8a6" />
-              <rect x="12" y="13" width="9" height="7" rx="2" fill="#ea580c" />
-            </svg>
-          </span>
-          <h1 class="hero-brand">Tab Organizer</h1>
-        </div>
-        <p class="hero-lede">
-          File tabs into native Chrome groups — with plain-language rules and an optional local Ollama model.
-        </p>
-        <div class="hero-actions">
-          <button id="sweep" class="btn btn-primary" type="button">Organize this window</button>
-        </div>
-        <div id="progress-panel" class="progress-wrap hero-progress" hidden>
-          <div class="progress-meta">
-            <span id="progress-label">Filing tabs…</span>
-            <span id="progress-value">…</span>
-          </div>
-          <label class="sr-only" for="organize-progress">Organize progress</label>
-          <progress id="organize-progress" class="organize-progress" max="100"></progress>
-        </div>
-        <p id="result" class="inline-note hero-result" role="status" hidden></p>
       </div>
-      <div id="hero-visual" class="hero-visual" aria-hidden="true"></div>
+      <div class="hero-main">
+        <div class="hero-copy">
+          <div class="hero-brand-row">
+            <span class="brand-mark-inline" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="4" width="7" height="16" rx="2" fill="#0f766e" />
+                <rect x="12" y="4" width="9" height="7" rx="2" fill="#14b8a6" />
+                <rect x="12" y="13" width="9" height="7" rx="2" fill="#ea580c" />
+              </svg>
+            </span>
+            <h1 class="hero-brand">Tab Organizer</h1>
+          </div>
+          <p class="hero-lede">
+            File tabs into native Chrome groups — with plain-language rules and an optional local Ollama model.
+          </p>
+          <div class="hero-actions">
+            <button id="sweep" class="btn btn-primary" type="button">Organize this window</button>
+          </div>
+          <div id="progress-panel" class="progress-wrap hero-progress" hidden>
+            <div class="progress-meta">
+              <span id="progress-label">Filing tabs…</span>
+              <span id="progress-value">…</span>
+            </div>
+            <label class="sr-only" for="organize-progress">Organize progress</label>
+            <progress id="organize-progress" class="organize-progress" max="100"></progress>
+          </div>
+          <p id="result" class="inline-note hero-result" role="status" hidden></p>
+        </div>
+      </div>
     </header>
 
     <main id="main">
