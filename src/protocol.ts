@@ -1,5 +1,6 @@
 import type { ActivityActor, ActivityEntry, ActivityFilter } from './domain/activity-log.js'
 import type { SweepDiag } from './domain/sweep-diag.js'
+import type { CleanupUndoHint } from './domain/cleanup-undo.js'
 import type { ProtectLists } from './domain/tab-cleanup.js'
 import type { TabGroupView } from './domain/tab-groups.js'
 import type { ChromeColor, CompiledRule } from './domain/types.js'
@@ -7,6 +8,7 @@ import type { LocalModel } from './ollama.js'
 
 export type { ActivityActor, ActivityAction, ActivityEntry, ActivityFilter } from './domain/activity-log.js'
 export type { SweepDiag, SweepDiagSample } from './domain/sweep-diag.js'
+export type { CleanupUndoHint } from './domain/cleanup-undo.js'
 export type { ProtectLists } from './domain/tab-cleanup.js'
 export type { TabGroupView } from './domain/tab-groups.js'
 
@@ -49,6 +51,8 @@ export type StateResult = {
     protectedDomain: boolean
     protectedUrl: boolean
   } | null
+  /** Present while the last clean-up can still be undone. */
+  cleanupUndo?: CleanupUndoHint | null
 }
 
 export type CleanupPreviewResult =
@@ -72,7 +76,12 @@ export type CleanupRunResult =
       closed: number
       skipped: number
       summary: string
+      cleanupUndo?: CleanupUndoHint | null
     }
+  | { ok: false; message: string }
+
+export type CleanupUndoResult =
+  | { ok: true; restored: number; summary: string }
   | { ok: false; message: string }
 
 export type ProtectUpdateResult =
@@ -172,3 +181,4 @@ export type ToBackground =
       confirm?: boolean
       tabIds?: number[]
     }
+  | { type: 'undo-cleanup' }

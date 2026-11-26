@@ -208,6 +208,18 @@ describe('formatActivityLine', () => {
     ).toContain('You closed 1 old tab (unused for 7 days)')
   })
 
+  it('formats tab.reopen in plain English', () => {
+    expect(
+      formatActivityLine(
+        entry({
+          actor: 'user',
+          action: 'tab.reopen',
+          tabCount: 2,
+        }),
+      ),
+    ).toContain('You reopened 2 tabs from the last clean-up')
+  })
+
   it('formats organize file, user rename, and AI skip lines in plain English', () => {
     expect(
       formatActivityLine(

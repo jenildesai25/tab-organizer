@@ -38,6 +38,11 @@ import { marksSticky } from './domain/stickiness.js'
 import { describeSweep, sweepClaimsNothing } from './domain/summary.js'
 import { isChromeColor, tabGroupViewFromChrome, tabGroupViewsFromChrome } from './domain/tab-groups.js'
 import {
+  buildCleanupUndoSnapshot,
+  cleanupUndoHint,
+  formatCleanupUndoSummary,
+} from './domain/cleanup-undo.js'
+import {
   CLEANUP_ALARM_NAME,
   CLEANUP_ALARM_PERIOD_MINUTES,
   clampCleanupAgeDays,
@@ -57,6 +62,7 @@ import type {
   ActivityLogResult,
   CleanupPreviewResult,
   CleanupRunResult,
+  CleanupUndoResult,
   ClearActivityResult,
   ListGroupsResult,
   ModelsResult,
@@ -75,11 +81,14 @@ import type {
 import {
   appendActivity,
   clearActivityLog,
+  clearCleanupUndo,
   loadActivityLog,
+  loadCleanupUndo,
   forgetHandRenamedGroup,
   loadSettings,
   rememberHandRenamedGroup,
   restoreHandRenamedGroups,
+  saveCleanupUndo,
   updateSettings,
   type Settings,
 } from './storage.js'
@@ -696,7 +705,11 @@ async function runCleanup(options: {
     }
 
     const ids = targets.map((row) => row.tabId)
+    const groups = await chrome.tabGroups.query({})
+    const snapshot = buildCleanupUndoSnapshot(tabs, groups, ids)
     await chrome.tabs.remove(ids)
+    if (snapshot) await saveCleanupUndo(snapshot)
+    else await clearCleanupUndo()
     const closed = ids.length
     const age = formatCleanupAgeLabel(settings.cleanupAgeDays)
     const actor = options.confirmedByAlarm ? 'system' : 'user'
@@ -711,11 +724,98 @@ async function runCleanup(options: {
       closed === 1
         ? `Closed 1 old tab (unused for ${age}).`
         : `Closed ${closed} old tabs (unused for ${age}).`
-    return { ok: true, closed, skipped: tabs.length - closed, summary }
+    return {
+      ok: true,
+      closed,
+      skipped: tabs.length - closed,
+      summary,
+      cleanupUndo: cleanupUndoHint(snapshot),
+    }
   } catch (error) {
     const text = error instanceof Error && error.message ? error.message : 'Could not clean up tabs.'
     return { ok: false, message: text }
   }
+}
+
+async function resolveUndoWindowId(preferred: number): Promise<number | undefined> {
+  if (Number.isInteger(preferred) && preferred >= 0) {
+    try {
+      const win = await chrome.windows.get(preferred)
+      if (win.id != null && !win.incognito && (win.type === undefined || win.type === 'normal')) {
+        return win.id
+      }
+    } catch {
+      // Fall through.
+    }
+  }
+  try {
+    const focused = await chrome.windows.getLastFocused({ windowTypes: ['normal'] })
+    if (focused.id != null && !focused.incognito) return focused.id
+  } catch {
+    // Fall through.
+  }
+  return undefined
+}
+
+async function undoCleanup(): Promise<CleanupUndoResult> {
+  const snapshot = await loadCleanupUndo()
+  if (!snapshot) return { ok: false, message: 'Nothing to undo — the last clean-up already expired.' }
+
+  const restoredIds: number[] = []
+  const byGroup = new Map<string, { title: string; color: string; tabIds: number[] }>()
+
+  try {
+    for (const tab of snapshot.tabs) {
+      const windowId = await resolveUndoWindowId(tab.windowId)
+      const created = await chrome.tabs.create({
+        url: tab.url,
+        active: false,
+        pinned: tab.pinned,
+        ...(windowId != null ? { windowId } : {}),
+      })
+      if (created.id == null) continue
+      restoredIds.push(created.id)
+      if (!tab.groupTitle) continue
+      const key = `${tab.groupTitle.toLowerCase()}::${tab.groupColor}`
+      const bucket = byGroup.get(key) ?? { title: tab.groupTitle, color: tab.groupColor, tabIds: [] }
+      bucket.tabIds.push(created.id)
+      byGroup.set(key, bucket)
+    }
+
+    for (const bucket of byGroup.values()) {
+      if (bucket.tabIds.length === 0) continue
+      try {
+        const groupId = await chrome.tabs.group({ tabIds: undoTabIdList(bucket.tabIds) })
+        const update: chrome.tabGroups.UpdateProperties = { title: bucket.title }
+        if (isChromeColor(bucket.color)) update.color = bucket.color
+        await chrome.tabGroups.update(groupId, update)
+      } catch {
+        // Grouping is best-effort after a reopen.
+      }
+    }
+
+    await clearCleanupUndo()
+    await recordActivity({
+      actor: 'user',
+      action: 'tab.reopen',
+      tabCount: restoredIds.length,
+      reason: 'undo clean-up',
+    })
+    return {
+      ok: true,
+      restored: restoredIds.length,
+      summary: formatCleanupUndoSummary(restoredIds.length),
+    }
+  } catch (error) {
+    const text = error instanceof Error && error.message ? error.message : 'Could not undo clean-up.'
+    return { ok: false, message: text }
+  }
+}
+
+function undoTabIdList(ids: readonly number[]): [number, ...number[]] {
+  const [first, ...rest] = ids
+  if (first === undefined) throw new Error('No tabs to group')
+  return [first, ...rest]
 }
 
 async function saveProtect(
@@ -763,11 +863,13 @@ async function currentState(): Promise<StateResult> {
   const settings = await loadSettings()
   organizerOn = settings.organizerOn
   llmOn = settings.llmOn
+  const undo = await loadCleanupUndo()
   return {
     ...settings,
     status: statusLine(settings),
     retitle: retitleProgress,
     activeTab: await activeTabSnapshot(),
+    cleanupUndo: cleanupUndoHint(undo),
   }
 }
 
@@ -1036,6 +1138,7 @@ async function handle(message: ToBackground): Promise<unknown> {
       tabIds: message.tabIds,
     })
   }
+  if (message.type === 'undo-cleanup') return undoCleanup()
   return { ok: false, message: 'Unknown message.' }
 }
 
