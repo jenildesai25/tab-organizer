@@ -151,8 +151,16 @@ body.popup-body {
 }
 
 .groups-section,
+.protect-section,
 .rename-section {
   margin-top: 10px;
+}
+
+.protect-section .section-lede {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
 }
 
 .groups-section .section-head {

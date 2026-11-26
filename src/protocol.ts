@@ -1,11 +1,13 @@
 import type { ActivityActor, ActivityEntry, ActivityFilter } from './domain/activity-log.js'
 import type { SweepDiag } from './domain/sweep-diag.js'
+import type { ProtectLists } from './domain/tab-cleanup.js'
 import type { TabGroupView } from './domain/tab-groups.js'
 import type { ChromeColor, CompiledRule } from './domain/types.js'
 import type { LocalModel } from './ollama.js'
 
 export type { ActivityActor, ActivityAction, ActivityEntry, ActivityFilter } from './domain/activity-log.js'
 export type { SweepDiag, SweepDiagSample } from './domain/sweep-diag.js'
+export type { ProtectLists } from './domain/tab-cleanup.js'
 export type { TabGroupView } from './domain/tab-groups.js'
 
 export type PreviewResult =
@@ -32,10 +34,46 @@ export type StateResult = {
   llmOn: boolean
   model: string
   rules: CompiledRule[]
+  cleanupOn: boolean
+  cleanupAgeDays: number
+  protect: ProtectLists
   status: string
   /** Present while a retitle-groups job is running. */
   retitle?: RetitleProgress | null
+  /** Active tab in the focused window — for “protect this site / page” controls. */
+  activeTab?: {
+    id: number
+    title: string
+    siteKey: string
+    urlPattern: string
+    protectedDomain: boolean
+    protectedUrl: boolean
+  } | null
 }
+
+export type CleanupPreviewResult =
+  | {
+      ok: true
+      count: number
+      ageDays: number
+      scope: 'window' | 'all'
+      sampleSiteKeys: string[]
+      summary: string
+    }
+  | { ok: false; message: string }
+
+export type CleanupRunResult =
+  | {
+      ok: true
+      closed: number
+      skipped: number
+      summary: string
+    }
+  | { ok: false; message: string }
+
+export type ProtectUpdateResult =
+  | { ok: true; protect: ProtectLists; summary: string }
+  | { ok: false; message: string }
 
 export type ModelsResult = {
   ok: boolean
@@ -108,3 +146,25 @@ export type ToBackground =
       filter?: ActivityFilter
     }
   | { type: 'clear-activity' }
+  | { type: 'set-cleanup'; on: boolean }
+  | { type: 'set-cleanup-age'; days: number }
+  | { type: 'set-protect-domains'; domains: string[] }
+  | { type: 'protect-group'; groupId: number; protect: boolean }
+  | { type: 'protect-domain'; domain: string; protect: boolean }
+  | { type: 'protect-url'; url: string; protect: boolean }
+  | { type: 'remove-protect-domain'; domain: string }
+  | { type: 'remove-protect-group'; groupId: number }
+  | { type: 'remove-protect-url'; url: string }
+  /** Dry-run count for confirmation UI. Manual defaults to this window. */
+  | { type: 'preview-cleanup'; windowId?: number; scope?: 'window' | 'all' }
+  /**
+   * Close old tabs. Manual calls must pass `confirm: true` after preview.
+   * Auto alarm uses `confirmedByAlarm: true` instead.
+   */
+  | {
+      type: 'run-cleanup'
+      windowId?: number
+      scope?: 'window' | 'all'
+      confirm?: boolean
+      confirmedByAlarm?: boolean
+    }

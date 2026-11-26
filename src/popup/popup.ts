@@ -2,6 +2,7 @@ import type { LocalModel } from '../ollama.js'
 import type {
   ListGroupsResult,
   ModelsResult,
+  ProtectUpdateResult,
   RetitleGroupsResult,
   StateResult,
   ToBackground,
@@ -25,6 +26,9 @@ const resultLine = document.querySelector<HTMLParagraphElement>('#result')!
 const status = document.querySelector<HTMLParagraphElement>('#status')!
 const openRules = document.querySelector<HTMLButtonElement>('#open-rules')!
 const openSettings = document.querySelector<HTMLButtonElement>('#open-settings')!
+const openCleanup = document.querySelector<HTMLButtonElement>('#open-cleanup')!
+const protectSite = document.querySelector<HTMLButtonElement>('#protect-site')!
+const protectNote = document.querySelector<HTMLElement>('#protect-note')!
 const manageGroups = document.querySelector<HTMLButtonElement>('#manage-groups')!
 const groupsSummary = document.querySelector<HTMLParagraphElement>('#groups-summary')!
 const groupsError = document.querySelector<HTMLParagraphElement>('#groups-error')!
@@ -59,6 +63,11 @@ function showModelStatus(text: string): void {
 function showGroupsError(text: string): void {
   groupsError.textContent = text
   groupsError.hidden = text === ''
+}
+
+function showProtectNote(text: string): void {
+  protectNote.textContent = text
+  protectNote.hidden = text === ''
 }
 
 function optionLabel(model: LocalModel): string {
@@ -346,8 +355,39 @@ openRules.addEventListener('click', () => {
 openSettings.addEventListener('click', () => {
   openDashboardPage('#settings')
 })
+openCleanup.addEventListener('click', () => {
+  openDashboardPage('#cleanup-heading')
+})
 manageGroups.addEventListener('click', () => {
   openDashboardPage('#groups')
+})
+
+protectSite.addEventListener('click', () => {
+  void (async () => {
+    protectSite.disabled = true
+    try {
+      const state = await send<StateResult>({ type: 'get-state' })
+      const site = state.activeTab?.siteKey
+      if (!site) {
+        showProtectNote('Open an http(s) tab first.')
+        return
+      }
+      if (state.activeTab?.protectedDomain) {
+        showProtectNote(`${site} is already protected.`)
+        return
+      }
+      const result = await send<ProtectUpdateResult>({
+        type: 'protect-domain',
+        domain: site,
+        protect: true,
+      })
+      showProtectNote(result.ok ? result.summary : result.message)
+    } catch {
+      showProtectNote('Could not protect this site.')
+    } finally {
+      protectSite.disabled = false
+    }
+  })()
 })
 
 void bindThemeToggle()

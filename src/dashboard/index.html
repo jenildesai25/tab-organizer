@@ -201,9 +201,20 @@
         </form>
       </dialog>
 
+      <dialog id="cleanup-confirm-dialog" class="confirm-dialog" aria-labelledby="cleanup-confirm-title">
+        <form method="dialog">
+          <h3 id="cleanup-confirm-title">Close old tabs?</h3>
+          <p id="cleanup-confirm-body">This closes tabs you haven’t used recently. Pinned, active, and protected tabs stay open.</p>
+          <div class="confirm-actions">
+            <button type="submit" value="cancel" class="btn btn-ghost" autofocus>Keep tabs</button>
+            <button type="submit" value="confirm" class="btn btn-primary">Close tabs</button>
+          </div>
+        </form>
+      </dialog>
+
       <section id="settings" class="panel" aria-labelledby="settings-heading">
         <h2 id="settings-heading">Settings</h2>
-        <p class="lede">Window-scoped auto-grouping and appearance.</p>
+        <p class="lede">Auto-grouping, clean up unused tabs, and appearance.</p>
         <label class="switch" for="organizer">
           <span class="switch-copy">
             <span class="switch-title">Auto-group new tabs</span>
@@ -216,6 +227,64 @@
         </label>
         <p class="settings-note">
           Status: <span id="status">Auto-group is off.</span>
+        </p>
+
+        <h3 class="settings-subhead" id="cleanup-heading">Clean up old tabs</h3>
+        <p class="lede">
+          Close tabs you haven’t used in a while. Pinned tabs, the tab you’re on, browser pages, and anything you Protect stay open.
+          <strong>Clean up now</strong> looks at this window; automatic clean-up checks all normal windows.
+        </p>
+        <label class="switch" for="cleanup-on">
+          <span class="switch-copy">
+            <span class="switch-title">Clean up old tabs automatically</span>
+            <span class="switch-hint">Hourly check with Chrome alarms (default off)</span>
+          </span>
+          <span class="switch-control">
+            <input id="cleanup-on" type="checkbox" role="switch" />
+            <span class="switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
+        <fieldset class="cleanup-age" aria-labelledby="cleanup-age-legend">
+          <legend id="cleanup-age-legend">Close tabs I haven’t used in</legend>
+          <div class="cleanup-age-presets" role="group" aria-label="Age presets">
+            <button type="button" class="cleanup-age-chip" data-days="7">7 days</button>
+            <button type="button" class="cleanup-age-chip" data-days="30">30 days</button>
+            <button type="button" class="cleanup-age-chip" data-days="90">90 days</button>
+          </div>
+          <label class="field cleanup-age-custom" for="cleanup-age-days">
+            <span>Custom days</span>
+            <input id="cleanup-age-days" type="number" min="1" max="365" step="1" value="30" />
+          </label>
+        </fieldset>
+        <div class="buttons">
+          <button id="cleanup-now" type="button" class="btn btn-ghost">Clean up now</button>
+        </div>
+        <p id="cleanup-note" class="inline-note" role="status" hidden></p>
+
+        <h3 class="settings-subhead" id="protect-heading">Protect</h3>
+        <p class="lede">
+          Don’t auto-close these sites, groups, or pages. Add a site below, protect a group from the Groups ⋯ menu, or protect the page you’re on from the popup.
+        </p>
+        <label class="field" for="protect-domains">
+          <span>Sites to protect</span>
+          <textarea
+            id="protect-domains"
+            rows="3"
+            placeholder="github.com&#10;mail.google.com"
+          ></textarea>
+        </label>
+        <div class="buttons">
+          <button id="save-protect-domains" type="button" class="btn btn-ghost">Save sites</button>
+          <button id="protect-active-site" type="button" class="btn btn-ghost">Protect this tab’s site</button>
+          <button id="protect-active-page" type="button" class="btn btn-ghost">Protect this page</button>
+        </div>
+        <p id="protect-note" class="inline-note" role="status" hidden></p>
+        <p id="protect-empty" class="empty" hidden>
+          Nothing protected yet. Add a site above, open a group’s ⋯ menu and choose “Never auto-clean this group”, or protect the page you’re looking at.
+        </p>
+        <ul id="protect-list" class="protect-list" aria-label="Protected items"></ul>
+        <p class="settings-note">
+          Page protection saves the address (not the temporary tab id), so it still works after Chrome restarts. Group protection ends if you ungroup or the group disappears.
         </p>
       </section>
     </main>

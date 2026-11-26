@@ -21,6 +21,8 @@ export type GroupListHandlers = {
   onCancelUngroup: () => void
   onTogglePicker: (groupId: number | null) => void
   onToggleMenu: (groupId: number | null) => void
+  /** Optional: Protect / unprotect this group from auto-clean. */
+  onToggleCleanupProtect?: (group: TabGroupView) => void
 }
 
 function tabLabel(count: number): string {
@@ -89,6 +91,25 @@ function paintActions(
     menu.id = menuId
     menu.className = 'row-menu'
     menu.setAttribute('role', 'menu')
+
+    if (handlers.onToggleCleanupProtect) {
+      const protect = document.createElement('button')
+      protect.type = 'button'
+      protect.className = 'row-menu-item'
+      protect.setAttribute('role', 'menuitem')
+      protect.textContent = group.cleanupProtected
+        ? 'Allow auto-clean for this group'
+        : 'Never auto-clean this group'
+      protect.title = group.cleanupProtected
+        ? 'Old tabs in this group may be closed when Clean up old tabs runs'
+        : 'Keep tabs in this group when Clean up old tabs runs'
+      protect.addEventListener('click', (event) => {
+        event.stopPropagation()
+        handlers.onToggleCleanupProtect?.(group)
+      })
+      menu.append(protect)
+    }
+
     const ungroup = document.createElement('button')
     ungroup.type = 'button'
     ungroup.className = 'row-menu-item danger'
