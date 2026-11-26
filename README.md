@@ -12,7 +12,7 @@ Local source files: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer
 
 ## Features
 
-- **Organize** — One click files every tab in the current window into Chrome tab groups. A quiet **All windows** control runs the same sweep across every normal window when you need it.
+- **Organize** — One click files every tab in the current window into Chrome tab groups.
 - **Auto-group new tabs** — When you open a tab, Tab Organizer waits for the page to settle, then creates a group or joins an existing one, and reveals it when useful.
 - **Quiet hours** — Optional daily window (default 11pm–7am local) that pauses auto-group. **Organize** still runs.
 - **Don’t touch this window** — Temporarily skip auto-group and clean-up in the current window (until Chrome restarts).
@@ -59,7 +59,6 @@ Open the extension popup from the toolbar.
 | Control | What it does |
 | --- | --- |
 | **Organize** | Sweep the current window and file tabs into groups |
-| **All windows** | Same sweep for every normal window (quiet secondary control) |
 | **Auto-group new tabs** | When you open a tab, put it in a group (this window only) |
 | **Local model** | When on, ask Ollama for ambiguous rules/tabs |
 | **Model** dropdown | Pick an installed Ollama model |

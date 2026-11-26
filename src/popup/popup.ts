@@ -11,7 +11,7 @@ import type {
 import { bindModelPicker } from '../ui/model-picker.js'
 import { paintOllamaStatus } from '../ui/ollama-status.js'
 import { paintRetitleResults } from '../ui/retitle-results.js'
-import { bindSweep, bindSweepAll, browserWindow } from '../ui/sweep.js'
+import { bindSweep, browserWindow } from '../ui/sweep.js'
 import { bindThemeToggle } from '../ui/theme.js'
 
 const organizer = document.querySelector<HTMLInputElement>('#organizer')!
@@ -23,7 +23,6 @@ const testOllama = document.querySelector<HTMLButtonElement>('#test-ollama')!
 const retitleButton = document.querySelector<HTMLButtonElement>('#retitle-groups')!
 const modelStatus = document.querySelector<HTMLElement>('#model-status')!
 const sweep = document.querySelector<HTMLButtonElement>('#sweep')!
-const sweepAll = document.querySelector<HTMLButtonElement>('#sweep-all')!
 const resultLine = document.querySelector<HTMLParagraphElement>('#result')!
 const status = document.querySelector<HTMLParagraphElement>('#status')!
 const openRules = document.querySelector<HTMLButtonElement>('#open-rules')!
@@ -351,22 +350,6 @@ retitleButton.addEventListener('click', () => {
 
 bindSweep(
   sweep,
-  resultLine,
-  renderState,
-  (response) => {
-    if (response.ok) clearRetitleResults()
-    void loadGroups()
-  },
-  {
-    panel: progressPanel,
-    bar: progressBar,
-    label: progressLabel,
-    value: progressValue,
-  },
-)
-
-bindSweepAll(
-  sweepAll,
   resultLine,
   renderState,
   (response) => {
