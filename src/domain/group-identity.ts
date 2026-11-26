@@ -21,6 +21,8 @@ export type BoundGroup = {
 }
 
 const MAX_PATTERNS = 40
+const MATCH_OVERLAP = 0.25
+const STRONG_OVERLAP = 0.8
 
 export function groupFingerprint(input: {
   title: string
@@ -63,6 +65,55 @@ export function parseGroupFingerprints(raw: unknown): GroupFingerprint[] {
   return out
 }
 
+function refreshedFingerprint(
+  fingerprint: GroupFingerprint,
+  group: LiveGroupSnapshot,
+  overlap: number,
+): GroupFingerprint {
+  if (overlap < STRONG_OVERLAP || group.patterns.length === 0) return fingerprint
+  return (
+    groupFingerprint({
+      title: group.title || fingerprint.title,
+      color: group.color || fingerprint.color,
+      urls: group.patterns,
+    }) ?? fingerprint
+  )
+}
+
+/**
+ * Drop the binding for one group, including a fingerprint rebind could not
+ * attach to an id yet. A shared title with another live group is kept unless
+ * the pages themselves match this group.
+ */
+export function omitGroupBinding(
+  bound: readonly BoundGroup[],
+  groupId: number,
+  snapshot: LiveGroupSnapshot | undefined,
+  live: readonly LiveGroupSnapshot[],
+): BoundGroup[] {
+  const titleShared = snapshot
+    ? live.some((group) => group.id !== groupId && titlesMatch(group.title, snapshot.title))
+    : false
+  return bound.filter((row) => !bindingTargetsGroup(row, groupId, snapshot, titleShared))
+}
+
+function bindingTargetsGroup(
+  row: BoundGroup,
+  groupId: number,
+  snapshot: LiveGroupSnapshot | undefined,
+  titleShared: boolean,
+): boolean {
+  if (row.id === groupId) return true
+  if (row.id != null || !snapshot) return false
+  const overlap = jaccard(row.fingerprint.patterns, snapshot.patterns)
+  const strongUrl =
+    row.fingerprint.patterns.length > 0 && snapshot.patterns.length > 0 && overlap >= STRONG_OVERLAP
+  if (strongUrl) return true
+  if (titleShared || !titlesMatch(row.fingerprint.title, snapshot.title)) return false
+  if (row.fingerprint.patterns.length === 0 || snapshot.patterns.length === 0) return true
+  return overlap >= MATCH_OVERLAP
+}
+
 function jaccard(left: readonly string[], right: readonly string[]): number {
   if (left.length === 0 && right.length === 0) return 1
   if (left.length === 0 || right.length === 0) return 0
@@ -97,37 +148,31 @@ export function rebindGroupFingerprints(
       })
       .filter((row) => {
         if (row.colorConflict) return false
-        if (fingerprint.patterns.length > 0 && row.group.patterns.length > 0) return row.overlap >= 0.25
+        if (fingerprint.patterns.length > 0 && row.group.patterns.length > 0) return row.overlap >= MATCH_OVERLAP
         return true
       })
+      .sort((left, right) => right.overlap - left.overlap || left.group.id - right.group.id)
 
     const urlsReady = fingerprint.patterns.length > 0 && scored.some((row) => row.group.patterns.length > 0)
-    if (scored.length > 1 && !urlsReady) {
+    const best = scored[0]
+    const runner = scored[1]
+    const ambiguous = Boolean(
+      best && ((scored.length > 1 && !urlsReady) || (runner && best.overlap === runner.overlap)),
+    )
+    if (ambiguous && best) {
       bound.push({ id: null, fingerprint })
       continue
     }
-
-    scored.sort(
-      (left, right) => right.overlap - left.overlap || left.group.id - right.group.id,
-    )
-    const best = scored[0]
     if (best) {
       used.add(best.group.id)
-      const patterns = best.group.patterns.length > 0 ? best.group.patterns : fingerprint.patterns
-      const refreshed =
-        groupFingerprint({
-          title: best.group.title || fingerprint.title,
-          color: best.group.color || fingerprint.color,
-          urls: patterns,
-        }) ?? fingerprint
-      bound.push({ id: best.group.id, fingerprint: refreshed })
+      bound.push({ id: best.group.id, fingerprint: refreshedFingerprint(fingerprint, best.group, best.overlap) })
       continue
     }
 
     const byUrl = live
       .filter((group) => !used.has(group.id))
       .map((group) => ({ group, overlap: jaccard(fingerprint.patterns, group.patterns) }))
-      .filter((row) => fingerprint.patterns.length > 0 && row.group.patterns.length > 0 && row.overlap >= 0.8)
+      .filter((row) => fingerprint.patterns.length > 0 && row.group.patterns.length > 0 && row.overlap >= STRONG_OVERLAP)
       .sort((left, right) => right.overlap - left.overlap || left.group.id - right.group.id)
     if (byUrl.length === 1) {
       const group = byUrl[0]!.group
@@ -142,7 +187,7 @@ export function rebindGroupFingerprints(
       continue
     }
 
-    if (!anyLiveUrls && fingerprint.patterns.length > 0) {
+    if (byUrl.length > 1 || (!anyLiveUrls && fingerprint.patterns.length > 0)) {
       bound.push({ id: null, fingerprint })
     }
   }

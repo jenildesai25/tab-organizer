@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   boundGroupIds,
   groupFingerprint,
+  omitGroupBinding,
   parseGroupFingerprints,
   rebindGroupFingerprints,
   type LiveGroupSnapshot,
@@ -52,7 +53,26 @@ describe('group fingerprints', () => {
       ],
     )
     expect(boundGroupIds(bound)).toEqual([44])
-    expect(bound[0]?.fingerprint.title).toBe('Work')
+    expect(bound[0]?.fingerprint.patterns).toEqual([
+      'https://github.com/acme/other',
+      'https://github.com/acme/repo',
+    ])
+  })
+
+  it('does not pick a winner when two groups match equally', () => {
+    const saved = groupFingerprint({
+      title: 'Work',
+      urls: ['https://github.com/acme/repo', 'https://example.com/a'],
+    })!
+    const bound = rebindGroupFingerprints(
+      [saved],
+      [
+        live({ id: 2, title: 'Work', patterns: ['https://github.com/acme/repo'] }),
+        live({ id: 1, title: 'Work', patterns: ['https://example.com/a'] }),
+      ],
+    )
+    expect(boundGroupIds(bound)).toEqual([])
+    expect(bound[0]?.fingerprint).toEqual(saved)
   })
 
   it('does not bind one of two same-titled groups before pages have loaded', () => {
@@ -78,5 +98,20 @@ describe('group fingerprints', () => {
       [live({ id: 3, title: 'Mail', patterns: ['https://mail.google.com/mail'] })],
     )
     expect(bound).toEqual([])
+  })
+
+  it('drops an unbound fingerprint when that unique group is unprotected', () => {
+    const saved = groupFingerprint({ title: 'Work', urls: ['https://github.com/acme/repo'] })!
+    const snapshot = live({ id: 8, title: 'Work' })
+    const kept = omitGroupBinding([{ id: null, fingerprint: saved }], 8, snapshot, [snapshot])
+    expect(kept).toEqual([])
+  })
+
+  it('keeps an unbound fingerprint when another live group shares the title', () => {
+    const saved = groupFingerprint({ title: 'Work', urls: ['https://github.com/acme/repo'] })!
+    const removed = live({ id: 8, title: 'Work' })
+    const other = live({ id: 9, title: 'Work' })
+    const kept = omitGroupBinding([{ id: null, fingerprint: saved }], 8, removed, [other])
+    expect(kept.map((row) => row.fingerprint)).toEqual([saved])
   })
 })
