@@ -7,6 +7,7 @@ import type {
   ActivityLogResult,
   CleanupPreviewResult,
   CleanupRunResult,
+  CleanupUndoResult,
   ClearActivityResult,
   ListGroupsResult,
   ModelsResult,
@@ -62,6 +63,7 @@ const cleanupOn = document.querySelector<HTMLInputElement>('#cleanup-on')!
 const cleanupAgeDays = document.querySelector<HTMLInputElement>('#cleanup-age-days')!
 const cleanupAgePresets = document.querySelector<HTMLElement>('.cleanup-age-presets')!
 const cleanupNow = document.querySelector<HTMLButtonElement>('#cleanup-now')!
+const cleanupUndo = document.querySelector<HTMLButtonElement>('#cleanup-undo')!
 const cleanupNote = document.querySelector<HTMLElement>('#cleanup-note')!
 const protectDomains = document.querySelector<HTMLTextAreaElement>('#protect-domains')!
 const saveProtectDomains = document.querySelector<HTMLButtonElement>('#save-protect-domains')!
@@ -371,6 +373,18 @@ function paintCleanupAge(days: number): void {
   }
 }
 
+function paintCleanupUndo(hint: StateResult['cleanupUndo']): void {
+  const live = Boolean(hint && hint.closed > 0 && hint.expiresAt > Date.now())
+  cleanupUndo.hidden = !live
+  cleanupUndo.disabled = !live
+  if (!live || !hint) {
+    cleanupUndo.textContent = 'Undo last clean-up'
+    return
+  }
+  cleanupUndo.textContent =
+    hint.closed === 1 ? 'Undo last clean-up (1 tab)' : `Undo last clean-up (${hint.closed} tabs)`
+}
+
 function paintProtect(protect: StateResult['protect']): void {
   protectDomains.value = protect.domains.join('\n')
   protectList.replaceChildren()
@@ -524,6 +538,7 @@ function renderState(state: StateResult): void {
   organizer.checked = state.organizerOn
   cleanupOn.checked = state.cleanupOn
   paintCleanupAge(state.cleanupAgeDays)
+  paintCleanupUndo(state.cleanupUndo ?? null)
   paintProtect(state.protect)
   selected = state.model
   status.textContent = state.status
@@ -826,12 +841,43 @@ cleanupConfirmDialog.addEventListener('close', () => {
         tabIds: pending.tabIds,
         confirm: true,
       })
-      showCleanupNote(result.ok ? result.summary : result.message)
-      if (result.ok) await loadActivity()
+      if (result.ok) {
+        paintCleanupUndo(result.cleanupUndo ?? null)
+        showCleanupNote(
+          result.cleanupUndo
+            ? `${result.summary} You can undo for a few minutes.`
+            : result.summary,
+        )
+        await loadActivity()
+      } else {
+        showCleanupNote(result.message)
+      }
     } catch {
       showCleanupNote('Could not clean up tabs.')
     } finally {
       cleanupNow.disabled = false
+    }
+  })()
+})
+
+cleanupUndo.addEventListener('click', () => {
+  void (async () => {
+    cleanupUndo.disabled = true
+    showCleanupNote('Reopening tabs…')
+    try {
+      const result = await send<CleanupUndoResult>({ type: 'undo-cleanup' })
+      paintCleanupUndo(null)
+      showCleanupNote(result.ok ? result.summary : result.message)
+      if (result.ok) {
+        await loadActivity()
+        await loadGroups()
+      }
+    } catch {
+      showCleanupNote('Could not undo clean-up.')
+    } finally {
+      const state = await send<StateResult>({ type: 'get-state' }).catch(() => null)
+      paintCleanupUndo(state?.cleanupUndo ?? null)
+      cleanupUndo.disabled = cleanupUndo.hidden
     }
   })()
 })

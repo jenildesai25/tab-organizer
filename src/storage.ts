@@ -20,6 +20,12 @@ import {
   pruneHandRenamedIds,
 } from './domain/hand-renamed.js'
 import {
+  CLEANUP_UNDO_KEY,
+  cleanupUndoIsLive,
+  parseCleanupUndoSnapshot,
+  type CleanupUndoSnapshot,
+} from './domain/cleanup-undo.js'
+import {
   DEFAULT_CLEANUP_AGE_DAYS,
   clampCleanupAgeDays,
   parseProtectLists,
@@ -241,4 +247,35 @@ export async function pruneProtectGroups(liveGroupIds: ReadonlySet<number>): Pro
   const protect = { ...settings.protect, groupIds: pruned }
   await saveSettings({ ...settings, protect })
   return protect
+}
+
+async function undoStore(): Promise<typeof chrome.storage.session | typeof chrome.storage.local> {
+  try {
+    if (chrome.storage.session) return chrome.storage.session
+  } catch {
+    // Fall through to local.
+  }
+  return chrome.storage.local
+}
+
+/** Session-first undo payload so full URLs are not kept in durable settings. */
+export async function loadCleanupUndo(now = Date.now()): Promise<CleanupUndoSnapshot | null> {
+  const store = await undoStore()
+  const stored = await store.get(CLEANUP_UNDO_KEY)
+  const snapshot = parseCleanupUndoSnapshot(stored[CLEANUP_UNDO_KEY])
+  if (!cleanupUndoIsLive(snapshot, now)) {
+    if (snapshot) await clearCleanupUndo()
+    return null
+  }
+  return snapshot
+}
+
+export async function saveCleanupUndo(snapshot: CleanupUndoSnapshot): Promise<void> {
+  const store = await undoStore()
+  await store.set({ [CLEANUP_UNDO_KEY]: snapshot })
+}
+
+export async function clearCleanupUndo(): Promise<void> {
+  const store = await undoStore()
+  await store.remove(CLEANUP_UNDO_KEY)
 }

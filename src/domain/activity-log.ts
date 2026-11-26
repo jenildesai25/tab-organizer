@@ -11,6 +11,7 @@ export type ActivityAction =
   | 'group.ungroup'
   | 'tab.file'
   | 'tab.close'
+  | 'tab.reopen'
   | 'rename.skip'
 
 export type ActivityEntry = {
@@ -43,6 +44,7 @@ const ACTIONS = new Set<ActivityAction>([
   'group.ungroup',
   'tab.file',
   'tab.close',
+  'tab.reopen',
   'rename.skip',
 ])
 
@@ -241,6 +243,12 @@ export function formatActivityBody(entry: ActivityEntry): string {
       const noun = count === 1 ? '1 old tab' : `${count} old tabs`
       const reason = entry.reason?.trim()
       body = reason ? `${who} closed ${noun} (${reason})` : `${who} closed ${noun}`
+      break
+    }
+    case 'tab.reopen': {
+      const count = entry.tabCount ?? 1
+      const noun = count === 1 ? '1 tab' : `${count} tabs`
+      body = `${who} reopened ${noun} from the last clean-up`
       break
     }
     case 'rename.skip': {
