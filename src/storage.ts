@@ -11,6 +11,11 @@ import {
   parseHandRenamedIds,
   pruneHandRenamedIds,
 } from './domain/hand-renamed.js'
+import {
+  DEFAULT_IDLE_MINUTES,
+  clampIdleMinutes,
+  normalizeNeverDomains,
+} from './domain/tab-suspend.js'
 import type { CompiledRule } from './domain/types.js'
 
 export type Settings = {
@@ -18,6 +23,12 @@ export type Settings = {
   llmOn: boolean
   model: string
   rules: CompiledRule[]
+  /** When true, periodically discard idle background http(s) tabs to free RAM. */
+  autoDiscardOn: boolean
+  /** Minutes a tab must stay inactive before auto-discard. */
+  idleMinutes: number
+  /** Registrable domains that must never be auto-discarded. */
+  neverDomains: string[]
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -25,6 +36,9 @@ export const DEFAULT_SETTINGS: Settings = {
   llmOn: false,
   model: '',
   rules: [],
+  autoDiscardOn: false,
+  idleMinutes: DEFAULT_IDLE_MINUTES,
+  neverDomains: [],
 }
 
 export async function loadSettings(): Promise<Settings> {
@@ -34,6 +48,9 @@ export async function loadSettings(): Promise<Settings> {
     llmOn: stored.llmOn === true,
     model: typeof stored.model === 'string' ? stored.model : '',
     rules: Array.isArray(stored.rules) ? (stored.rules as CompiledRule[]) : [],
+    autoDiscardOn: stored.autoDiscardOn === true,
+    idleMinutes: clampIdleMinutes(stored.idleMinutes),
+    neverDomains: normalizeNeverDomains(stored.neverDomains),
   }
 }
 

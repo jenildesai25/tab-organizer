@@ -30,13 +30,25 @@ import { isShortTitle } from './domain/words.js'
 import { marksSticky } from './domain/stickiness.js'
 import { describeSweep, sweepClaimsNothing } from './domain/summary.js'
 import { isChromeColor, tabGroupViewFromChrome, tabGroupViewsFromChrome } from './domain/tab-groups.js'
+import {
+  SUSPEND_ALARM_NAME,
+  SUSPEND_ALARM_PERIOD_MINUTES,
+  clampIdleMinutes,
+  discardEligibility,
+  normalizeNeverDomains,
+  selectDiscardTargets,
+  siteKeyForTab,
+} from './domain/tab-suspend.js'
 import { describeOllamaFailure, listLocalModels, ollamaChat, OLLAMA_DOWN_MESSAGE } from './ollama.js'
 import type {
   ActivityLogResult,
   ClearActivityResult,
+  DiscardSweepResult,
+  DiscardTabResult,
   ListGroupsResult,
   ModelsResult,
   PreviewResult,
+  ReloadTabResult,
   RetitleGroupResult,
   RetitleGroupsResult,
   RetitleProgress,
@@ -484,11 +496,156 @@ async function testOllama(): Promise<TestOllamaResult> {
   }
 }
 
+async function activeTabSnapshot(): Promise<StateResult['activeTab']> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+    if (tab?.id == null) return null
+    return {
+      id: tab.id,
+      discarded: tab.discarded === true,
+      title: (tab.title || '').slice(0, 120),
+      siteKey: siteKeyForTab(tab),
+    }
+  } catch {
+    return null
+  }
+}
+
+async function syncSuspendAlarm(enabled: boolean): Promise<void> {
+  await chrome.alarms.clear(SUSPEND_ALARM_NAME)
+  if (!enabled) return
+  await chrome.alarms.create(SUSPEND_ALARM_NAME, {
+    periodInMinutes: SUSPEND_ALARM_PERIOD_MINUTES,
+  })
+}
+
+async function resolveTabId(tabId?: number): Promise<number | null> {
+  if (typeof tabId === 'number' && Number.isFinite(tabId)) return tabId
+  const active = await activeTabSnapshot()
+  return active?.id ?? null
+}
+
+async function discardOneTab(tabId: number, actor: 'user' | 'system'): Promise<DiscardTabResult> {
+  let tab: chrome.tabs.Tab
+  try {
+    tab = await chrome.tabs.get(tabId)
+  } catch {
+    return { ok: false, message: 'That tab is gone.' }
+  }
+  if (tab.discarded === true) {
+    return {
+      ok: true,
+      tabId,
+      discarded: true,
+      siteKey: siteKeyForTab(tab) || undefined,
+      summary: 'That tab is already unloaded.',
+    }
+  }
+  // Manual discard may target the active tab; auto-sweep never does.
+  if (actor === 'system') {
+    const settings = await loadSettings()
+    const check = discardEligibility(tab, {
+      now: Date.now(),
+      idleMinutes: settings.idleMinutes,
+      neverDomains: settings.neverDomains,
+    })
+    if (!check.ok) {
+      return { ok: false, message: `Skipped (${check.reason ?? 'not eligible'}).` }
+    }
+  } else {
+    if (tab.pinned === true) return { ok: false, message: 'Pinned tabs stay loaded.' }
+    if (tab.audible === true) return { ok: false, message: 'Playing tabs stay loaded.' }
+    if (!isHttpUrl(resolveTabUrl(tab))) {
+      return { ok: false, message: 'Only regular web pages can be unloaded.' }
+    }
+  }
+
+  try {
+    await chrome.tabs.discard(tabId)
+    const siteKey = siteKeyForTab(tab) || undefined
+    await recordActivity({
+      actor,
+      action: 'tab.discard',
+      tabId,
+      siteKey,
+    })
+    return {
+      ok: true,
+      tabId,
+      discarded: true,
+      siteKey,
+      summary: siteKey ? `Freed memory on ${siteKey}.` : 'Freed memory on that tab.',
+    }
+  } catch (error) {
+    const text = error instanceof Error && error.message ? error.message : 'Could not unload that tab.'
+    return { ok: false, message: text }
+  }
+}
+
+async function reloadOneTab(tabId: number): Promise<ReloadTabResult> {
+  let tab: chrome.tabs.Tab
+  try {
+    tab = await chrome.tabs.get(tabId)
+  } catch {
+    return { ok: false, message: 'That tab is gone.' }
+  }
+  try {
+    await chrome.tabs.reload(tabId)
+    const siteKey = siteKeyForTab(tab) || undefined
+    await recordActivity({
+      actor: 'user',
+      action: 'tab.reload',
+      tabId,
+      siteKey,
+    })
+    return {
+      ok: true,
+      tabId,
+      summary: siteKey ? `Reloaded ${siteKey}.` : 'Reloaded that tab.',
+    }
+  } catch (error) {
+    const text = error instanceof Error && error.message ? error.message : 'Could not reload that tab.'
+    return { ok: false, message: text }
+  }
+}
+
+async function runDiscardSweep(): Promise<DiscardSweepResult> {
+  const settings = await loadSettings()
+  if (!settings.autoDiscardOn) {
+    return { ok: true, discarded: 0, skipped: 0, summary: 'Auto free-memory is off.' }
+  }
+  const tabs = await chrome.tabs.query({})
+  const now = Date.now()
+  const targets = selectDiscardTargets(tabs, {
+    now,
+    idleMinutes: settings.idleMinutes,
+    neverDomains: settings.neverDomains,
+  })
+  let discarded = 0
+  for (const tabId of targets) {
+    const result = await discardOneTab(tabId, 'system')
+    if (result.ok && result.discarded) discarded += 1
+  }
+  const skipped = tabs.length - discarded
+  const summary =
+    discarded === 0
+      ? 'No idle tabs to unload.'
+      : discarded === 1
+        ? 'Freed memory on 1 idle tab.'
+        : `Freed memory on ${discarded} idle tabs.`
+  return { ok: true, discarded, skipped, summary }
+}
+
 async function currentState(): Promise<StateResult> {
   const settings = await loadSettings()
   organizerOn = settings.organizerOn
   llmOn = settings.llmOn
-  return { ...settings, status: statusLine(settings), retitle: retitleProgress }
+  return {
+    ...settings,
+    status: statusLine(settings),
+    retitle: retitleProgress,
+    activeTab: await activeTabSnapshot(),
+  }
 }
 
 async function previewRule(sentence: string): Promise<PreviewResult> {
@@ -579,6 +736,34 @@ async function handle(message: ToBackground): Promise<unknown> {
     await saveSettings({ ...settings, model: message.model.trim() })
     return currentState()
   }
+  if (message.type === 'set-auto-discard') {
+    settingsEpoch += 1
+    const settings = await loadSettings()
+    await saveSettings({ ...settings, autoDiscardOn: message.on })
+    await syncSuspendAlarm(message.on)
+    return currentState()
+  }
+  if (message.type === 'set-idle-minutes') {
+    const settings = await loadSettings()
+    await saveSettings({ ...settings, idleMinutes: clampIdleMinutes(message.minutes) })
+    return currentState()
+  }
+  if (message.type === 'set-never-domains') {
+    const settings = await loadSettings()
+    await saveSettings({ ...settings, neverDomains: normalizeNeverDomains(message.domains) })
+    return currentState()
+  }
+  if (message.type === 'discard-tab') {
+    const tabId = await resolveTabId(message.tabId)
+    if (tabId == null) return { ok: false, message: 'No tab to unload.' } satisfies DiscardTabResult
+    return discardOneTab(tabId, 'user')
+  }
+  if (message.type === 'reload-tab') {
+    const tabId = await resolveTabId(message.tabId)
+    if (tabId == null) return { ok: false, message: 'No tab to reload.' } satisfies ReloadTabResult
+    return reloadOneTab(tabId)
+  }
+  if (message.type === 'run-discard-sweep') return runDiscardSweep()
   if (message.type === 'preview-rule') return previewRule(message.sentence)
   if (message.type === 'save-rule') return saveRule(message.sentence, message.domains, message.title)
   if (message.type === 'delete-rule') {
@@ -1179,7 +1364,7 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return
-  if (changes.organizerOn || changes.llmOn) settingsEpoch += 1
+  if (changes.organizerOn || changes.llmOn || changes.autoDiscardOn) settingsEpoch += 1
   if (changes.organizerOn) organizerOn = changes.organizerOn.newValue === true
   if (changes.llmOn) {
     llmOn = changes.llmOn.newValue === true
@@ -1188,6 +1373,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
       advisorPending.clear()
     }
   }
+  if (changes.autoDiscardOn) {
+    void syncSuspendAlarm(changes.autoDiscardOn.newValue === true)
+  }
+})
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== SUSPEND_ALARM_NAME) return
+  void runDiscardSweep().catch(() => {})
 })
 
 async function boot(): Promise<void> {
@@ -1197,6 +1390,7 @@ async function boot(): Promise<void> {
     organizerOn = settings.organizerOn
     llmOn = settings.llmOn
   }
+  await syncSuspendAlarm(settings.autoDiscardOn)
   const groups = await chrome.tabGroups.query({})
   for (const group of groups) {
     if (!groupTitles.has(group.id)) groupTitles.set(group.id, group.title ?? '')
