@@ -27,6 +27,7 @@ Local source files: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer
 - **Activity log** — Plain-language history of organizes, auto-files, AI renames, clean-ups, your edits, and rules. Filter and clear anytime.
 - **Theme** — Light, dark, or match the system.
 - **Backup** — Export or import rules, Protect lists, layouts, and settings as a local JSON file.
+- **First-run tour** — Short dashboard walkthrough: Organize, Protect, optional local model.
 - **Privacy-first** — Feature cards stay local; activity stores site keys / domains, not full URLs. See [Privacy](#privacy).
 
 ## Prerequisites
