@@ -121,10 +121,24 @@
           </span>
         </label>
 
-        <label class="field" for="model">
-          <span>Installed models</span>
-          <select id="model"></select>
-        </label>
+        <div class="field">
+          <span id="model-label">Installed models</span>
+          <div id="model-picker" class="model-picker">
+            <button
+              type="button"
+              id="model-trigger"
+              class="model-picker-trigger"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="model-list"
+              aria-labelledby="model-label model-value"
+            >
+              <span id="model-value" class="model-picker-value">Choose a model</span>
+              <span class="model-picker-chevron" aria-hidden="true"></span>
+            </button>
+            <div id="model-list" class="model-picker-menu" role="listbox" aria-labelledby="model-label" hidden></div>
+          </div>
+        </div>
 
         <div class="buttons">
           <button type="button" class="btn btn-ghost" id="refresh-models">Refresh</button>

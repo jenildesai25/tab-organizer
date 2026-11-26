@@ -78,10 +78,24 @@
       </label>
 
       <div id="llm-controls" class="llm-controls" hidden>
-        <label class="field compact" for="model">
-          <span>Model</span>
-          <select id="model"></select>
-        </label>
+        <div class="field compact">
+          <span id="model-label">Model</span>
+          <div id="model-picker" class="model-picker">
+            <button
+              type="button"
+              id="model-trigger"
+              class="model-picker-trigger"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="model-list"
+              aria-labelledby="model-label model-value"
+            >
+              <span id="model-value" class="model-picker-value">Choose a model</span>
+              <span class="model-picker-chevron" aria-hidden="true"></span>
+            </button>
+            <div id="model-list" class="model-picker-menu" role="listbox" aria-labelledby="model-label" hidden></div>
+          </div>
+        </div>
         <div class="buttons compact">
           <button id="test-ollama" type="button" class="btn btn-ghost btn-tiny" disabled>Test connection</button>
           <button id="retitle-groups" type="button" class="btn btn-ghost btn-tiny" disabled>AI rename</button>

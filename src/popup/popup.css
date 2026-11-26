@@ -125,10 +125,9 @@ body.popup-body {
   padding: 0 0 2px 0;
   display: grid;
   gap: 4px;
-  overflow: hidden;
-  transition:
-    opacity var(--dur) var(--ease),
-    transform var(--dur) var(--ease);
+  /* Must stay visible — clipping here shoved the model menu over the trigger */
+  overflow: visible;
+  transition: opacity var(--dur) var(--ease);
 }
 
 .llm-controls.is-collapsed {

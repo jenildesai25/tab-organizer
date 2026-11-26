@@ -21,6 +21,7 @@ import {
   type GroupListController,
   type GroupListHandlers,
 } from '../ui/groups.js'
+import { bindModelPicker } from '../ui/model-picker.js'
 import { paintOllamaStatus } from '../ui/ollama-status.js'
 import { paintRetitleResults } from '../ui/retitle-results.js'
 import { bindSweep, browserWindow } from '../ui/sweep.js'
@@ -36,7 +37,7 @@ const confirmation = document.querySelector<HTMLParagraphElement>('#confirmation
 const rules = document.querySelector<HTMLUListElement>('#rule-list')!
 const form = document.querySelector<HTMLFormElement>('#rule-form')!
 const llm = document.querySelector<HTMLInputElement>('#llm')!
-const modelSelect = document.querySelector<HTMLSelectElement>('#model')!
+const modelPickerRoot = document.querySelector<HTMLElement>('#model-picker')!
 const refresh = document.querySelector<HTMLButtonElement>('#refresh-models')!
 const testOllama = document.querySelector<HTMLButtonElement>('#test-ollama')!
 const modelStatus = document.querySelector<HTMLElement>('#model-status')!
@@ -132,22 +133,28 @@ function renderRules(list: CompiledRule[]): void {
   }
 }
 
+const modelPicker = bindModelPicker(modelPickerRoot, {
+  onChange: (name) => {
+    selected = name
+    syncRetitleControls()
+    syncTestControls()
+    paintSnapshot()
+    paintHealth({ connected: listedOnce ? true : null })
+    if (!name) return
+    void (async () => {
+      renderState(await send<StateResult>({ type: 'set-model', model: name }))
+    })()
+  },
+})
+
 function renderModels(): void {
   const match = models.some((model) => model.name === selected)
-  modelSelect.replaceChildren()
-  if (models.length === 0 || !match) {
-    const placeholder = document.createElement('option')
-    placeholder.value = ''
-    placeholder.textContent = listedOnce && models.length === 0 ? 'No models' : 'Choose a model'
-    modelSelect.append(placeholder)
-  }
-  for (const model of models) {
-    const option = document.createElement('option')
-    option.value = model.name
-    option.textContent = optionLabel(model)
-    modelSelect.append(option)
-  }
-  modelSelect.value = match ? selected : ''
+  const emptyLabel = listedOnce && models.length === 0 ? 'No models' : 'Choose a model'
+  modelPicker.setOptions(
+    models.map((model) => ({ value: model.name, label: optionLabel(model) })),
+    match ? selected : '',
+    emptyLabel,
+  )
 }
 
 function paintHealth(opts: {
@@ -580,19 +587,6 @@ llm.addEventListener('change', () => {
     renderState(state)
     if (state.llmOn) await loadModels()
     else showModelStatus('')
-  })()
-})
-
-modelSelect.addEventListener('change', () => {
-  const name = modelSelect.value
-  selected = name
-  syncRetitleControls()
-  syncTestControls()
-  paintSnapshot()
-  paintHealth({ connected: listedOnce ? true : null })
-  if (!name) return
-  void (async () => {
-    renderState(await send<StateResult>({ type: 'set-model', model: name }))
   })()
 })
 

@@ -7,6 +7,7 @@ import type {
   ToBackground,
   TestOllamaResult,
 } from '../protocol.js'
+import { bindModelPicker } from '../ui/model-picker.js'
 import { paintOllamaStatus } from '../ui/ollama-status.js'
 import { paintRetitleResults } from '../ui/retitle-results.js'
 import { bindSweep, browserWindow } from '../ui/sweep.js'
@@ -15,7 +16,7 @@ import { bindThemeToggle } from '../ui/theme.js'
 const organizer = document.querySelector<HTMLInputElement>('#organizer')!
 const llm = document.querySelector<HTMLInputElement>('#llm')!
 const llmControls = document.querySelector<HTMLDivElement>('#llm-controls')!
-const modelSelect = document.querySelector<HTMLSelectElement>('#model')!
+const modelPickerRoot = document.querySelector<HTMLElement>('#model-picker')!
 const testOllama = document.querySelector<HTMLButtonElement>('#test-ollama')!
 const retitleButton = document.querySelector<HTMLButtonElement>('#retitle-groups')!
 const modelStatus = document.querySelector<HTMLElement>('#model-status')!
@@ -76,27 +77,31 @@ function paintOllamaPill(ok: boolean | null, label: string, title: string): void
   ollamaPillLabel.textContent = label
 }
 
+const modelPicker = bindModelPicker(modelPickerRoot, {
+  onChange: (name) => {
+    selected = name
+    syncLlmControls()
+    if (!name) return
+    void (async () => {
+      renderState(await send<StateResult>({ type: 'set-model', model: name }))
+    })()
+  },
+})
+
 function renderModels(): void {
   const match = models.some((model) => model.name === selected)
-  modelSelect.replaceChildren()
-  if (models.length === 0 || !match) {
-    const placeholder = document.createElement('option')
-    placeholder.value = ''
-    placeholder.textContent = listedOnce && models.length === 0 ? 'No models' : 'Choose a model'
-    modelSelect.append(placeholder)
-  }
-  for (const model of models) {
-    const option = document.createElement('option')
-    option.value = model.name
-    option.textContent = optionLabel(model)
-    modelSelect.append(option)
-  }
-  modelSelect.value = match ? selected : ''
+  const emptyLabel = listedOnce && models.length === 0 ? 'No models' : 'Choose a model'
+  modelPicker.setOptions(
+    models.map((model) => ({ value: model.name, label: optionLabel(model) })),
+    match ? selected : '',
+    emptyLabel,
+  )
 }
 
 function syncLlmControls(): void {
   llmControls.hidden = !llmOn
   llmControls.classList.toggle('is-collapsed', !llmOn)
+  if (!llmOn) modelPicker.close()
   const ready = llmOn && selected !== ''
   if (testBusy) {
     testOllama.disabled = true
@@ -231,16 +236,6 @@ llm.addEventListener('change', () => {
     renderState(state)
     if (state.llmOn) await loadModels()
     else showModelStatus('')
-  })()
-})
-
-modelSelect.addEventListener('change', () => {
-  const name = modelSelect.value
-  selected = name
-  syncLlmControls()
-  if (!name) return
-  void (async () => {
-    renderState(await send<StateResult>({ type: 'set-model', model: name }))
   })()
 })
 

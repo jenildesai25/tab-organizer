@@ -1154,6 +1154,120 @@ li.group-row:hover {
   box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 22%, transparent);
 }
 
+/* Model picker — custom listbox so MV3 popups don't mis-place the native <select> menu */
+.model-picker {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+}
+
+.model-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.model-picker-trigger:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.model-picker-trigger:focus-visible {
+  border-color: color-mix(in oklab, var(--ring) 55%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 22%, transparent);
+}
+
+.model-picker.is-open .model-picker-trigger {
+  border-color: color-mix(in oklab, var(--ring) 55%, var(--line));
+}
+
+.model-picker-value {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-picker-chevron {
+  flex: 0 0 auto;
+  width: 0.55em;
+  height: 0.55em;
+  border-inline-end: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.model-picker-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-raised);
+  box-shadow: var(--shadow);
+  max-height: min(220px, 45vh);
+  overflow: auto;
+}
+
+.model-picker-menu.is-above {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.model-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.model-picker-option:hover,
+.model-picker-option:focus-visible {
+  background: var(--wash);
+  outline: none;
+}
+
+.model-picker-option[aria-selected='true']::before {
+  content: '✓';
+  flex: 0 0 auto;
+  color: var(--teal-deep);
+  font-weight: 700;
+}
+
+.model-picker-option:not([aria-selected='true'])::before {
+  content: '';
+  flex: 0 0 0.85em;
+}
+
 .buttons {
   display: flex;
   flex-wrap: wrap;
