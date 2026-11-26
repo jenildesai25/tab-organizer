@@ -448,6 +448,130 @@ function assertRefile(outcome) {
   return true
 }
 
+/**
+ * Free-up-memory Phase 1: enable auto-discard (alarm), manual discard/reload,
+ * and confirm never-list / guards via run-discard-sweep on a fresh background tab
+ * (not yet idle → skipped).
+ */
+async function runDiscardFlow(dashboard) {
+  return dashboard.evaluate(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+    await chrome.runtime.sendMessage({ type: 'set-auto-discard', on: true })
+    await chrome.runtime.sendMessage({ type: 'set-idle-minutes', minutes: 30 })
+    await chrome.runtime.sendMessage({ type: 'set-never-domains', domains: ['example.org'] })
+
+    const alarm = await chrome.alarms.get('tab-suspend-sweep')
+    const state = await chrome.runtime.sendMessage({ type: 'get-state' })
+
+    const win = await chrome.windows.create({
+      url: ['https://example.com/discard-active', 'https://example.com/discard-bg'],
+      focused: true,
+      type: 'normal',
+    })
+    if (win?.id == null) throw new Error('windows.create returned no id')
+    await sleep(1200)
+
+    const tabs = await chrome.tabs.query({ windowId: win.id })
+    const background = tabs.find((tab) => !tab.active && (tab.url || '').includes('discard-bg'))
+    const active = tabs.find((tab) => tab.active)
+    if (background?.id == null) throw new Error('Missing background tab')
+
+    const discardedManual = await chrome.runtime.sendMessage({
+      type: 'discard-tab',
+      tabId: background.id,
+    })
+    await sleep(400)
+    const afterDiscard = await chrome.tabs.get(background.id)
+
+    const reloaded = await chrome.runtime.sendMessage({
+      type: 'reload-tab',
+      tabId: background.id,
+    })
+    await sleep(800)
+    const afterReload = await chrome.tabs.get(background.id)
+
+    // Fresh tabs are not idle yet — sweep should not discard them.
+    const sweep = await chrome.runtime.sendMessage({ type: 'run-discard-sweep' })
+
+    // Never-list domain should be skipped even if we force discard via eligibility path.
+    const neverTab = await chrome.tabs.create({
+      windowId: win.id,
+      url: 'https://example.org/never',
+      active: false,
+    })
+    await sleep(600)
+    const neverDiscard = neverTab.id
+      ? await chrome.runtime.sendMessage({ type: 'discard-tab', tabId: neverTab.id })
+      : { ok: false, message: 'no never tab' }
+
+    return {
+      alarmName: alarm?.name || null,
+      alarmPeriod: alarm?.periodInMinutes ?? null,
+      autoDiscardOn: state.autoDiscardOn === true,
+      idleMinutes: state.idleMinutes,
+      neverDomains: state.neverDomains,
+      discardedManual,
+      afterDiscarded: afterDiscard.discarded === true,
+      reloaded,
+      afterReloadDiscarded: afterReload.discarded === true,
+      sweep,
+      neverDiscard,
+      activeId: active?.id ?? null,
+      backgroundId: background.id,
+    }
+  })
+}
+
+function assertDiscard(outcome) {
+  console.log('\n--- Discard / Free up memory outcome ---')
+  console.log(JSON.stringify(outcome, null, 2))
+
+  if (!outcome || typeof outcome !== 'object') {
+    fail('Discard flow returned nothing', outcome)
+    return false
+  }
+
+  if (outcome.alarmName !== 'tab-suspend-sweep') {
+    fail('Expected tab-suspend-sweep alarm after enabling auto-discard', outcome)
+    return false
+  }
+
+  if (outcome.autoDiscardOn !== true) {
+    fail('Expected autoDiscardOn in state', outcome)
+    return false
+  }
+
+  if (!Array.isArray(outcome.neverDomains) || !outcome.neverDomains.includes('example.org')) {
+    fail('Expected neverDomains to include example.org', outcome)
+    return false
+  }
+
+  if (!outcome.discardedManual?.ok || outcome.afterDiscarded !== true) {
+    fail('Expected manual discard to unload the background tab', outcome)
+    return false
+  }
+
+  if (!outcome.reloaded?.ok) {
+    fail('Expected reload-tab to succeed', outcome)
+    return false
+  }
+
+  if (outcome.sweep?.ok !== true) {
+    fail('Expected run-discard-sweep to return ok', outcome)
+    return false
+  }
+
+  // Fresh tabs should not meet the idle threshold yet.
+  if ((outcome.sweep.discarded ?? -1) !== 0) {
+    fail('Expected sweep to discard 0 fresh (not-idle) tabs', outcome)
+    return false
+  }
+
+  console.log('\nPASS: alarm armed, manual discard/reload worked, sweep respected idle.')
+  return true
+}
+
 async function main() {
   requireDist()
   console.log(`Loading extension from ${dist}`)
@@ -472,6 +596,14 @@ async function main() {
       ),
     ])
     assertRefile(refile)
+
+    const discard = await Promise.race([
+      runDiscardFlow(dashboard),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Discard flow timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS),
+      ),
+    ])
+    assertDiscard(discard)
 
     console.log(`\nBrowser mode used: ${mode}`)
     console.log(`Elapsed: ${((Date.now() - started) / 1000).toFixed(1)}s`)

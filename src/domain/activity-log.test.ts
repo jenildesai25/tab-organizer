@@ -143,11 +143,12 @@ describe('filterActivityByFilter', () => {
       entry({ id: 'c', actor: 'sweep', action: 'tab.file' }),
       entry({ id: 'd', actor: 'organizer', action: 'tab.file' }),
       entry({ id: 'e', actor: 'rule', action: 'group.create' }),
+      entry({ id: 'f', actor: 'system', action: 'tab.discard', siteKey: 'example.com' }),
     ]
-    expect(filterActivityByFilter(rows, 'organize').map((row) => row.id)).toEqual(['c', 'd'])
+    expect(filterActivityByFilter(rows, 'organize').map((row) => row.id)).toEqual(['c', 'd', 'f'])
     expect(filterActivityByFilter(rows, 'rules').map((row) => row.id)).toEqual(['e'])
     expect(filterActivityByFilter(rows, 'you').map((row) => row.id)).toEqual(['b'])
-    expect(filterActivityByFilter(rows, 'all')).toHaveLength(5)
+    expect(filterActivityByFilter(rows, 'all')).toHaveLength(6)
   })
 })
 
@@ -184,7 +185,7 @@ describe('formatActivityLine', () => {
     expect(line).toMatch(/Just now · AI renamed/)
   })
 
-  it('formats organize file, user rename, and AI skip lines in plain English', () => {
+  it('formats organize file, user rename, discard, and AI skip lines in plain English', () => {
     expect(
       formatActivityLine(
         entry({
@@ -206,6 +207,26 @@ describe('formatActivityLine', () => {
         }),
       ),
     ).toContain('You renamed "Github" → "GitHub"')
+
+    expect(
+      formatActivityLine(
+        entry({
+          actor: 'system',
+          action: 'tab.discard',
+          siteKey: 'example.com',
+        }),
+      ),
+    ).toContain('Tab Organizer freed memory on example.com')
+
+    expect(
+      formatActivityLine(
+        entry({
+          actor: 'user',
+          action: 'tab.reload',
+          siteKey: 'github.com',
+        }),
+      ),
+    ).toContain('You reloaded github.com')
 
     expect(
       formatActivityLine(
