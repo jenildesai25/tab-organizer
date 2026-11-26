@@ -35,6 +35,11 @@ import {
   type RuleSuggestionVote,
 } from './domain/rule-suggestions.js'
 import {
+  buildSettingsBackup,
+  parseSettingsBackup,
+  type SettingsBackup,
+} from './domain/settings-backup.js'
+import {
   WORKSPACE_LAYOUTS_KEY,
   deleteWorkspaceLayout,
   parseWorkspaceLayouts,
@@ -372,4 +377,32 @@ export async function dismissRuleSuggestion(domain: string, title: string): Prom
     const settings = await loadSettings()
     return readyRuleSuggestions(next, settings.rules)
   })
+}
+
+export async function exportSettingsBackup(): Promise<SettingsBackup> {
+  const [settings, layouts] = await Promise.all([loadSettings(), loadWorkspaceLayouts()])
+  return buildSettingsBackup(settings, layouts)
+}
+
+/** Replace settings + layouts from a validated backup file. */
+export async function importSettingsBackup(raw: unknown): Promise<SettingsBackup> {
+  const backup = parseSettingsBackup(raw)
+  if (!backup) throw new Error('That file is not a Tab Organizer settings backup.')
+  await settingsMutex.run(async () => {
+    await writeSettings({
+      organizerOn: backup.settings.organizerOn,
+      llmOn: backup.settings.llmOn,
+      model: backup.settings.model,
+      rules: backup.settings.rules,
+      cleanupOn: backup.settings.cleanupOn,
+      cleanupAgeDays: backup.settings.cleanupAgeDays,
+      protect: backup.settings.protect,
+      protectHandRenamed: backup.settings.protectHandRenamed,
+      quietHoursOn: backup.settings.quietHoursOn,
+      quietHoursStart: backup.settings.quietHoursStart,
+      quietHoursEnd: backup.settings.quietHoursEnd,
+    })
+    await chrome.storage.local.set({ [WORKSPACE_LAYOUTS_KEY]: backup.layouts })
+  })
+  return backup
 }
