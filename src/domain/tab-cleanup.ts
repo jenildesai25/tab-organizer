@@ -1,5 +1,6 @@
 import { isHttpUrl } from './feature-card.js'
 import { normalizeGroupId } from './chrome-tab.js'
+import type { GroupFingerprint } from './group-identity.js'
 import { registrableDomain } from './sites.js'
 
 /** chrome.alarms name for the periodic old-tab cleanup sweep. */
@@ -49,6 +50,11 @@ export type ProtectLists = {
    * Prefer these over raw tab IDs — tab IDs do not survive Chrome restarts.
    */
   urlPatterns: string[]
+  /**
+   * Group protections that survive a Chrome restart.
+   * Session `groupIds` are rebound from these fingerprints.
+   */
+  groups: GroupFingerprint[]
 }
 
 export type CleanupSkipReason =
@@ -62,6 +68,13 @@ export type CleanupSkipReason =
   | 'protected-group'
   | 'protected-url'
   | 'not-old'
+  | 'unknown-age'
+
+/**
+ * `lastAccessed` values below this are not real Chrome timestamps.
+ * `0` means “never activated”, not “unused since 1970”.
+ */
+export const EARLIEST_TRUSTED_ACCESS_MS = 1_000_000_000_000
 
 export type CleanupEligibility = {
   ok: boolean
@@ -155,7 +168,18 @@ export function parseProtectLists(partial: {
     domains: normalizeProtectDomains(partial.domains),
     groupIds: normalizeProtectGroupIds(partial.groupIds),
     urlPatterns: normalizeProtectUrlPatterns(partial.urlPatterns),
+    groups: [],
   }
+}
+
+/** What to do with the periodic cleanup alarm. Do not recreate one that is already scheduled. */
+export function cleanupAlarmAction(
+  existing: { periodInMinutes?: number } | null | undefined,
+  enabled: boolean,
+): 'clear' | 'keep' | 'create' {
+  if (!enabled) return existing ? 'clear' : 'keep'
+  if (!existing || existing.periodInMinutes !== CLEANUP_ALARM_PERIOD_MINUTES) return 'create'
+  return 'keep'
 }
 
 /** Drop group IDs that are no longer live Chrome tab groups. */
@@ -241,8 +265,12 @@ export function cleanupEligibility(
   }
 
   const ageMs = clampCleanupAgeDays(options.ageDays) * 24 * 60 * 60_000
-  const lastAccessed = typeof tab.lastAccessed === 'number' ? tab.lastAccessed : options.now
-  if (options.now - lastAccessed < ageMs) {
+  const lastAccessed = tab.lastAccessed
+  if (typeof lastAccessed !== 'number' || !Number.isFinite(lastAccessed) || lastAccessed < EARLIEST_TRUSTED_ACCESS_MS) {
+    return { ok: false, reason: 'unknown-age', siteKey: siteKey || undefined, urlPattern: urlPattern || undefined }
+  }
+  const seenAt = Math.min(lastAccessed, options.now)
+  if (options.now - seenAt < ageMs) {
     return { ok: false, reason: 'not-old', siteKey: siteKey || undefined, urlPattern: urlPattern || undefined }
   }
 
@@ -276,6 +304,15 @@ export function selectCleanupTargets(
     }
   }
   return out
+}
+
+/** Manual clean-up may close only ids the user already confirmed. */
+export function filterConfirmedTargets(
+  targets: readonly CleanupCandidate[],
+  confirmedIds: readonly number[],
+): CleanupCandidate[] {
+  const allowed = new Set(confirmedIds.filter((id) => Number.isInteger(id) && id >= 0))
+  return targets.filter((target) => allowed.has(target.tabId))
 }
 
 /** Plain-English age label for UI copy. */

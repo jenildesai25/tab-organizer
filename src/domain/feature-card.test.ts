@@ -50,6 +50,11 @@ describe('buildFeatureCard', () => {
     expect(blob).not.toContain('access_token')
     expect(blob).not.toContain('utm_source')
     expect(blob).not.toContain('abcdef0123456789')
+    const token = buildFeatureCard({
+      url: 'https://example.com/app/sess12ab34cd56/home',
+      title: 'Home',
+    })
+    expect(token.pathWords).not.toContain('sess12ab34cd56')
     expect(blob).not.toContain('https://')
   })
 

@@ -7,6 +7,13 @@ import {
 } from './domain/activity-log.js'
 import { createAsyncMutex } from './domain/concurrency.js'
 import {
+  boundGroupIds,
+  parseGroupFingerprints,
+  rebindGroupFingerprints,
+  type GroupFingerprint,
+  type LiveGroupSnapshot,
+} from './domain/group-identity.js'
+import {
   HAND_RENAMED_KEY,
   parseHandRenamedIds,
   pruneHandRenamedIds,
@@ -43,7 +50,7 @@ export const DEFAULT_SETTINGS: Settings = {
   rules: [],
   cleanupOn: false,
   cleanupAgeDays: DEFAULT_CLEANUP_AGE_DAYS,
-  protect: { domains: [], groupIds: [], urlPatterns: [] },
+  protect: { domains: [], groupIds: [], urlPatterns: [], groups: [] },
 }
 
 export async function loadSettings(): Promise<Settings> {
@@ -63,16 +70,39 @@ export async function loadSettings(): Promise<Settings> {
     rules: Array.isArray(stored.rules) ? (stored.rules as CompiledRule[]) : [],
     cleanupOn: stored.cleanupOn === true,
     cleanupAgeDays: clampCleanupAgeDays(stored.cleanupAgeDays),
-    protect: parseProtectLists({
-      domains: protectRaw.domains ?? legacyDomains,
-      groupIds: protectRaw.groupIds,
-      urlPatterns: protectRaw.urlPatterns,
-    }),
+    protect: {
+      ...parseProtectLists({
+        domains: protectRaw.domains ?? legacyDomains,
+        groupIds: protectRaw.groupIds,
+        urlPatterns: protectRaw.urlPatterns,
+      }),
+      groups: parseGroupFingerprints(protectRaw.groups),
+    },
   }
 }
 
-export async function saveSettings(settings: Settings): Promise<void> {
+const settingsMutex = createAsyncMutex()
+
+async function writeSettings(settings: Settings): Promise<void> {
   await chrome.storage.local.set(settings)
+}
+
+/** Serialize load → mutate → save so popup and dashboard cannot drop each other's writes. */
+export async function updateSettings(
+  mutate: (settings: Settings) => Settings | Promise<Settings>,
+): Promise<Settings> {
+  return settingsMutex.run(async () => {
+    const current = await loadSettings()
+    const next = await mutate(current)
+    await writeSettings(next)
+    return next
+  })
+}
+
+export async function saveSettings(settings: Settings): Promise<void> {
+  await settingsMutex.run(async () => {
+    await writeSettings(settings)
+  })
 }
 
 export async function loadActivityLog(): Promise<ActivityEntry[]> {
@@ -105,6 +135,85 @@ export async function loadHandRenamedIds(): Promise<number[]> {
 
 export async function saveHandRenamedIds(ids: Iterable<number>): Promise<void> {
   await chrome.storage.local.set({ [HAND_RENAMED_KEY]: [...ids] })
+}
+
+const HAND_RENAMED_FINGERPRINTS_KEY = 'handRenamedGroups'
+const handRenamedMutex = createAsyncMutex()
+
+export async function loadHandRenamedFingerprints(): Promise<GroupFingerprint[]> {
+  const stored = await chrome.storage.local.get(HAND_RENAMED_FINGERPRINTS_KEY)
+  return parseGroupFingerprints(stored[HAND_RENAMED_FINGERPRINTS_KEY])
+}
+
+async function writeHandRenamed(ids: Iterable<number>, fingerprints: readonly GroupFingerprint[]): Promise<void> {
+  await chrome.storage.local.set({
+    [HAND_RENAMED_KEY]: [...ids],
+    [HAND_RENAMED_FINGERPRINTS_KEY]: fingerprints,
+  })
+}
+
+/** Remember a hand-renamed group by session id and by a restart-stable fingerprint. */
+export async function rememberHandRenamedGroup(
+  groupId: number,
+  fingerprint: GroupFingerprint | null,
+  live: readonly LiveGroupSnapshot[],
+): Promise<number[]> {
+  return handRenamedMutex.run(async () => {
+    const storedIds = await loadHandRenamedIds()
+    const fingerprints = await loadHandRenamedFingerprints()
+    const rebound = rebindGroupFingerprints(fingerprints, live).filter((row) => row.id !== groupId)
+    if (fingerprint) rebound.push({ id: groupId, fingerprint })
+    const liveIds = new Set(live.map((group) => group.id))
+    const ids = uniqueIds([
+      ...storedIds.filter((id) => liveIds.has(id)),
+      groupId,
+      ...boundGroupIds(rebound),
+    ])
+    await writeHandRenamed(ids, rebound.map((row) => row.fingerprint))
+    return ids
+  })
+}
+
+/** Drop a hand-renamed group after Chrome removes it. */
+export async function forgetHandRenamedGroup(
+  groupId: number,
+  live: readonly LiveGroupSnapshot[],
+): Promise<number[]> {
+  return handRenamedMutex.run(async () => {
+    const storedIds = await loadHandRenamedIds()
+    const fingerprints = await loadHandRenamedFingerprints()
+    const rebound = rebindGroupFingerprints(fingerprints, live).filter((row) => row.id !== groupId)
+    const ids = uniqueIds([
+      ...storedIds.filter((id) => id !== groupId && live.some((group) => group.id === id)),
+      ...boundGroupIds(rebound),
+    ])
+    await writeHandRenamed(ids, rebound.map((row) => row.fingerprint))
+    return ids
+  })
+}
+
+/** Reattach hand-renamed groups after a worker or browser restart. */
+export async function restoreHandRenamedGroups(live: readonly LiveGroupSnapshot[]): Promise<number[]> {
+  return handRenamedMutex.run(async () => {
+    const storedIds = await loadHandRenamedIds()
+    const fingerprints = await loadHandRenamedFingerprints()
+    const rebound = rebindGroupFingerprints(fingerprints, live)
+    const liveIds = new Set(live.map((group) => group.id))
+    const ids = uniqueIds([...storedIds.filter((id) => liveIds.has(id)), ...boundGroupIds(rebound)])
+    await writeHandRenamed(ids, rebound.map((row) => row.fingerprint))
+    return ids
+  })
+}
+
+function uniqueIds(ids: readonly number[]): number[] {
+  const seen = new Set<number>()
+  const out: number[] = []
+  for (const id of ids) {
+    if (!Number.isInteger(id) || id < 0 || seen.has(id)) continue
+    seen.add(id)
+    out.push(id)
+  }
+  return out
 }
 
 /** Load persisted hand-renames and drop IDs for groups that no longer exist. */

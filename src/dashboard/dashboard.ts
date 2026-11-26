@@ -84,7 +84,7 @@ const healthWarm = document.querySelector<HTMLElement>('#health-warm')!
 const versionLabel = document.querySelector<HTMLElement>('#version-label')
 
 let latestState: StateResult | null = null
-let pendingCleanupConfirm = false
+let pendingCleanupConfirm: { windowId?: number; tabIds: number[] } | null = null
 let groupTitleById = new Map<number, string>()
 
 const RETITLE_LABEL = 'Rename all groups with AI'
@@ -799,7 +799,7 @@ cleanupNow.addEventListener('click', () => {
           ? ` Includes sites like ${preview.sampleSiteKeys.join(', ')}.`
           : ''
       cleanupConfirmBody.textContent = `${preview.summary}${sample} Pinned, active, and protected tabs stay open.`
-      pendingCleanupConfirm = true
+      pendingCleanupConfirm = { windowId: preview.windowId, tabIds: preview.tabIds }
       cleanupConfirmDialog.showModal()
     } catch {
       showCleanupNote('Could not preview clean-up.')
@@ -810,19 +810,20 @@ cleanupNow.addEventListener('click', () => {
 })
 
 cleanupConfirmDialog.addEventListener('close', () => {
-  const confirmed = pendingCleanupConfirm && cleanupConfirmDialog.returnValue === 'confirm'
-  pendingCleanupConfirm = false
+  const pending = pendingCleanupConfirm
+  const confirmed = pending !== null && cleanupConfirmDialog.returnValue === 'confirm'
+  pendingCleanupConfirm = null
   cleanupConfirmDialog.returnValue = ''
-  if (!confirmed) return
+  if (!confirmed || !pending) return
   void (async () => {
     cleanupNow.disabled = true
     showCleanupNote('Closing old tabs…')
     try {
-      const win = await browserWindow()
       const result = await send<CleanupRunResult>({
         type: 'run-cleanup',
         scope: 'window',
-        windowId: win?.id,
+        windowId: pending.windowId,
+        tabIds: pending.tabIds,
         confirm: true,
       })
       showCleanupNote(result.ok ? result.summary : result.message)

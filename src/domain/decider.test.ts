@@ -3,7 +3,8 @@ import { fixtures } from '../../evals/fixtures/cases.js'
 import { decide } from './decider.js'
 import { marksSticky } from './stickiness.js'
 import { describeSweep, sweepClaimsNothing } from './summary.js'
-import type { Action } from './types.js'
+import type { Action, DecideInput, FeatureCard, GroupState, TabState } from './types.js'
+import { words } from './words.js'
 
 describe('decider fixtures', () => {
   for (const fixture of fixtures) {
@@ -114,6 +115,29 @@ describe('sweep summary', () => {
   })
 })
 
+describe('advisor suggestions', () => {
+  it('does not file a tab into an unrelated group the model names', () => {
+    const actions = decide(
+      suggestionInput({
+        title: 'Bank',
+        group: { title: 'Bank', dominantDomain: 'bank.com', domains: ['bank.com'], words: ['bank'] },
+      }),
+    )
+    expect(actions.filter((action) => action.type === 'file')).toEqual([])
+  })
+
+  it('may file into a group that already holds the tab site', () => {
+    const actions = decide(
+      suggestionInput({
+        title: 'GitHub',
+        group: { title: 'GitHub', dominantDomain: 'github.com', domains: ['github.com'], words: ['github'] },
+      }),
+    )
+    const file = actions.find((action) => action.type === 'file')
+    expect(file && file.type === 'file' ? file.groupId : undefined).toBe(7)
+  })
+})
+
 describe('stickiness', () => {
   it('marks a tab sticky only after a drag this extension did not cause', () => {
     expect(marksSticky('moved', false)).toBe(true)
@@ -122,6 +146,55 @@ describe('stickiness', () => {
     expect(marksSticky('updated', true)).toBe(false)
   })
 })
+
+function suggestionInput(options: {
+  title: string
+  group: Pick<GroupState, 'title' | 'dominantDomain' | 'domains' | 'words'>
+}): DecideInput {
+  const card: FeatureCard = {
+    domain: 'github.com',
+    title: 'Pull request',
+    titleWords: words('Pull request'),
+    pathWords: [],
+    openerDomain: null,
+  }
+  const tab: TabState = {
+    id: 1,
+    active: false,
+    pinned: false,
+    incognito: false,
+    http: true,
+    browserPage: false,
+    sticky: false,
+    openedInsideGroup: false,
+    candidate: true,
+    status: 'complete',
+    titleStableSince: 0,
+    groupId: null,
+    lastFiledDomain: null,
+    advisorPending: true,
+    card,
+  }
+  const group: GroupState = {
+    id: 7,
+    size: 2,
+    collapsed: false,
+    shared: false,
+    handRenamed: true,
+    ...options.group,
+  }
+  return {
+    now: 10_000,
+    organizerOn: true,
+    llmOn: true,
+    mode: 'watch',
+    focused: true,
+    rules: [],
+    groups: [group],
+    tabs: [tab],
+    suggestion: { tabId: 1, title: options.title, confidence: 0.95 },
+  }
+}
 
 function assertAdvisorPayload(actions: Action[]) {
   for (const action of actions) {
