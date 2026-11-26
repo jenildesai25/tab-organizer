@@ -12,9 +12,7 @@ GIF fallback (same clip):
 
 ![Tab Organizer demo](docs/demo/tab-organizer-demo.gif)
 
-Source files for Chrome Web Store / YouTube: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer-demo.mp4) (also `.webm`, poster JPG). Regenerate with `npm run build && npm run record:demo`.
-
-> **Chrome Web Store tip:** the store listing’s promotional video field expects a **YouTube URL**, not a file upload. Upload `docs/demo/tab-organizer-demo.mp4` to YouTube (unlisted or public) and paste that URL into the developer dashboard. Screenshots are still required separately.
+Local source files: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer-demo.mp4) (also `.webm`, poster JPG). Regenerate with `npm run build && npm run record:demo`.
 
 ## Prerequisites
 
