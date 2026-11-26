@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 24 24" fill="none">
+  <!-- Tab Organizer brand mark from UI mock (.scratch/ui-mock/popup.html .brand-mark) -->
+  <rect x="3" y="4" width="7" height="16" rx="2" fill="#0f766e"/>
+  <rect x="12" y="4" width="9" height="7" rx="2" fill="#14b8a6"/>
+  <rect x="12" y="13" width="9" height="7" rx="2" fill="#ea580c"/>
+</svg>

@@ -1,8 +1,20 @@
-import { formatActivityLine, type ActivityActor, type ActivityEntry } from '../domain/activity-log.js'
+import {
+  formatActivityBody,
+  formatActivityTime,
+  type ActivityActor,
+  type ActivityEntry,
+} from '../domain/activity-log.js'
 
 export type ActivityListOptions = {
   emptyText?: string
   limit?: number
+}
+
+function markActor(actor: ActivityActor): ActivityActor | '' {
+  if (actor === 'ai' || actor === 'user' || actor === 'sweep') return actor
+  if (actor === 'organizer') return 'sweep'
+  if (actor === 'rule') return 'user'
+  return ''
 }
 
 /** Paint a compact or full activity list into `list`. */
@@ -29,7 +41,23 @@ export function paintActivityList(
     item.dataset.actor = entry.actor
     item.dataset.action = entry.action
     if (entry.groupId != null) item.dataset.groupId = String(entry.groupId)
-    item.textContent = formatActivityLine(entry)
+
+    const mark = document.createElement('span')
+    mark.className = 'activity-mark'
+    mark.setAttribute('aria-hidden', 'true')
+    const markKind = markActor(entry.actor)
+    if (markKind) mark.dataset.actor = markKind
+
+    const copy = document.createElement('span')
+    copy.className = 'activity-copy'
+    copy.textContent = formatActivityBody(entry)
+
+    const time = document.createElement('time')
+    time.className = 'activity-time'
+    time.dateTime = new Date(entry.ts).toISOString()
+    time.textContent = formatActivityTime(entry)
+
+    item.append(mark, copy, time)
     list.append(item)
   }
 }

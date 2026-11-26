@@ -38,24 +38,132 @@ function isImeConfirmEnter(event: KeyboardEvent): boolean {
   return event.isComposing || event.keyCode === 229
 }
 
-export function renderGroupRow(
+function paintActions(
+  actions: HTMLElement,
   group: TabGroupView,
-  mode: GroupListMode,
   state: GroupListController,
   handlers: GroupListHandlers,
-  highlight = false,
+  tiny: boolean,
+): void {
+  if (!group.editable) return
+
+  if (state.pendingDeleteId === group.id) {
+    const confirm = document.createElement('button')
+    confirm.type = 'button'
+    confirm.className = 'confirm-delete'
+    confirm.textContent = 'Ungroup'
+    confirm.title = 'Remove the group without closing its tabs'
+    confirm.addEventListener('click', (event) => {
+      event.stopPropagation()
+      handlers.onConfirmUngroup(group.id)
+    })
+    const cancel = document.createElement('button')
+    cancel.type = 'button'
+    cancel.className = tiny ? 'btn btn-ghost btn-tiny' : 'btn btn-ghost'
+    cancel.textContent = 'Cancel'
+    cancel.addEventListener('click', (event) => {
+      event.stopPropagation()
+      handlers.onCancelUngroup()
+    })
+    actions.append(confirm, cancel)
+    return
+  }
+
+  const menuId = `group-menu-${group.id}`
+  const more = document.createElement('button')
+  more.type = 'button'
+  more.className = 'icon-more'
+  more.setAttribute('aria-label', `Actions for ${group.title || 'untitled group'}`)
+  more.setAttribute('aria-haspopup', 'menu')
+  more.setAttribute('aria-expanded', state.openMenuId === group.id ? 'true' : 'false')
+  more.setAttribute('aria-controls', menuId)
+  more.textContent = '⋯'
+  more.addEventListener('click', (event) => {
+    event.stopPropagation()
+    handlers.onToggleMenu(state.openMenuId === group.id ? null : group.id)
+  })
+  actions.append(more)
+
+  if (state.openMenuId === group.id) {
+    const menu = document.createElement('div')
+    menu.id = menuId
+    menu.className = 'row-menu'
+    menu.setAttribute('role', 'menu')
+    const ungroup = document.createElement('button')
+    ungroup.type = 'button'
+    ungroup.className = 'row-menu-item danger'
+    ungroup.setAttribute('role', 'menuitem')
+    ungroup.textContent = 'Ungroup'
+    ungroup.title = 'Remove the group without closing its tabs'
+    ungroup.addEventListener('click', (event) => {
+      event.stopPropagation()
+      handlers.onRequestUngroup(group.id)
+    })
+    menu.append(ungroup)
+    actions.append(menu)
+  }
+}
+
+function paintCompactRow(
+  group: TabGroupView,
+  state: GroupListController,
+  handlers: GroupListHandlers,
+  highlight: boolean,
 ): HTMLLIElement {
   const item = document.createElement('li')
-  item.className = mode === 'compact' ? 'group-row group-row-compact' : 'group-row'
+  item.className = 'group-item'
   if (highlight) item.classList.add('group-row-renamed')
   item.dataset.groupId = String(group.id)
+  item.style.setProperty('--group-color', TAB_GROUP_COLOR_HEX[group.color])
+
+  const swatch = document.createElement('span')
+  swatch.className = 'group-swatch'
+  swatch.setAttribute('aria-hidden', 'true')
+
+  const copy = document.createElement('div')
+  copy.className = 'group-copy'
+  const name = document.createElement('span')
+  name.className = 'group-name'
+  name.textContent = group.title || 'Untitled group'
+  const meta = document.createElement('span')
+  meta.className = 'group-meta'
+  meta.textContent = metaLine(group, 'compact')
+  copy.append(name, meta)
+
+  const count = document.createElement('span')
+  count.className = 'group-count'
+  count.setAttribute('aria-label', tabLabel(group.tabCount))
+  count.textContent = String(group.tabCount)
+
+  const actions = document.createElement('div')
+  actions.className = 'group-actions'
+  paintActions(actions, group, state, handlers, true)
+
+  item.append(swatch, copy, count, actions)
+  return item
+}
+
+function paintManageRow(
+  group: TabGroupView,
+  state: GroupListController,
+  handlers: GroupListHandlers,
+  highlight: boolean,
+): HTMLLIElement {
+  const item = document.createElement('li')
+  item.className = 'group-manage'
+  if (highlight) item.classList.add('group-row-renamed')
+  item.dataset.groupId = String(group.id)
+  item.style.setProperty('--group-color', TAB_GROUP_COLOR_HEX[group.color])
+
+  const main = document.createElement('div')
+  main.className = 'gm-main'
 
   const swatchWrap = document.createElement('div')
   swatchWrap.className = 'swatch-wrap'
 
   const swatch = document.createElement('button')
   swatch.type = 'button'
-  swatch.className = 'swatch'
+  swatch.className = 'group-swatch swatch'
   swatch.title = group.editable ? `Color: ${group.color}` : 'Shared group'
   swatch.setAttribute(
     'aria-label',
@@ -63,9 +171,8 @@ export function renderGroupRow(
       ? `Change color for ${group.title || 'untitled group'}`
       : `Color for ${group.title || 'untitled group'}`,
   )
-  swatch.style.background = TAB_GROUP_COLOR_HEX[group.color]
-  swatch.disabled = !group.editable || mode === 'compact'
-  if (group.editable && mode === 'manage') {
+  swatch.disabled = !group.editable
+  if (group.editable) {
     swatch.addEventListener('click', (event) => {
       event.stopPropagation()
       handlers.onTogglePicker(state.openPickerId === group.id ? null : group.id)
@@ -73,7 +180,7 @@ export function renderGroupRow(
   }
   swatchWrap.append(swatch)
 
-  if (mode === 'manage' && state.openPickerId === group.id && group.editable) {
+  if (state.openPickerId === group.id && group.editable) {
     const picker = document.createElement('div')
     picker.className = 'swatch-picker'
     picker.setAttribute('role', 'listbox')
@@ -94,15 +201,19 @@ export function renderGroupRow(
     swatchWrap.append(picker)
   }
 
-  const main = document.createElement('div')
-  main.className = 'group-main'
+  const copy = document.createElement('div')
+  copy.className = 'gm-copy'
 
-  if (mode === 'manage' && group.editable) {
+  if (group.editable) {
     const title = document.createElement('input')
     title.className = 'group-title'
     title.type = 'text'
     title.value = group.title
     title.placeholder = 'Untitled group'
+    title.autocomplete = 'off'
+    title.spellcheck = false
+    title.setAttribute('autocorrect', 'off')
+    title.setAttribute('autocapitalize', 'none')
     title.setAttribute('aria-label', 'Group name')
     title.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
@@ -118,82 +229,38 @@ export function renderGroupRow(
     title.addEventListener('blur', () => {
       handlers.onTitleCommit(group, title.value.trim())
     })
-    main.append(title)
+    copy.append(title)
   } else {
     const title = document.createElement('p')
     title.className = 'group-title-text'
     title.textContent = group.title || 'Untitled group'
-    main.append(title)
+    copy.append(title)
   }
 
-  const meta = document.createElement('p')
+  const meta = document.createElement('span')
   meta.className = 'group-meta'
-  meta.textContent = metaLine(group, mode)
-  main.append(meta)
+  meta.textContent = metaLine(group, 'manage')
+  copy.append(meta)
 
   const actions = document.createElement('div')
-  actions.className = 'group-actions'
+  actions.className = 'gm-actions group-actions'
+  paintActions(actions, group, state, handlers, false)
 
-  if (group.editable) {
-    if (state.pendingDeleteId === group.id) {
-      const confirm = document.createElement('button')
-      confirm.type = 'button'
-      confirm.className = 'confirm-delete'
-      confirm.textContent = 'Ungroup'
-      confirm.title = 'Remove the group without closing its tabs'
-      confirm.addEventListener('click', (event) => {
-        event.stopPropagation()
-        handlers.onConfirmUngroup(group.id)
-      })
-      const cancel = document.createElement('button')
-      cancel.type = 'button'
-      cancel.className = 'ghost'
-      cancel.textContent = 'Cancel'
-      cancel.addEventListener('click', (event) => {
-        event.stopPropagation()
-        handlers.onCancelUngroup()
-      })
-      actions.append(confirm, cancel)
-    } else {
-      const menuId = `group-menu-${group.id}`
-      const more = document.createElement('button')
-      more.type = 'button'
-      more.className = 'icon-more'
-      more.setAttribute('aria-label', `Actions for ${group.title || 'untitled group'}`)
-      more.setAttribute('aria-haspopup', 'menu')
-      more.setAttribute('aria-expanded', state.openMenuId === group.id ? 'true' : 'false')
-      more.setAttribute('aria-controls', menuId)
-      more.textContent = '⋯'
-      more.addEventListener('click', (event) => {
-        event.stopPropagation()
-        handlers.onToggleMenu(state.openMenuId === group.id ? null : group.id)
-      })
-
-      actions.append(more)
-
-      if (state.openMenuId === group.id) {
-        const menu = document.createElement('div')
-        menu.id = menuId
-        menu.className = 'row-menu'
-        menu.setAttribute('role', 'menu')
-        const ungroup = document.createElement('button')
-        ungroup.type = 'button'
-        ungroup.className = 'row-menu-item danger'
-        ungroup.setAttribute('role', 'menuitem')
-        ungroup.textContent = 'Ungroup'
-        ungroup.title = 'Remove the group without closing its tabs'
-        ungroup.addEventListener('click', (event) => {
-          event.stopPropagation()
-          handlers.onRequestUngroup(group.id)
-        })
-        menu.append(ungroup)
-        actions.append(menu)
-      }
-    }
-  }
-
-  item.append(swatchWrap, main, actions)
+  main.append(swatchWrap, copy, actions)
+  item.append(main)
   return item
+}
+
+export function renderGroupRow(
+  group: TabGroupView,
+  mode: GroupListMode,
+  state: GroupListController,
+  handlers: GroupListHandlers,
+  highlight = false,
+): HTMLLIElement {
+  return mode === 'compact'
+    ? paintCompactRow(group, state, handlers, highlight)
+    : paintManageRow(group, state, handlers, highlight)
 }
 
 export function renderGroupList(

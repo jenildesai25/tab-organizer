@@ -3,63 +3,132 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script src="../ui/theme-boot.js"></script>
     <title>Tab Organizer</title>
+    <link rel="stylesheet" href="../ui/shared.css" />
     <link rel="stylesheet" href="dashboard.css" />
   </head>
-  <body>
-    <main>
-      <header class="page-header">
-        <div class="page-header-copy">
-          <h1>Tab Organizer</h1>
-          <p id="status" role="status">Organizer is off.</p>
-        </div>
-        <div class="page-header-actions">
-          <button id="sweep" type="button" class="primary">Organize this window</button>
-        </div>
-      </header>
-      <p id="result" class="result-line" aria-live="polite" hidden></p>
+  <body class="atmosphere dashboard-body">
+    <a class="skip-link" href="#main">Skip to content</a>
 
-      <section class="panel panel-primary" aria-labelledby="rules-heading">
+    <header class="hero" aria-label="Tab Organizer">
+      <div class="hero-inner">
+        <div class="hero-top">
+          <p class="hero-kicker">Chrome · local-first · MV3</p>
+          <div class="theme-toggle" role="group" aria-label="Color theme">
+            <button type="button" data-theme="light" aria-pressed="false">Light</button>
+            <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+            <button type="button" data-theme="system" aria-pressed="true">System</button>
+          </div>
+        </div>
+        <h1 class="hero-brand">Tab Organizer</h1>
+        <p class="hero-lede">
+          File tabs into native Chrome groups — with plain-language rules and an optional local Ollama model.
+        </p>
+        <div class="hero-actions">
+          <button id="sweep" class="btn btn-primary" type="button">Organize this window</button>
+        </div>
+        <p id="result" class="inline-note hero-result" role="status" hidden></p>
+      </div>
+      <div id="hero-visual" class="hero-visual" aria-hidden="true"></div>
+    </header>
+
+    <main id="main">
+      <div class="snapshot" role="status" aria-label="Window snapshot">
+        <div><strong id="snap-tabs">—</strong><span>tabs</span></div>
+        <div><strong id="snap-groups">—</strong><span>groups</span></div>
+        <div><strong id="snap-filing" class="ok-text">Off</strong><span>filing</span></div>
+        <div><strong id="snap-model">Off</strong><span>local model</span></div>
+      </div>
+
+      <nav class="section-nav" aria-label="Dashboard sections">
+        <a href="#rules">Rules</a>
+        <a href="#groups">Groups</a>
+        <a href="#models">Models</a>
+        <a href="#activity">Activity</a>
+        <a href="#settings">Settings</a>
+      </nav>
+
+      <section id="rules" class="panel" aria-labelledby="rules-heading">
         <h2 id="rules-heading">Rules</h2>
-        <p class="lede">A short sentence, such as “use gb for github”.</p>
-        <form id="rule-form">
+        <p class="lede">One job: teach the organizer how to name groups in plain English.</p>
+        <form id="rule-form" class="rule-form">
           <label class="field" for="sentence">
             <span>Rule</span>
             <textarea id="sentence" rows="2" placeholder="use gb for github"></textarea>
           </label>
           <div class="buttons">
-            <button id="preview" type="submit">Check</button>
-            <button id="save" type="button" class="quiet" disabled>Save</button>
+            <button id="preview" class="btn btn-primary" type="submit">Check</button>
+            <button id="save" class="btn btn-ghost" type="button" disabled>Save</button>
           </div>
-          <p id="confirmation" class="inline-note" hidden></p>
+          <p id="confirmation" class="inline-note" role="status" hidden></p>
         </form>
-        <ul id="rules" class="rule-list"></ul>
+        <ul id="rule-list" class="rule-list" aria-label="Saved rules"></ul>
       </section>
 
-      <section class="panel panel-secondary" aria-labelledby="groups-heading">
+      <section id="groups" class="panel" aria-labelledby="groups-heading">
         <div class="panel-head">
           <div>
             <h2 id="groups-heading">Groups</h2>
             <p class="lede">Rename, recolor, or ungroup. Tabs stay open.</p>
           </div>
-          <button id="refresh-groups" type="button" class="ghost">Refresh</button>
+          <button id="refresh-groups" type="button" class="btn btn-ghost">Refresh</button>
         </div>
         <p id="groups-empty" class="empty" hidden>
           No groups in this window yet. Organize this window to create some.
         </p>
         <p id="groups-error" class="inline-note" role="status" hidden></p>
-        <ul id="groups" class="group-list"></ul>
+        <ul id="group-list" class="group-list dashboard-groups" aria-label="Groups in this window"></ul>
       </section>
 
-      <section class="panel panel-secondary" aria-labelledby="activity-heading">
+      <section id="models" class="panel" aria-labelledby="models-heading">
+        <h2 id="models-heading">Local models</h2>
+        <p class="lede">Ollama on this machine. Nothing is sent away.</p>
+
+        <div id="health-strip" class="health-strip" role="status" hidden></div>
+
+        <label class="switch" for="llm">
+          <span class="switch-copy">
+            <span class="switch-title">Local model</span>
+            <span class="switch-hint">Ask Ollama when a rule or a tab is unclear</span>
+          </span>
+          <span class="switch-control">
+            <input id="llm" type="checkbox" role="switch" />
+            <span class="switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
+
+        <label class="field" for="model">
+          <span>Installed models</span>
+          <select id="model"></select>
+        </label>
+
+        <div class="buttons">
+          <button id="refresh-models" type="button" class="btn btn-ghost">Refresh</button>
+          <button id="test-ollama" type="button" class="btn btn-ghost" disabled>Test connection</button>
+        </div>
+
+        <div id="retitle-block" class="retitle-block" hidden>
+          <p class="lede retitle-hint">Rewrites group names from tab titles. Tabs stay where they are.</p>
+          <div class="buttons">
+            <button id="retitle-groups" type="button" class="btn btn-primary" disabled>
+              Rename all groups with AI
+            </button>
+          </div>
+        </div>
+        <div id="model-status" class="inline-note" role="status" hidden></div>
+      </section>
+
+      <section id="activity" class="panel" aria-labelledby="activity-heading">
         <div class="panel-head">
           <div>
             <h2 id="activity-heading">Activity</h2>
             <p class="lede">Every extension-driven group change, with who did it.</p>
           </div>
           <div class="panel-head-actions">
-            <button id="refresh-activity" type="button" class="ghost">Refresh</button>
-            <button id="clear-activity" type="button" class="ghost">Clear log</button>
+            <button id="refresh-activity" type="button" class="btn btn-ghost">Refresh</button>
+            <button id="clear-activity" type="button" class="btn btn-ghost">Clear log</button>
           </div>
         </div>
         <label class="field activity-filter" for="activity-actor">
@@ -75,39 +144,33 @@
           </select>
         </label>
         <p id="activity-empty" class="empty" hidden>No activity yet.</p>
-        <ul id="activity" class="activity-list" aria-label="Activity log"></ul>
+        <ul id="activity-list" class="activity-list full" aria-label="Activity log"></ul>
       </section>
 
-      <section class="panel panel-secondary panel-advanced" aria-labelledby="models-heading">
-        <h2 id="models-heading">Local models</h2>
-        <p class="lede">Advanced. Ollama on this machine. Nothing is sent away.</p>
-        <label class="switch">
+      <section id="settings" class="panel" aria-labelledby="settings-heading">
+        <h2 id="settings-heading">Settings</h2>
+        <p class="lede">Window-scoped filing and the color theme for this extension.</p>
+        <label class="switch" for="organizer">
           <span class="switch-copy">
-            <span class="switch-title">Local model</span>
-            <span class="switch-hint">Ask Ollama when a rule or a tab is unclear</span>
+            <span class="switch-title">File new tabs</span>
+            <span class="switch-hint">Only in the window you are using</span>
           </span>
           <span class="switch-control">
-            <input id="llm" type="checkbox" role="switch" />
+            <input id="organizer" type="checkbox" role="switch" />
             <span class="switch-track" aria-hidden="true"></span>
           </span>
         </label>
-        <label class="field" for="model">
-          <span>Installed models</span>
-          <select id="model"></select>
-        </label>
-        <div class="buttons">
-          <button id="refresh-models" type="button" class="ghost">Refresh</button>
-          <button id="test-ollama" type="button" class="ghost" disabled>Test connection</button>
-        </div>
-        <div id="retitle-block" class="retitle-block" hidden>
-          <p class="retitle-hint">Rewrites group names from tab titles. Tabs stay where they are.</p>
-          <div class="buttons">
-            <button id="retitle-groups" type="button" disabled>Rename all groups with AI</button>
-          </div>
-        </div>
-        <div id="model-status" class="inline-note" role="status" hidden></div>
+        <p class="settings-note">
+          Status: <span id="status">Organizer is off.</span>
+        </p>
       </section>
     </main>
+
+    <footer class="dash-footer">
+      <span>Tab Organizer · local-first Chrome extension</span>
+      <span id="version-label"></span>
+    </footer>
+
     <script type="module" src="dashboard.js"></script>
   </body>
 </html>

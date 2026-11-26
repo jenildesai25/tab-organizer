@@ -135,9 +135,8 @@ function formatClock(ts: number): string {
   })
 }
 
-/** One scannable audit line, e.g. `8:41 PM · AI renamed "Cloud" → "Bug Reports" (deepseek-r1:14b)`. */
-export function formatActivityLine(entry: ActivityEntry): string {
-  const when = formatClock(entry.ts)
+/** Body only (no clock), e.g. `AI renamed "Cloud" → "Bug Reports" (deepseek-r1:14b)`. */
+export function formatActivityBody(entry: ActivityEntry): string {
   const who = actorLabel(entry.actor)
   let body = ''
 
@@ -173,5 +172,14 @@ export function formatActivityLine(entry: ActivityEntry): string {
     body += ` (${entry.model.trim()})`
   }
 
-  return `${when} · ${body}`
+  return body
+}
+
+export function formatActivityTime(entry: ActivityEntry): string {
+  return formatClock(entry.ts)
+}
+
+/** One scannable audit line, e.g. `8:41 PM · AI renamed "Cloud" → "Bug Reports" (deepseek-r1:14b)`. */
+export function formatActivityLine(entry: ActivityEntry): string {
+  return `${formatActivityTime(entry)} · ${formatActivityBody(entry)}`
 }

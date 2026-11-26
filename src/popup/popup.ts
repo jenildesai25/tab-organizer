@@ -19,6 +19,7 @@ import {
 import { paintOllamaStatus } from '../ui/ollama-status.js'
 import { paintRetitleResults } from '../ui/retitle-results.js'
 import { bindSweep, browserWindow } from '../ui/sweep.js'
+import { bindThemeToggle } from '../ui/theme.js'
 
 const organizer = document.querySelector<HTMLInputElement>('#organizer')!
 const llm = document.querySelector<HTMLInputElement>('#llm')!
@@ -38,9 +39,15 @@ const refreshGroups = document.querySelector<HTMLButtonElement>('#refresh-groups
 const activityList = document.querySelector<HTMLUListElement>('#activity')!
 const activityEmpty = document.querySelector<HTMLParagraphElement>('#activity-empty')!
 const refreshActivity = document.querySelector<HTMLButtonElement>('#refresh-activity')!
+const progressPanel = document.querySelector<HTMLElement>('#progress-panel')!
+const progressBar = document.querySelector<HTMLProgressElement>('#organize-progress')!
+const progressLabel = document.querySelector<HTMLElement>('#progress-label')
+const progressValue = document.querySelector<HTMLElement>('#progress-value')
+const ollamaPill = document.querySelector<HTMLElement>('#ollama-pill')!
+const ollamaPillLabel = document.querySelector<HTMLElement>('#ollama-pill-label')!
 
 const TEST_LABEL = 'Test connection'
-const RETITLE_LABEL = 'Rename groups with AI'
+const RETITLE_LABEL = 'AI rename'
 
 let models: LocalModel[] = []
 let selected = ''
@@ -75,6 +82,18 @@ function optionLabel(model: LocalModel): string {
   return model.parameterSize ? `${model.name} · ${model.parameterSize}` : model.name
 }
 
+function paintOllamaPill(ok: boolean, label: string, title: string): void {
+  if (!label) {
+    ollamaPill.hidden = true
+    return
+  }
+  ollamaPill.hidden = false
+  ollamaPill.classList.toggle('is-ok', ok)
+  ollamaPill.classList.toggle('is-warn', !ok)
+  ollamaPill.title = title
+  ollamaPillLabel.textContent = label
+}
+
 function renderModels(): void {
   const match = models.some((model) => model.name === selected)
   modelSelect.replaceChildren()
@@ -95,6 +114,7 @@ function renderModels(): void {
 
 function syncLlmControls(): void {
   llmControls.hidden = !llmOn
+  llmControls.classList.toggle('is-collapsed', !llmOn)
   const ready = llmOn && selected !== ''
   if (testBusy) {
     testOllama.disabled = true
@@ -109,6 +129,15 @@ function syncLlmControls(): void {
   } else {
     retitleButton.textContent = RETITLE_LABEL
     retitleButton.disabled = !ready
+  }
+  if (!llmOn) {
+    ollamaPill.hidden = true
+  } else if (selected) {
+    paintOllamaPill(true, selected, `Local model · ${selected}`)
+  } else if (listedOnce && models.length === 0) {
+    paintOllamaPill(false, 'no models', "Ollama has no models yet")
+  } else {
+    paintOllamaPill(false, 'pick model', 'Choose a local model')
   }
 }
 
@@ -259,6 +288,7 @@ async function loadModels(): Promise<void> {
         listed.message ??
           "Ollama isn't running. Start it with `ollama serve`, then try again.",
       )
+      paintOllamaPill(false, 'offline', listed.message ?? "Ollama isn't running")
       renderModels()
       syncLlmControls()
       return
@@ -271,6 +301,7 @@ async function loadModels(): Promise<void> {
     listedOnce = true
     if (!hadModels) models = []
     showModelStatus("Ollama isn't running. Start it with `ollama serve`, then try again.")
+    paintOllamaPill(false, 'offline', "Ollama isn't running")
     renderModels()
     syncLlmControls()
   }
@@ -287,7 +318,10 @@ llm.addEventListener('change', () => {
     const state = await send<StateResult>({ type: 'set-llm', on: llm.checked })
     renderState(state)
     if (state.llmOn) await loadModels()
-    else showModelStatus('')
+    else {
+      showModelStatus('')
+      ollamaPill.hidden = true
+    }
   })()
 })
 
@@ -319,8 +353,10 @@ testOllama.addEventListener('click', () => {
     try {
       const result = await send<TestOllamaResult>({ type: 'test-ollama' })
       showModelStatus(result.message)
+      paintOllamaPill(result.ok, selected, result.message)
     } catch {
       showModelStatus('Could not reach Ollama.')
+      paintOllamaPill(false, 'offline', 'Could not reach Ollama.')
     } finally {
       testBusy = false
       syncLlmControls()
@@ -385,11 +421,22 @@ retitleButton.addEventListener('click', () => {
   })()
 })
 
-bindSweep(sweep, resultLine, renderState, (response) => {
-  if (response.ok) clearRetitleResults()
-  void loadGroups()
-  void loadActivity()
-})
+bindSweep(
+  sweep,
+  resultLine,
+  renderState,
+  (response) => {
+    if (response.ok) clearRetitleResults()
+    void loadGroups()
+    void loadActivity()
+  },
+  {
+    panel: progressPanel,
+    bar: progressBar,
+    label: progressLabel,
+    value: progressValue,
+  },
+)
 
 refreshGroups.addEventListener('click', () => {
   groupUi = { openPickerId: null, pendingDeleteId: null, openMenuId: null }
@@ -410,6 +457,7 @@ openDashboard.addEventListener('click', () => {
   void chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/index.html') })
 })
 
+void bindThemeToggle()
 void (async () => {
   const state = await send<StateResult>({ type: 'get-state' })
   renderState(state)

@@ -23,7 +23,7 @@ export function paintOllamaStatus(target: HTMLElement, text: string): void {
 
   const copy = document.createElement('button')
   copy.type = 'button'
-  copy.className = 'ghost copy-env'
+  copy.className = 'btn btn-ghost btn-tiny copy-env'
   copy.textContent = 'Copy launch command'
   copy.title = launch
   copy.addEventListener('click', () => {
