@@ -33,6 +33,11 @@ import {
   type WorkspaceLayout,
 } from './domain/workspace-layout.js'
 import {
+  DEFAULT_QUIET_HOURS_END,
+  DEFAULT_QUIET_HOURS_START,
+  clampHour,
+} from './domain/quiet-hours.js'
+import {
   DEFAULT_CLEANUP_AGE_DAYS,
   clampCleanupAgeDays,
   parseProtectLists,
@@ -57,6 +62,10 @@ export type Settings = {
   protect: ProtectLists
   /** When true, hand-renamed groups are also added to Protect. */
   protectHandRenamed: boolean
+  /** Pause auto-group during a daily local-time window. Manual Organize still runs. */
+  quietHoursOn: boolean
+  quietHoursStart: number
+  quietHoursEnd: number
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -68,6 +77,9 @@ export const DEFAULT_SETTINGS: Settings = {
   cleanupAgeDays: DEFAULT_CLEANUP_AGE_DAYS,
   protect: { domains: [], groupIds: [], urlPatterns: [], groups: [] },
   protectHandRenamed: false,
+  quietHoursOn: false,
+  quietHoursStart: 23,
+  quietHoursEnd: 7,
 }
 
 export async function loadSettings(): Promise<Settings> {
@@ -96,6 +108,9 @@ export async function loadSettings(): Promise<Settings> {
       groups: parseGroupFingerprints(protectRaw.groups),
     },
     protectHandRenamed: stored.protectHandRenamed === true,
+    quietHoursOn: stored.quietHoursOn === true,
+    quietHoursStart: clampHour(stored.quietHoursStart, DEFAULT_QUIET_HOURS_START),
+    quietHoursEnd: clampHour(stored.quietHoursEnd, DEFAULT_QUIET_HOURS_END),
   }
 }
 
