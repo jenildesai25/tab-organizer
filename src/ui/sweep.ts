@@ -43,7 +43,7 @@ function setProgress(
   panel.hidden = false
   if (state === 'running') {
     bar.removeAttribute('value')
-    if (label) label.textContent = message ?? 'Filing tabs…'
+    if (label) label.textContent = message ?? 'Grouping tabs…'
     if (value) value.textContent = '…'
     return
   }
@@ -97,7 +97,7 @@ export function bindSweep(
       button.textContent = 'Organizing…'
       button.setAttribute('aria-busy', 'true')
       showResult(result, '')
-      setProgress(progress, 'running', 'Filing tabs into groups…')
+      setProgress(progress, 'running', 'Grouping tabs…')
       try {
         const win = await browserWindow()
         if (win?.id == null) {

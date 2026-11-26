@@ -4,9 +4,9 @@ The organizer files browser tabs into groups. It starts off, and it can do that 
 
 ## Language
 
-**Organizer**:
-The switch that allows **Filing** in the focused window. It starts off.
-_Avoid_: Bot, auto-group
+**Organizer** (UI: **Auto-group new tabs**):
+The switch that auto-groups new tabs in the focused window after they settle. It starts off.
+_Avoid_: Bot, filing switch
 
 **LLM switch**:
 The switch that allows the **Advisor** to run. It starts off.

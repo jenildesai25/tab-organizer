@@ -249,7 +249,7 @@ write_env CWS_PRIVACY_POLICY_URL "$CWS_PRIVACY_POLICY_URL"
 # ── 5. Screenshots ───────────────────────────────────────────────────────
 stage "Screenshots (required)"
 say "CWS needs ≥1 screenshot at 1280×800 or 640×400 (PNG or JPEG)."
-step "Capture the popup with Organize / File new tabs visible."
+step "Capture the popup with Organize / Auto-group new tabs visible."
 step "Recommended: dashboard Rules with 2–3 example rules."
 step "Recommended: Groups or Activity view."
 note "Local UI references: .scratch/ui-mock/shots/ (resize/re-capture for store sizes)."

@@ -4,7 +4,7 @@ Chrome extension (Manifest V3) that files tabs into **native Chrome tab groups**
 
 ## Demo
 
-Short walkthrough (~25s): popup (**Organize this window**, File new tabs, Local model) then dashboard **Groups** and **Activity**.
+Short walkthrough (~25s): popup (**Organize this window**, Auto-group new tabs, Local model) then dashboard **Groups** and **Activity**.
 
 https://github.com/user-attachments/assets/ae3ac628-2e04-415c-a2ce-bc2baf9e26d9
 
@@ -38,7 +38,7 @@ Open the extension popup from the toolbar.
 | Control | What it does |
 | --- | --- |
 | **Organize this window** | Sweep the current window and file tabs into groups |
-| **File new tabs** | Auto-file tabs as you open them (focused window only) |
+| **Auto-group new tabs** | When you open a tab, put it in a group (this window only) |
 | **Local model** | When on, ask Ollama for ambiguous rules/tabs |
 | **Model** dropdown | Pick an installed Ollama model |
 | **Test connection** | Verify the extension can reach Ollama |

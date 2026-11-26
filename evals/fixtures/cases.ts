@@ -132,14 +132,20 @@ export const fixtures: Fixture[] = [
     },
   },
   {
-    name: 'cross-site pair with no shared words stays ungrouped',
+    name: 'cross-site pair with no shared words each gets a site group',
     input: decideInput({
       tabs: [
         tab(1, 'wirecutter.com', 'Pasta recipe', { active: true }),
         tab(2, 'amazon.com', 'USB cable'),
       ],
     }),
-    expect: { types: [] },
+    expect: {
+      types: ['file', 'file'],
+      files: [
+        { createTitle: 'Wirecutter', expand: true, tabIds: [1] },
+        { createTitle: 'Amazon', expand: false, tabIds: [2] },
+      ],
+    },
   },
   {
     name: 'shared title words file at the high overlap',
@@ -171,7 +177,14 @@ export const fixtures: Fixture[] = [
       ],
       tabs: [tab(1, 'amazon.com', 'Standing lamp', { active: true })],
     }),
-    expect: { types: [] },
+    expect: {
+      types: ['file'],
+      createTitle: 'Amazon',
+      expand: true,
+      aroundTabId: 1,
+      tabIds: [1],
+      groupId: null,
+    },
   },
   {
     name: 'uncertain standing desk asks the advisor',
@@ -549,11 +562,18 @@ export const fixtures: Fixture[] = [
     },
   },
   {
-    name: 'watch leaves a single new tab ungrouped',
+    name: 'watch creates a site group for a single new tab',
     input: decideInput({
       tabs: [tab(1, 'amazon.com', 'USB cable', { active: true })],
     }),
-    expect: { types: [] },
+    expect: {
+      types: ['file'],
+      createTitle: 'Amazon',
+      expand: true,
+      aroundTabId: 1,
+      tabIds: [1],
+      groupId: null,
+    },
   },
   {
     name: 'watch leaves a tab the user dragged into a group',

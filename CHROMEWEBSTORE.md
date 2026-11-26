@@ -26,7 +26,7 @@ Tab Organizer files your open tabs into native Chrome tab groups using the site,
 
 FEATURES
 • Organize this window — sweep the current window and file tabs into groups
-• File new tabs — optionally auto-file tabs as you open them in the focused window
+• Auto-group new tabs — when you open a tab, put it in a group (focused window only)
 • Plain-language rules — tell Tab Organizer what to name each Chrome tab group (e.g. “use gb for github” → GitHub tabs go in a group named gb; “call linear Work” → Linear tabs go in Work)
 • Group management — rename, recolor, or ungroup from the dashboard
 • Activity history — a local, plain-language log of what the extension did (domains / site keys, not full URLs)
@@ -34,7 +34,7 @@ FEATURES
 
 HOW TO USE
 1. Click the Tab Organizer icon in the toolbar
-2. Choose Organize this window, or turn on File new tabs
+2. Choose Organize this window, or turn on Auto-group new tabs
 3. Open Rules in the dashboard to say what to name tab groups for certain sites (e.g. “call linear Work”), then Check and Save
 4. (Optional) Install Ollama locally, turn on Local model, pick a model, and Test connection
 
@@ -72,7 +72,7 @@ English
 |-------|-----------|--------|----------|
 | Store Icon [REQUIRED] | 128×128 PNG | ✅ Ready | `icons/icon-128.png` (also in package) |
 | Extension icons | 16 / 48 / 128 | ✅ Ready | `icons/icon-16.png`, `icon-48.png`, `icon-128.png` |
-| Screenshot 1 [REQUIRED] | 1280×800 or 640×400 | ⬜ Not created | Capture popup: Organize + File new tabs |
+| Screenshot 1 [REQUIRED] | 1280×800 or 640×400 | ⬜ Not created | Capture popup: Organize + Auto-group new tabs |
 | Screenshot 2 [RECOMMENDED] | 1280×800 or 640×400 | ⬜ Not created | Dashboard Rules with example rules |
 | Screenshot 3 [RECOMMENDED] | 1280×800 or 640×400 | ⬜ Not created | Groups panel or Activity history |
 | Promotional video [OPTIONAL] | YouTube URL | ✅ Clip ready | `docs/demo/tab-organizer-demo.mp4` (~30s) — **upload to YouTube**, paste URL in CWS (CWS does not accept a video file) |
@@ -95,7 +95,7 @@ Paste each justification into the corresponding field in the Developer Dashboard
 
 | Permission | Type | Justification |
 |------------|------|---------------|
-| `tabs` | permissions | Needed to read each tab’s URL and title so the extension can decide which Chrome tab group the tab belongs in, run Organize this window / File new tabs, and record a local activity entry when a tab is filed. |
+| `tabs` | permissions | Needed to read each tab’s URL and title so the extension can decide which Chrome tab group the tab belongs in, run Organize this window / Auto-group new tabs, and record a local activity entry when a tab is filed. |
 | `tabGroups` | permissions | Needed to create, rename, recolor, and update Chrome’s native tab groups when organizing tabs or when you edit groups from the dashboard. |
 | `storage` | permissions | Needed to save your grouping rules, on/off settings (including optional Local model choice), theme preference, and a local activity history on this device only (`chrome.storage.local`). |
 | `http://127.0.0.1:11434/*` | host_permissions | Optional Local model feature only. Lets the extension call Ollama running on your machine at 127.0.0.1:11434 (list models, test connection, ask for help on ambiguous rules/tabs). No remote Tab Organizer server. |
@@ -106,7 +106,7 @@ Paste each justification into the corresponding field in the Developer Dashboard
 **tabs**
 
 ```
-Needed to read each tab’s URL and title so Tab Organizer can file tabs into the correct Chrome tab groups (Organize this window / File new tabs) and keep a local activity history of filings. The extension does not inject scripts into pages or read page content beyond tab metadata Chrome provides. Activity history stores site keys / domains, not full tab URLs.
+Needed to read each tab’s URL and title so Tab Organizer can file tabs into the correct Chrome tab groups (Organize this window / Auto-group new tabs) and keep a local activity history of filings. The extension does not inject scripts into pages or read page content beyond tab metadata Chrome provides. Activity history stores site keys / domains, not full tab URLs.
 ```
 
 **tabGroups**
