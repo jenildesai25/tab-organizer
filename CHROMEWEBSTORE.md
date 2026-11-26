@@ -27,7 +27,7 @@ Tab Organizer files your open tabs into native Chrome tab groups using the site,
 FEATURES
 • Organize this window — sweep the current window and file tabs into groups
 • File new tabs — optionally auto-file tabs as you open them in the focused window
-• Plain-language rules — e.g. “use gb for github”, “put github and gitlab in Code”
+• Plain-language rules — tell Tab Organizer what to name each Chrome tab group (e.g. “use gb for github” → GitHub tabs go in a group named gb; “call linear Work” → Linear tabs go in Work)
 • Group management — rename, recolor, or ungroup from the dashboard
 • Activity history — a local, plain-language log of what the extension did (domains / site keys, not full URLs)
 • Optional local model — when you turn it on, ask a model running on your own machine (Ollama) for ambiguous rules or tabs; nothing is sent to our servers
@@ -35,7 +35,7 @@ FEATURES
 HOW TO USE
 1. Click the Tab Organizer icon in the toolbar
 2. Choose Organize this window, or turn on File new tabs
-3. Open Rules in the dashboard to add short English grouping rules, then Check and Save
+3. Open Rules in the dashboard to say what to name tab groups for certain sites (e.g. “call linear Work”), then Check and Save
 4. (Optional) Install Ollama locally, turn on Local model, pick a model, and Test connection
 
 PRIVACY
@@ -84,7 +84,7 @@ English
 CWS requires at least one screenshot at **1280×800** or **640×400**. Suggested shots:
 
 1. **Popup** — header with Local model / Organize controls; show groups summary.
-2. **Dashboard → Rules** — a few saved rules (“use gb for github”, “put github and gitlab in Code”).
+2. **Dashboard → Rules** — a few saved rules with clear meaning (e.g. “use gb for github” → group **gb**; “call linear Work” → group **Work**).
 3. **Dashboard → Groups or Activity** — prove native grouping / local history.
 
 Reference UI from local mocks under `.scratch/ui-mock/shots/` (not store-sized; resize or re-capture before upload). Do not upload annotated “proof” crops.
