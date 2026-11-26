@@ -43,6 +43,12 @@ import {
   formatCleanupUndoSummary,
 } from './domain/cleanup-undo.js'
 import {
+  assignTabsToLayout,
+  buildWorkspaceLayout,
+  clampLayoutName,
+  formatLayoutSummary,
+} from './domain/workspace-layout.js'
+import {
   CLEANUP_ALARM_NAME,
   CLEANUP_ALARM_PERIOD_MINUTES,
   clampCleanupAgeDays,
@@ -64,10 +70,13 @@ import type {
   CleanupRunResult,
   CleanupUndoResult,
   ClearActivityResult,
+  ApplyLayoutResult,
+  LayoutsResult,
   ListGroupsResult,
   ModelsResult,
   PreviewResult,
   ProtectUpdateResult,
+  SaveLayoutResult,
   RetitleGroupResult,
   RetitleGroupsResult,
   RetitleProgress,
@@ -84,11 +93,14 @@ import {
   clearCleanupUndo,
   loadActivityLog,
   loadCleanupUndo,
+  loadWorkspaceLayouts,
   forgetHandRenamedGroup,
   loadSettings,
   rememberHandRenamedGroup,
+  removeWorkspaceLayout,
   restoreHandRenamedGroups,
   saveCleanupUndo,
+  saveWorkspaceLayout,
   updateSettings,
   type Settings,
 } from './storage.js'
@@ -1139,6 +1151,87 @@ async function handle(message: ToBackground): Promise<unknown> {
     })
   }
   if (message.type === 'undo-cleanup') return undoCleanup()
+  if (message.type === 'list-layouts') {
+    return { ok: true, layouts: await loadWorkspaceLayouts() } satisfies LayoutsResult
+  }
+  if (message.type === 'save-layout') {
+    const name = clampLayoutName(message.name)
+    if (!name) return { ok: false, message: 'Name this layout first.' } satisfies SaveLayoutResult
+    try {
+      const windowId = await resolveCleanupWindowId(message.windowId)
+      const [groups, tabs] = await Promise.all([
+        chrome.tabGroups.query({ windowId }),
+        chrome.tabs.query({ windowId }),
+      ])
+      const layout = buildWorkspaceLayout(name, groups, tabs)
+      if (!layout) {
+        return {
+          ok: false,
+          message: 'No named groups in this window to save.',
+        } satisfies SaveLayoutResult
+      }
+      const layouts = await saveWorkspaceLayout(layout)
+      return {
+        ok: true,
+        layouts,
+        summary: `Saved ${formatLayoutSummary(layout)}.`,
+      } satisfies SaveLayoutResult
+    } catch (error) {
+      const text = error instanceof Error && error.message ? error.message : 'Could not save layout.'
+      return { ok: false, message: text } satisfies SaveLayoutResult
+    }
+  }
+  if (message.type === 'apply-layout') {
+    try {
+      const layouts = await loadWorkspaceLayouts()
+      const layout = layouts.find((row) => row.id === message.id)
+      if (!layout) return { ok: false, message: 'That layout was not found.' } satisfies ApplyLayoutResult
+      const windowId = await resolveCleanupWindowId(message.windowId)
+      const tabs = await chrome.tabs.query({ windowId })
+      const assignments = assignTabsToLayout(layout, tabs)
+      if (assignments.length === 0) {
+        return {
+          ok: false,
+          message: 'No open tabs in this window match that layout.',
+        } satisfies ApplyLayoutResult
+      }
+      let grouped = 0
+      for (const assignment of assignments) {
+        const [first, ...rest] = assignment.tabIds
+        if (first === undefined) continue
+        const groupId = await chrome.tabs.group({
+          tabIds: rest.length > 0 ? [first, ...rest] : [first],
+        })
+        markGroup(groupId)
+        await chrome.tabGroups.update(groupId, {
+          title: assignment.title,
+          color: assignment.color,
+        })
+        grouped += assignment.tabIds.length
+      }
+      await recordActivity({
+        actor: 'user',
+        action: 'group.create',
+        tabCount: grouped,
+        groupTitle: layout.name,
+        reason: 'apply layout',
+      })
+      const groupNoun = assignments.length === 1 ? 'group' : 'groups'
+      return {
+        ok: true,
+        grouped,
+        groups: assignments.length,
+        summary: `Applied ${layout.name}: filed ${grouped} tab${grouped === 1 ? '' : 's'} into ${assignments.length} ${groupNoun}.`,
+      } satisfies ApplyLayoutResult
+    } catch (error) {
+      const text = error instanceof Error && error.message ? error.message : 'Could not apply layout.'
+      return { ok: false, message: text } satisfies ApplyLayoutResult
+    }
+  }
+  if (message.type === 'delete-layout') {
+    const layouts = await removeWorkspaceLayout(message.id)
+    return { ok: true, layouts } satisfies LayoutsResult
+  }
   return { ok: false, message: 'Unknown message.' }
 }
 

@@ -5,20 +5,24 @@ import type { TabGroupView } from '../domain/tab-groups.js'
 import type { LocalModel } from '../ollama.js'
 import type {
   ActivityLogResult,
+  ApplyLayoutResult,
   CleanupPreviewResult,
   CleanupRunResult,
   CleanupUndoResult,
   ClearActivityResult,
+  LayoutsResult,
   ListGroupsResult,
   ModelsResult,
   PreviewResult,
   ProtectUpdateResult,
   RetitleGroupsResult,
+  SaveLayoutResult,
   StateResult,
   TestOllamaResult,
   ToBackground,
   UngroupResult,
   UpdateGroupResult,
+  WorkspaceLayout,
 } from '../protocol.js'
 import { paintActivityList } from '../ui/activity.js'
 import {
@@ -51,6 +55,12 @@ const groupsList = document.querySelector<HTMLUListElement>('#groups-list')!
 const groupsEmpty = document.querySelector<HTMLParagraphElement>('#groups-empty')!
 const groupsError = document.querySelector<HTMLParagraphElement>('#groups-error')!
 const refreshGroups = document.querySelector<HTMLButtonElement>('#refresh-groups')!
+const layoutForm = document.querySelector<HTMLFormElement>('#layout-form')!
+const layoutName = document.querySelector<HTMLInputElement>('#layout-name')!
+const saveLayout = document.querySelector<HTMLButtonElement>('#save-layout')!
+const layoutsNote = document.querySelector<HTMLElement>('#layouts-note')!
+const layoutsEmpty = document.querySelector<HTMLParagraphElement>('#layouts-empty')!
+const layoutsList = document.querySelector<HTMLUListElement>('#layouts-list')!
 const activityList = document.querySelector<HTMLUListElement>('#activity-list')!
 const activityEmpty = document.querySelector<HTMLParagraphElement>('#activity-empty')!
 const refreshActivity = document.querySelector<HTMLButtonElement>('#refresh-activity')!
@@ -126,6 +136,83 @@ function showGroupsError(text: string): void {
 
 function optionLabel(model: LocalModel): string {
   return model.parameterSize ? `${model.name} · ${model.parameterSize}` : model.name
+}
+
+function showLayoutsNote(text: string): void {
+  layoutsNote.textContent = text
+  layoutsNote.hidden = text === ''
+}
+
+function renderLayouts(list: WorkspaceLayout[]): void {
+  layoutsList.replaceChildren()
+  layoutsEmpty.hidden = list.length > 0
+  for (const layout of list) {
+    const item = document.createElement('li')
+    item.className = 'rule-row'
+    const copy = document.createElement('div')
+    const title = document.createElement('strong')
+    title.textContent = layout.name
+    const meta = document.createElement('span')
+    const groupNoun = layout.groups.length === 1 ? 'group' : 'groups'
+    meta.textContent = `${layout.groups.length} ${groupNoun}`
+    copy.append(title, meta)
+    const actions = document.createElement('div')
+    actions.className = 'buttons'
+    const apply = document.createElement('button')
+    apply.type = 'button'
+    apply.className = 'btn btn-ghost btn-tiny'
+    apply.textContent = 'Apply'
+    apply.setAttribute('aria-label', `Apply layout ${layout.name}`)
+    apply.addEventListener('click', () => {
+      void (async () => {
+        apply.disabled = true
+        showLayoutsNote('Applying layout…')
+        try {
+          const win = await browserWindow()
+          const result = await send<ApplyLayoutResult>({
+            type: 'apply-layout',
+            id: layout.id,
+            windowId: win?.id,
+          })
+          showLayoutsNote(result.ok ? result.summary : result.message)
+          if (result.ok) {
+            await loadGroups()
+            await loadActivity()
+          }
+        } catch {
+          showLayoutsNote('Could not apply layout.')
+        } finally {
+          apply.disabled = false
+        }
+      })()
+    })
+    const remove = document.createElement('button')
+    remove.type = 'button'
+    remove.className = 'btn btn-ghost btn-tiny'
+    remove.textContent = 'Delete'
+    remove.setAttribute('aria-label', `Delete layout ${layout.name}`)
+    remove.addEventListener('click', () => {
+      void (async () => {
+        const result = await send<LayoutsResult>({ type: 'delete-layout', id: layout.id })
+        if (result.ok) {
+          renderLayouts(result.layouts)
+          showLayoutsNote('Removed layout.')
+        }
+      })()
+    })
+    actions.append(apply, remove)
+    item.append(copy, actions)
+    layoutsList.append(item)
+  }
+}
+
+async function loadLayouts(): Promise<void> {
+  try {
+    const result = await send<LayoutsResult>({ type: 'list-layouts' })
+    if (result.ok) renderLayouts(result.layouts)
+  } catch {
+    showLayoutsNote('Could not load layouts.')
+  }
 }
 
 function renderRules(list: CompiledRule[]): void {
@@ -1080,6 +1167,33 @@ save.addEventListener('click', () => {
   })()
 })
 
+layoutForm.addEventListener('submit', (event) => {
+  event.preventDefault()
+  void (async () => {
+    saveLayout.disabled = true
+    showLayoutsNote('Saving layout…')
+    try {
+      const win = await browserWindow()
+      const result = await send<SaveLayoutResult>({
+        type: 'save-layout',
+        name: layoutName.value,
+        windowId: win?.id,
+      })
+      if (result.ok) {
+        layoutName.value = ''
+        renderLayouts(result.layouts)
+        showLayoutsNote(result.summary)
+      } else {
+        showLayoutsNote(result.message)
+      }
+    } catch {
+      showLayoutsNote('Could not save layout.')
+    } finally {
+      saveLayout.disabled = false
+    }
+  })()
+})
+
 void bindThemeToggle()
 if (versionLabel) {
   versionLabel.textContent = `v${chrome.runtime.getManifest().version}`
@@ -1091,3 +1205,4 @@ void (async () => {
 })()
 void loadGroups()
 void loadActivity()
+void loadLayouts()

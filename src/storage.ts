@@ -26,6 +26,13 @@ import {
   type CleanupUndoSnapshot,
 } from './domain/cleanup-undo.js'
 import {
+  WORKSPACE_LAYOUTS_KEY,
+  deleteWorkspaceLayout,
+  parseWorkspaceLayouts,
+  upsertWorkspaceLayout,
+  type WorkspaceLayout,
+} from './domain/workspace-layout.js'
+import {
   DEFAULT_CLEANUP_AGE_DAYS,
   clampCleanupAgeDays,
   parseProtectLists,
@@ -278,4 +285,29 @@ export async function saveCleanupUndo(snapshot: CleanupUndoSnapshot): Promise<vo
 export async function clearCleanupUndo(): Promise<void> {
   const store = await undoStore()
   await store.remove(CLEANUP_UNDO_KEY)
+}
+
+const layoutsMutex = createAsyncMutex()
+
+export async function loadWorkspaceLayouts(): Promise<WorkspaceLayout[]> {
+  const stored = await chrome.storage.local.get(WORKSPACE_LAYOUTS_KEY)
+  return parseWorkspaceLayouts(stored[WORKSPACE_LAYOUTS_KEY])
+}
+
+export async function saveWorkspaceLayout(layout: WorkspaceLayout): Promise<WorkspaceLayout[]> {
+  return layoutsMutex.run(async () => {
+    const existing = await loadWorkspaceLayouts()
+    const next = upsertWorkspaceLayout(existing, layout)
+    await chrome.storage.local.set({ [WORKSPACE_LAYOUTS_KEY]: next })
+    return next
+  })
+}
+
+export async function removeWorkspaceLayout(id: string): Promise<WorkspaceLayout[]> {
+  return layoutsMutex.run(async () => {
+    const existing = await loadWorkspaceLayouts()
+    const next = deleteWorkspaceLayout(existing, id)
+    await chrome.storage.local.set({ [WORKSPACE_LAYOUTS_KEY]: next })
+    return next
+  })
 }
