@@ -191,9 +191,9 @@ async function loadGroups(): Promise<void> {
 async function loadActivity(): Promise<void> {
   refreshActivity.disabled = true
   try {
-    const result = await send<ActivityLogResult>({ type: 'get-activity', limit: 15 })
+    const result = await send<ActivityLogResult>({ type: 'get-activity', limit: 3 })
     paintActivityList(activityList, activityEmpty, result.ok ? result.entries : [], {
-      limit: 15,
+      limit: 3,
       emptyText: 'No activity yet.',
     })
   } catch {

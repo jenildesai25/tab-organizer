@@ -314,15 +314,15 @@ async function main() {
   console.log(`Mode: ${mode}`)
 
   const popupCss = readFileSync(path.join(dist, 'popup/popup.css'), 'utf8')
-  if (!/width:\s*520px/.test(popupCss)) {
-    fail('dist/popup/popup.css must set width: 520px', popupCss.slice(0, 240))
+  if (!/width:\s*430px/.test(popupCss)) {
+    fail('dist/popup/popup.css must set width: 430px', popupCss.slice(0, 240))
     return
   }
   if (/max-width:\s*100vw/.test(popupCss)) {
     fail('dist/popup/popup.css must not use max-width: 100vw (caps Chrome popup width)')
     return
   }
-  console.log('popup.css: width 520px present, no 100vw cap')
+  console.log('popup.css: width 430px present, no 100vw cap')
 
   const popupCritical = [
     'sweep',
@@ -362,8 +362,8 @@ async function main() {
     if (popup.probe.hasGrain) fail('Popup still has grain ::before', popup.probe)
     if (popup.probe.paintErrors.length) fail('Popup paint errors', popup.probe.paintErrors)
     if (popup.pageErrors.length) fail('Popup uncaught exceptions', popup.pageErrors)
-    if (popup.probe.rootWidth < 480) {
-      fail('Popup root width too narrow (want ≥480px)', {
+    if (popup.probe.rootWidth < 420 || popup.probe.rootWidth > 440) {
+      fail('Popup root width out of 420–440px target', {
         rootWidth: popup.probe.rootWidth,
         cssWidth: popup.probe.cssWidth,
       })
