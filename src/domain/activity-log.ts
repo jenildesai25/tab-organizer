@@ -23,7 +23,7 @@ export type ActivityEntry = {
   oldTitle?: string
   newTitle?: string
   tabId?: number
-  tabUrl?: string
+  /** Registrable domain / site key only — never a full URL. */
   siteKey?: string
   reason?: string
   model?: string
@@ -98,7 +98,6 @@ export function parseStoredActivityLog(raw: unknown): ActivityEntry[] {
       oldTitle: typeof row.oldTitle === 'string' ? row.oldTitle : undefined,
       newTitle: typeof row.newTitle === 'string' ? row.newTitle : undefined,
       tabId: typeof row.tabId === 'number' ? row.tabId : undefined,
-      tabUrl: typeof row.tabUrl === 'string' ? row.tabUrl : undefined,
       siteKey: typeof row.siteKey === 'string' ? row.siteKey : undefined,
       reason: typeof row.reason === 'string' ? row.reason : undefined,
       model: typeof row.model === 'string' ? row.model : undefined,

@@ -113,7 +113,7 @@ describe('countSweep partitioning', () => {
 })
 
 describe('formatSweepDiag', () => {
-  it('lists class counts and the first resolved urls', () => {
+  it('lists class counts and hostname-only samples (no full paths)', () => {
     const chromeTabs: ChromeTabLike[] = [
       { id: 1, url: 'https://github.com/acme/pr', title: 'PR' },
       { id: 2, url: 'chrome://extensions', title: 'Extensions' },
@@ -121,7 +121,7 @@ describe('formatSweepDiag', () => {
       { id: 4, url: 'about:blank', title: '' },
     ]
     expect(formatSweepDiag(chromeTabs)).toBe(
-      'diag: http=1 browser=1 pinned=1 unknown=1 | https://github.com/acme/pr[http], chrome://extensions[browser], https://nvidia.com[pinned]',
+      'diag: http=1 browser=1 pinned=1 unknown=1 | github.com[http], chrome://extensions[browser], nvidia.com[pinned]',
     )
   })
 })

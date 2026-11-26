@@ -226,7 +226,6 @@ async function apply(
   settings: Settings,
   domains: Map<number, string>,
   mode: 'watch' | 'sweep',
-  tabUrls?: Map<number, string>,
 ): Promise<void> {
   let failed = false
   const actor = filingActor(mode)
@@ -253,7 +252,6 @@ async function apply(
         }
         if (groupId != null) {
           const firstTabId = action.tabIds[0]
-          const tabUrl = firstTabId != null ? tabUrls?.get(firstTabId) : undefined
           if (action.create) {
             await recordActivity({
               actor,
@@ -262,7 +260,6 @@ async function apply(
               groupTitle: action.create.title,
               newTitle: action.create.title,
               tabId: firstTabId,
-              tabUrl,
               siteKey: domains.get(firstTabId ?? -1),
               tabCount: action.tabIds.length,
             })
@@ -280,7 +277,6 @@ async function apply(
               groupId,
               groupTitle,
               tabId: firstTabId,
-              tabUrl,
               siteKey: domains.get(firstTabId ?? -1),
               tabCount: action.tabIds.length,
             })
@@ -326,14 +322,9 @@ function queueAdvice(
       for (const tab of input.tabs) tab.candidate = tab.id === action.tabId
       input.suggestion = { tabId: action.tabId, title: parsed.title, confidence: parsed.confidence }
       const domains = new Map(input.tabs.map((tab) => [tab.id, tab.card.domain]))
-      const tabUrls = new Map(
-        built.chromeTabs.flatMap((tab) =>
-          tab.id == null ? [] : ([[tab.id, resolveTabUrl(tab)] as const]),
-        ),
-      )
       const next = decide(input).filter((item) => item.type !== 'ask-advisor')
       try {
-        await apply(windowId, next, fresh, domains, 'watch', tabUrls)
+        await apply(windowId, next, fresh, domains, 'watch')
       } catch {
         return null
       }
@@ -371,7 +362,7 @@ async function resolveSweepWindowId(requestedId: number): Promise<number> {
   return picked
 }
 
-/** Sample live Chrome tab fields for smoke tests / Organize debugging. */
+/** Counts-only sweep diag for client responses (no full URL samples). */
 async function snapshotDiag(windowId: number): Promise<SweepDiag> {
   const queried = await hydrateTabs(await chrome.tabs.query({ windowId }))
   const byId = new Map(queried.flatMap((tab) => (tab.id == null ? [] : [[tab.id, tab as ChromeTabLike] as const])))
@@ -392,6 +383,7 @@ async function snapshotDiag(windowId: number): Promise<SweepDiag> {
     queried,
     states,
     noneGroupId,
+    { includeSamples: false },
   )
 }
 
@@ -413,13 +405,8 @@ async function run(windowId: number, mode: 'watch' | 'sweep'): Promise<string> {
   const built = await buildInput(windowId, settings, mode, mode === 'sweep' ? true : focused)
   const { chromeTabs, ...input } = built
   const domains = new Map(input.tabs.map((tab) => [tab.id, tab.card.domain]))
-  const tabUrls = new Map(
-    chromeTabs.flatMap((tab) =>
-      tab.id == null ? [] : ([[tab.id, resolveTabUrl(tab)] as const]),
-    ),
-  )
   const actions = decide(input)
-  await apply(windowId, actions, settings, domains, mode, tabUrls)
+  await apply(windowId, actions, settings, domains, mode)
   if (mode !== 'sweep') return ''
   if (sweepClaimsNothing(input.tabs, actions, input.groups)) {
     throw new Error('Could not group this window.')
@@ -1120,7 +1107,9 @@ async function ungroupTabs(groupId: number): Promise<UngroupResult> {
   }
 }
 
-chrome.runtime.onMessage.addListener((message: ToBackground, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: ToBackground, sender, sendResponse) => {
+  // Ignore external extensions; only our own extension pages may message us.
+  if (sender.id !== chrome.runtime.id) return false
   void (async () => {
     try {
       sendResponse(await handle(message))
