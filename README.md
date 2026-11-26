@@ -70,7 +70,9 @@ Nothing leaves your machine — the extension only talks to `127.0.0.1:11434` / 
 
 ## Privacy
 
-When the local model is used, the extension sends **feature-card metadata only**: registrable domain, a stripped tab title, and path words (secrets/long tokens filtered out). It does **not** send the full page DOM, cookies, or passwords.
+Tab Organizer keeps browsing data on your device. The local activity log stores **site keys / domains** (and group titles), not full tab URLs.
+
+When **Local model** is on, the extension may send a small **feature card** to Ollama on your machine only: registrable domain, a **stripped tab title**, and path words (secrets/long tokens filtered out). Titles go to local Ollama — not to any Tab Organizer server. The extension does **not** send the full page DOM, cookies, or passwords.
 
 ## Develop / test
 

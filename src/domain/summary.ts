@@ -59,20 +59,31 @@ export function countChromeClasses(chromeTabs: ChromeTabLike[]): SweepDiagCounts
   return counts
 }
 
-function truncateUrl(url: string, max = 48): string {
-  if (url.length <= max) return url
-  return `${url.slice(0, max - 1)}…`
+/** Hostname (or chrome-scheme host) for user-visible diag — never full paths/queries. */
+export function diagHostLabel(url: string): string {
+  const trimmed = url.trim()
+  if (!trimmed) return '(empty)'
+  try {
+    const parsed = new URL(trimmed)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.hostname || '(empty)'
+    }
+    if (parsed.hostname) return `${parsed.protocol}//${parsed.hostname}`
+    return parsed.protocol.replace(/:$/, '') || '(empty)'
+  } catch {
+    return '(empty)'
+  }
 }
 
-/** Temporary user-visible diagnostic so a live miss still shows what Chrome returned. */
+/** Temporary user-visible diagnostic: class counts + hostname samples (no full URLs). */
 export function formatSweepDiag(chromeTabs: ChromeTabLike[], sampleLimit = 3): string {
   const counts = countChromeClasses(chromeTabs)
   const samples: string[] = []
   for (const tab of chromeTabs) {
     if (samples.length >= sampleLimit) break
     const kind = classifyChromeTab(tab)
-    const resolved = resolveTabUrl(tab) || tab.url || tab.pendingUrl || '(empty)'
-    samples.push(`${truncateUrl(resolved)}[${kind}]`)
+    const resolved = resolveTabUrl(tab) || tab.url || tab.pendingUrl || ''
+    samples.push(`${diagHostLabel(resolved)}[${kind}]`)
   }
   const sampleText = samples.length > 0 ? samples.join(', ') : '(no tabs)'
   return `diag: http=${counts.http} browser=${counts.browser} pinned=${counts.pinned} unknown=${counts.unknown} | ${sampleText}`

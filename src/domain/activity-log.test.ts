@@ -58,21 +58,40 @@ describe('appendActivityEntry', () => {
     expect(next.at(-1)?.id).toBe(`old-${ACTIVITY_LOG_CAP - 2}`)
   })
 
-  it('preserves tabUrl on file entries', () => {
+  it('preserves siteKey on file entries (never full tab URLs)', () => {
     const next = appendActivityEntry([], {
       actor: 'sweep',
       action: 'tab.file',
       groupTitle: 'GitHub',
       tabId: 9,
-      tabUrl: 'https://github.com/acme/pr',
       siteKey: 'github.com',
       tabCount: 1,
     }, { id: 'file-1', now: 1 })
     expect(next[0]).toMatchObject({
       id: 'file-1',
-      tabUrl: 'https://github.com/acme/pr',
       siteKey: 'github.com',
+      tabCount: 1,
     })
+    expect(next[0]).not.toHaveProperty('tabUrl')
+  })
+})
+
+describe('parseStoredActivityLog privacy', () => {
+  it('drops legacy tabUrl fields from stored rows', () => {
+    const parsed = parseStoredActivityLog([
+      {
+        id: 'legacy',
+        ts: 1,
+        actor: 'sweep',
+        action: 'tab.file',
+        siteKey: 'github.com',
+        tabUrl: 'https://github.com/acme/secret-path',
+        tabCount: 1,
+      },
+    ])
+    expect(parsed).toHaveLength(1)
+    expect(parsed[0]?.siteKey).toBe('github.com')
+    expect(parsed[0]).not.toHaveProperty('tabUrl')
   })
 })
 
