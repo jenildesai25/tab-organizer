@@ -104,32 +104,6 @@
       </div>
     </section>
 
-    <section class="memory-section" aria-labelledby="memory-heading">
-      <div class="section-head">
-        <h2 id="memory-heading">Free up memory</h2>
-      </div>
-      <p class="section-lede">Unload idle tabs with Chrome’s built-in discard (saves RAM). Groups stay intact.</p>
-      <label class="switch" for="auto-discard">
-        <span class="switch-copy">
-          <span class="switch-title">Auto-unload idle tabs</span>
-          <span class="switch-hint">Periodically free RAM on inactive tabs</span>
-        </span>
-        <span class="switch-control">
-          <input id="auto-discard" type="checkbox" role="switch" />
-          <span class="switch-track" aria-hidden="true"></span>
-        </span>
-      </label>
-      <label class="field compact idle-field" for="idle-minutes">
-        <span>Unload after idle (minutes)</span>
-        <input id="idle-minutes" type="number" min="5" max="180" step="1" value="30" />
-      </label>
-      <div class="buttons compact memory-actions">
-        <button id="discard-tab" type="button" class="btn btn-ghost btn-tiny">Free this tab</button>
-        <button id="reload-tab" type="button" class="btn btn-ghost btn-tiny">Reload tab</button>
-      </div>
-      <p id="memory-note" class="inline-note" role="status" hidden></p>
-    </section>
-
     <section class="groups-section" aria-labelledby="groups-heading">
       <div class="section-head">
         <h2 id="groups-heading">This window</h2>

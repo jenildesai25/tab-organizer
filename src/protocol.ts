@@ -32,14 +32,9 @@ export type StateResult = {
   llmOn: boolean
   model: string
   rules: CompiledRule[]
-  autoDiscardOn: boolean
-  idleMinutes: number
-  neverDomains: string[]
   status: string
   /** Present while a retitle-groups job is running. */
   retitle?: RetitleProgress | null
-  /** Active tab in the focused window, when known — for popup Free up memory controls. */
-  activeTab?: { id: number; discarded: boolean; title: string; siteKey: string } | null
 }
 
 export type ModelsResult = {
@@ -85,32 +80,11 @@ export type ActivityLogResult = {
 
 export type ClearActivityResult = { ok: true }
 
-export type DiscardTabResult =
-  | { ok: true; tabId: number; discarded: boolean; siteKey?: string; summary: string }
-  | { ok: false; message: string }
-
-export type ReloadTabResult =
-  | { ok: true; tabId: number; summary: string }
-  | { ok: false; message: string }
-
-export type DiscardSweepResult = {
-  ok: true
-  discarded: number
-  skipped: number
-  summary: string
-}
-
 export type ToBackground =
   | { type: 'get-state' }
   | { type: 'set-organizer'; on: boolean }
   | { type: 'set-llm'; on: boolean }
   | { type: 'set-model'; model: string }
-  | { type: 'set-auto-discard'; on: boolean }
-  | { type: 'set-idle-minutes'; minutes: number }
-  | { type: 'set-never-domains'; domains: string[] }
-  | { type: 'discard-tab'; tabId?: number }
-  | { type: 'reload-tab'; tabId?: number }
-  | { type: 'run-discard-sweep' }
   | { type: 'preview-rule'; sentence: string }
   | { type: 'save-rule'; sentence: string; domains: string[]; title: string }
   | { type: 'delete-rule'; id: string }

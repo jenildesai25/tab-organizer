@@ -1,15 +1,12 @@
 import type { LocalModel } from '../ollama.js'
 import type {
-  DiscardTabResult,
   ListGroupsResult,
   ModelsResult,
-  ReloadTabResult,
   RetitleGroupsResult,
   StateResult,
   ToBackground,
   TestOllamaResult,
 } from '../protocol.js'
-import { clampIdleMinutes } from '../domain/tab-suspend.js'
 import { bindModelPicker } from '../ui/model-picker.js'
 import { paintOllamaStatus } from '../ui/ollama-status.js'
 import { paintRetitleResults } from '../ui/retitle-results.js'
@@ -38,11 +35,6 @@ const progressLabel = document.querySelector<HTMLElement>('#progress-label')
 const progressValue = document.querySelector<HTMLElement>('#progress-value')
 const ollamaPill = document.querySelector<HTMLElement>('#ollama-pill')!
 const ollamaPillLabel = document.querySelector<HTMLElement>('#ollama-pill-label')!
-const autoDiscard = document.querySelector<HTMLInputElement>('#auto-discard')!
-const idleMinutes = document.querySelector<HTMLInputElement>('#idle-minutes')!
-const discardTab = document.querySelector<HTMLButtonElement>('#discard-tab')!
-const reloadTab = document.querySelector<HTMLButtonElement>('#reload-tab')!
-const memoryNote = document.querySelector<HTMLParagraphElement>('#memory-note')!
 
 const TEST_LABEL = 'Test connection'
 const RETITLE_LABEL = 'AI rename'
@@ -158,32 +150,6 @@ function renderGroupsSummary(): void {
     groupCount === 1 ? '1 group in this window' : `${groupCount} groups in this window`
 }
 
-function showMemoryNote(text: string): void {
-  memoryNote.textContent = text
-  memoryNote.hidden = text === ''
-}
-
-function syncMemoryControls(state: StateResult): void {
-  autoDiscard.checked = state.autoDiscardOn
-  idleMinutes.value = String(state.idleMinutes)
-  idleMinutes.disabled = !state.autoDiscardOn
-  const active = state.activeTab
-  const discarded = active?.discarded === true
-  discardTab.disabled = !active || discarded
-  reloadTab.disabled = !active
-  if (!active) {
-    showMemoryNote('No active tab in this window.')
-  } else if (discarded) {
-    showMemoryNote(
-      active.siteKey
-        ? `${active.siteKey} is unloaded — reload to restore it.`
-        : 'This tab is unloaded — reload to restore it.',
-    )
-  } else {
-    showMemoryNote('')
-  }
-}
-
 function renderState(state: StateResult): void {
   organizer.checked = state.organizerOn
   llmOn = state.llmOn
@@ -192,7 +158,6 @@ function renderState(state: StateResult): void {
   status.textContent = state.status
   renderModels()
   syncLlmControls()
-  syncMemoryControls(state)
 }
 
 async function loadGroups(): Promise<void> {
@@ -262,36 +227,6 @@ function openDashboardPage(hash = ''): void {
 organizer.addEventListener('change', () => {
   void (async () => {
     renderState(await send<StateResult>({ type: 'set-organizer', on: organizer.checked }))
-  })()
-})
-
-autoDiscard.addEventListener('change', () => {
-  void (async () => {
-    renderState(await send<StateResult>({ type: 'set-auto-discard', on: autoDiscard.checked }))
-  })()
-})
-
-idleMinutes.addEventListener('change', () => {
-  void (async () => {
-    const minutes = clampIdleMinutes(idleMinutes.value)
-    idleMinutes.value = String(minutes)
-    renderState(await send<StateResult>({ type: 'set-idle-minutes', minutes }))
-  })()
-})
-
-discardTab.addEventListener('click', () => {
-  void (async () => {
-    const result = await send<DiscardTabResult>({ type: 'discard-tab' })
-    showMemoryNote(result.ok ? result.summary : result.message)
-    renderState(await send<StateResult>({ type: 'get-state' }))
-  })()
-})
-
-reloadTab.addEventListener('click', () => {
-  void (async () => {
-    const result = await send<ReloadTabResult>({ type: 'reload-tab' })
-    showMemoryNote(result.ok ? result.summary : result.message)
-    renderState(await send<StateResult>({ type: 'get-state' }))
   })()
 })
 
