@@ -26,6 +26,15 @@ import {
   type CleanupUndoSnapshot,
 } from './domain/cleanup-undo.js'
 import {
+  RULE_SUGGESTIONS_KEY,
+  dismissRuleSuggestionVote,
+  parseRuleSuggestionVotes,
+  readyRuleSuggestions,
+  recordHandRenameVote,
+  type RuleSuggestion,
+  type RuleSuggestionVote,
+} from './domain/rule-suggestions.js'
+import {
   WORKSPACE_LAYOUTS_KEY,
   deleteWorkspaceLayout,
   parseWorkspaceLayouts,
@@ -328,5 +337,39 @@ export async function removeWorkspaceLayout(id: string): Promise<WorkspaceLayout
     const next = deleteWorkspaceLayout(existing, id)
     await chrome.storage.local.set({ [WORKSPACE_LAYOUTS_KEY]: next })
     return next
+  })
+}
+
+const ruleSuggestionsMutex = createAsyncMutex()
+
+export async function loadRuleSuggestionVotes(): Promise<RuleSuggestionVote[]> {
+  const stored = await chrome.storage.local.get(RULE_SUGGESTIONS_KEY)
+  return parseRuleSuggestionVotes(stored[RULE_SUGGESTIONS_KEY])
+}
+
+export async function noteHandRenameForSuggestion(
+  domain: string,
+  title: string,
+): Promise<RuleSuggestionVote[]> {
+  return ruleSuggestionsMutex.run(async () => {
+    const existing = await loadRuleSuggestionVotes()
+    const next = recordHandRenameVote(existing, { domain, title })
+    await chrome.storage.local.set({ [RULE_SUGGESTIONS_KEY]: next })
+    return next
+  })
+}
+
+export async function listReadyRuleSuggestions(): Promise<RuleSuggestion[]> {
+  const [votes, settings] = await Promise.all([loadRuleSuggestionVotes(), loadSettings()])
+  return readyRuleSuggestions(votes, settings.rules)
+}
+
+export async function dismissRuleSuggestion(domain: string, title: string): Promise<RuleSuggestion[]> {
+  return ruleSuggestionsMutex.run(async () => {
+    const existing = await loadRuleSuggestionVotes()
+    const next = dismissRuleSuggestionVote(existing, domain, title)
+    await chrome.storage.local.set({ [RULE_SUGGESTIONS_KEY]: next })
+    const settings = await loadSettings()
+    return readyRuleSuggestions(next, settings.rules)
   })
 }

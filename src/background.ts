@@ -53,6 +53,7 @@ import {
   isQuietHour,
   quietHoursStatusLine,
 } from './domain/quiet-hours.js'
+import { dominantSiteFromCards } from './domain/site-retitle.js'
 import {
   assignTabsToLayout,
   buildWorkspaceLayout,
@@ -87,6 +88,7 @@ import type {
   ModelsResult,
   PreviewResult,
   ProtectUpdateResult,
+  RuleSuggestionsResult,
   SaveLayoutResult,
   RetitleGroupResult,
   RetitleGroupsResult,
@@ -102,11 +104,14 @@ import {
   appendActivity,
   clearActivityLog,
   clearCleanupUndo,
+  dismissRuleSuggestion,
   loadActivityLog,
   loadCleanupUndo,
+  listReadyRuleSuggestions,
   loadWorkspaceLayouts,
   forgetHandRenamedGroup,
   loadSettings,
+  noteHandRenameForSuggestion,
   rememberHandRenamedGroup,
   removeWorkspaceLayout,
   restoreHandRenamedGroups,
@@ -175,6 +180,19 @@ async function rememberHandRenamed(groupId: number): Promise<void> {
   const live = await liveGroupSnapshots()
   const fingerprint = await fingerprintForGroup(groupId)
   applyHandRenamedIds(await rememberHandRenamedGroup(groupId, fingerprint, live))
+  try {
+    const tabs = await chrome.tabs.query({ groupId })
+    const cards = tabs.map((tab) =>
+      buildFeatureCard({ url: resolveTabUrl(tab) || tab.pendingUrl || '', title: tab.title || '' }),
+    )
+    const dominant = dominantSiteFromCards(cards)
+    const title = fingerprint?.title || (await chrome.tabGroups.get(groupId)).title || ''
+    if (dominant && dominant.share >= 0.8 && title) {
+      await noteHandRenameForSuggestion(dominant.domain, title)
+    }
+  } catch {
+    // Suggestion tracking is best-effort.
+  }
   const settings = await loadSettings()
   if (!settings.protectHandRenamed || !fingerprint) return
   await saveProtect((protect) => {
@@ -1368,6 +1386,15 @@ async function handle(message: ToBackground): Promise<unknown> {
   if (message.type === 'delete-layout') {
     const layouts = await removeWorkspaceLayout(message.id)
     return { ok: true, layouts } satisfies LayoutsResult
+  }
+  if (message.type === 'list-rule-suggestions') {
+    return { ok: true, suggestions: await listReadyRuleSuggestions() } satisfies RuleSuggestionsResult
+  }
+  if (message.type === 'dismiss-rule-suggestion') {
+    return {
+      ok: true,
+      suggestions: await dismissRuleSuggestion(message.domain, message.title),
+    } satisfies RuleSuggestionsResult
   }
   return { ok: false, message: 'Unknown message.' }
 }

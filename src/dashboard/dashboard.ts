@@ -16,6 +16,8 @@ import type {
   PreviewResult,
   ProtectUpdateResult,
   RetitleGroupsResult,
+  RuleSuggestion,
+  RuleSuggestionsResult,
   SaveLayoutResult,
   StateResult,
   TestOllamaResult,
@@ -48,6 +50,8 @@ const sentence = document.querySelector<HTMLTextAreaElement>('#sentence')!
 const save = document.querySelector<HTMLButtonElement>('#save')!
 const confirmation = document.querySelector<HTMLParagraphElement>('#confirmation')!
 const rules = document.querySelector<HTMLUListElement>('#rule-list')!
+const ruleSuggestionsEmpty = document.querySelector<HTMLParagraphElement>('#rule-suggestions-empty')!
+const ruleSuggestionsList = document.querySelector<HTMLUListElement>('#rule-suggestions-list')!
 const form = document.querySelector<HTMLFormElement>('#rule-form')!
 const llm = document.querySelector<HTMLInputElement>('#llm')!
 const modelPickerRoot = document.querySelector<HTMLElement>('#model-picker')!
@@ -218,6 +222,79 @@ async function loadLayouts(): Promise<void> {
     if (result.ok) renderLayouts(result.layouts)
   } catch {
     showLayoutsNote('Could not load layouts.')
+  }
+}
+
+function renderRuleSuggestions(list: RuleSuggestion[]): void {
+  ruleSuggestionsList.replaceChildren()
+  ruleSuggestionsEmpty.hidden = list.length > 0
+  for (const suggestion of list) {
+    const item = document.createElement('li')
+    item.className = 'rule-row'
+    const copy = document.createElement('div')
+    const title = document.createElement('strong')
+    title.textContent = suggestion.sentence
+    const meta = document.createElement('span')
+    meta.textContent = `Renamed ${suggestion.count}× · ${suggestion.domain} → ${suggestion.title}`
+    copy.append(title, meta)
+    const actions = document.createElement('div')
+    actions.className = 'buttons'
+    const accept = document.createElement('button')
+    accept.type = 'button'
+    accept.className = 'btn btn-ghost btn-tiny'
+    accept.textContent = 'Add rule'
+    accept.addEventListener('click', () => {
+      void (async () => {
+        accept.disabled = true
+        try {
+          const saved = await send<PreviewResult & { rules?: CompiledRule[] }>({
+            type: 'save-rule',
+            sentence: suggestion.sentence,
+            domains: [suggestion.domain],
+            title: suggestion.title,
+          })
+          if (saved.ok) {
+            await send<RuleSuggestionsResult>({
+              type: 'dismiss-rule-suggestion',
+              domain: suggestion.domain,
+              title: suggestion.title,
+            })
+            if (saved.rules) renderRules(saved.rules)
+            else renderState(await send<StateResult>({ type: 'get-state' }))
+            await loadRuleSuggestions()
+            await loadActivity()
+          }
+        } finally {
+          accept.disabled = false
+        }
+      })()
+    })
+    const dismiss = document.createElement('button')
+    dismiss.type = 'button'
+    dismiss.className = 'btn btn-ghost btn-tiny'
+    dismiss.textContent = 'Dismiss'
+    dismiss.addEventListener('click', () => {
+      void (async () => {
+        const result = await send<RuleSuggestionsResult>({
+          type: 'dismiss-rule-suggestion',
+          domain: suggestion.domain,
+          title: suggestion.title,
+        })
+        if (result.ok) renderRuleSuggestions(result.suggestions)
+      })()
+    })
+    actions.append(accept, dismiss)
+    item.append(copy, actions)
+    ruleSuggestionsList.append(item)
+  }
+}
+
+async function loadRuleSuggestions(): Promise<void> {
+  try {
+    const result = await send<RuleSuggestionsResult>({ type: 'list-rule-suggestions' })
+    if (result.ok) renderRuleSuggestions(result.suggestions)
+  } catch {
+    ruleSuggestionsEmpty.hidden = false
   }
 }
 
@@ -1298,3 +1375,4 @@ void (async () => {
 void loadGroups()
 void loadActivity()
 void loadLayouts()
+void loadRuleSuggestions()
