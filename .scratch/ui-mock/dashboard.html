@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        document.querySelector('meta[name="color-scheme"]').content =
+          localStorage.getItem("tab-organizer-mock-color-scheme") ?? "light dark";
+      } catch (_) {}
+    </script>
+    <title>Tab Organizer — Dashboard mock</title>
+    <link rel="stylesheet" href="shared.css" />
+    <link rel="stylesheet" href="dashboard.css" />
+  </head>
+  <body class="atmosphere dashboard-body">
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="hero" aria-label="Tab Organizer">
+      <div class="hero-inner">
+        <div class="hero-top">
+          <p class="hero-kicker">Chrome · local-first · MV3</p>
+          <div class="theme-toggle" role="group" aria-label="Color theme">
+            <button type="button" data-theme="light" aria-pressed="false">Light</button>
+            <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+            <button type="button" data-theme="system" aria-pressed="true">System</button>
+          </div>
+        </div>
+        <h1 class="hero-brand">Tab Organizer</h1>
+        <p class="hero-lede">
+          File tabs into native Chrome groups — with plain-language rules and an optional local Ollama model.
+        </p>
+        <div class="hero-actions">
+          <button id="sweep" class="btn btn-primary" type="button">Organize this window</button>
+          <a class="btn btn-ghost" href="popup.html">Open popup mock</a>
+        </div>
+        <div id="progress-panel" class="progress-wrap hero-progress" hidden>
+          <div class="progress-meta">
+            <span id="progress-label">Filing tabs…</span>
+            <span id="progress-value">0%</span>
+          </div>
+          <label class="sr-only" for="organize-progress">Organize progress</label>
+          <progress id="organize-progress" class="organize-progress" max="100" value="0"></progress>
+        </div>
+        <p id="result" class="inline-note hero-result" role="status" hidden>
+          Organized 18 tabs into 4 groups · 2 renamed by AI
+        </p>
+      </div>
+      <div class="hero-visual" aria-hidden="true">
+        <div class="stack-card stack-a"><span class="sw" style="--c:#3b82f6"></span>GitHub · 6</div>
+        <div class="stack-card stack-b"><span class="sw" style="--c:#22c55e"></span>Local · 3</div>
+        <div class="stack-card stack-c"><span class="sw" style="--c:#f59e0b"></span>Amazon · 4</div>
+        <div class="stack-card stack-d"><span class="sw" style="--c:#ec4899"></span>Research · 5</div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="snapshot" role="status" aria-label="Window snapshot">
+        <div><strong>18</strong><span>tabs</span></div>
+        <div><strong>4</strong><span>groups</span></div>
+        <div><strong class="ok-text">On</strong><span>filing</span></div>
+        <div><strong class="ok-text">llama3.2</strong><span>local model</span></div>
+      </div>
+
+      <nav class="section-nav" aria-label="Dashboard sections">
+        <a href="#rules">Rules</a>
+        <a href="#groups">Groups</a>
+        <a href="#models">Models</a>
+        <a href="#activity">Activity</a>
+        <a href="#settings">Settings</a>
+      </nav>
+
+      <section id="rules" class="panel" aria-labelledby="rules-heading">
+        <h2 id="rules-heading">Rules</h2>
+        <p class="lede">One job: teach the organizer how to name groups in plain English.</p>
+        <form id="rule-form" class="rule-form">
+          <label class="field" for="sentence">
+            <span>Rule</span>
+            <textarea id="sentence" rows="2" placeholder="use gb for github">put github and gitlab in Code</textarea>
+          </label>
+          <div class="buttons">
+            <button id="preview" class="btn btn-primary" type="submit">Check</button>
+            <button id="save" class="btn btn-ghost" type="button">Save</button>
+          </div>
+          <p id="confirmation" class="inline-note" role="status">
+            Preview: github.com → <strong>Code</strong> · gitlab.com → <strong>Code</strong>
+          </p>
+        </form>
+        <ul class="rule-list" aria-label="Saved rules">
+          <li class="rule-row">
+            <div>
+              <strong>use gb for github</strong>
+              <span>github.com → gb</span>
+            </div>
+            <button type="button" class="btn btn-ghost btn-tiny" aria-label="Delete rule use gb for github">Delete</button>
+          </li>
+          <li class="rule-row">
+            <div>
+              <strong>call linear Work</strong>
+              <span>linear.app → Work</span>
+            </div>
+            <button type="button" class="btn btn-ghost btn-tiny" aria-label="Delete rule call linear Work">Delete</button>
+          </li>
+          <li class="rule-row">
+            <div>
+              <strong>put amazon shopping in Amazon</strong>
+              <span>amazon.com → Amazon</span>
+            </div>
+            <button type="button" class="btn btn-ghost btn-tiny" aria-label="Delete rule put amazon shopping in Amazon">Delete</button>
+          </li>
+        </ul>
+      </section>
+
+      <section id="groups" class="panel" aria-labelledby="groups-heading">
+        <div class="panel-head">
+          <div>
+            <h2 id="groups-heading">Groups</h2>
+            <p class="lede">Rename, recolor, or ungroup. Tabs stay open.</p>
+          </div>
+          <button type="button" class="btn btn-ghost" id="refresh-groups">Refresh</button>
+        </div>
+        <ul class="group-list dashboard-groups" aria-label="Groups in this window">
+          <li class="group-manage" style="--group-color:#3b82f6">
+            <div class="gm-main">
+              <span class="group-swatch" aria-hidden="true"></span>
+              <div class="gm-copy">
+                <label class="sr-only" for="g-github">Group name</label>
+                <input id="g-github" name="group-github" value="GitHub" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+                <span class="group-meta">6 tabs · github.com</span>
+              </div>
+              <div class="gm-actions">
+                <label class="color-field">
+                  <span class="sr-only">Color for GitHub</span>
+                  <select aria-label="Color for GitHub">
+                    <option selected>blue</option>
+                    <option>cyan</option>
+                    <option>green</option>
+                    <option>yellow</option>
+                    <option>orange</option>
+                    <option>red</option>
+                    <option>pink</option>
+                    <option>purple</option>
+                    <option>grey</option>
+                  </select>
+                </label>
+                <button type="button" class="btn btn-ghost btn-tiny">Ungroup</button>
+              </div>
+            </div>
+          </li>
+          <li class="group-manage" style="--group-color:#22c55e">
+            <div class="gm-main">
+              <span class="group-swatch" aria-hidden="true"></span>
+              <div class="gm-copy">
+                <label class="sr-only" for="g-local">Group name</label>
+                <input id="g-local" name="group-local" value="Local" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+                <span class="group-meta">3 tabs · localhost</span>
+              </div>
+              <div class="gm-actions">
+                <label class="color-field">
+                  <span class="sr-only">Color for Local</span>
+                  <select aria-label="Color for Local">
+                    <option>blue</option>
+                    <option selected>green</option>
+                    <option>yellow</option>
+                    <option>orange</option>
+                    <option>red</option>
+                    <option>pink</option>
+                    <option>purple</option>
+                    <option>cyan</option>
+                    <option>grey</option>
+                  </select>
+                </label>
+                <button type="button" class="btn btn-ghost btn-tiny">Ungroup</button>
+              </div>
+            </div>
+          </li>
+          <li class="group-manage" style="--group-color:#f59e0b">
+            <div class="gm-main">
+              <span class="group-swatch" aria-hidden="true"></span>
+              <div class="gm-copy">
+                <label class="sr-only" for="g-amazon">Group name</label>
+                <input id="g-amazon" name="group-amazon" value="Amazon" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+                <span class="group-meta">4 tabs · amazon.com</span>
+              </div>
+              <div class="gm-actions">
+                <label class="color-field">
+                  <span class="sr-only">Color for Amazon</span>
+                  <select aria-label="Color for Amazon">
+                    <option>blue</option>
+                    <option>green</option>
+                    <option selected>yellow</option>
+                    <option>orange</option>
+                    <option>red</option>
+                    <option>pink</option>
+                    <option>purple</option>
+                    <option>cyan</option>
+                    <option>grey</option>
+                  </select>
+                </label>
+                <button type="button" class="btn btn-ghost btn-tiny">Ungroup</button>
+              </div>
+            </div>
+          </li>
+          <li class="group-manage" style="--group-color:#ec4899">
+            <div class="gm-main">
+              <span class="group-swatch" aria-hidden="true"></span>
+              <div class="gm-copy">
+                <label class="sr-only" for="g-research">Group name</label>
+                <input id="g-research" name="group-research" value="Research" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+                <span class="group-meta">5 tabs · AI renamed from Misc</span>
+              </div>
+              <div class="gm-actions">
+                <label class="color-field">
+                  <span class="sr-only">Color for Research</span>
+                  <select aria-label="Color for Research">
+                    <option>blue</option>
+                    <option>green</option>
+                    <option>yellow</option>
+                    <option>orange</option>
+                    <option>red</option>
+                    <option selected>pink</option>
+                    <option>purple</option>
+                    <option>cyan</option>
+                    <option>grey</option>
+                  </select>
+                </label>
+                <button type="button" class="btn btn-ghost btn-tiny">Ungroup</button>
+              </div>
+            </div>
+          </li>
+        </ul>
+      </section>
+
+      <section id="models" class="panel" aria-labelledby="models-heading">
+        <h2 id="models-heading">Local models</h2>
+        <p class="lede">Ollama on this machine. Nothing is sent away.</p>
+
+        <div class="health-strip" role="status">
+          <span class="pill is-ok"><span class="dot" aria-hidden="true"></span> Connected · 127.0.0.1:11434</span>
+          <span class="pill">3 models installed</span>
+          <span class="pill">Warm · llama3.2</span>
+        </div>
+
+        <label class="switch" for="llm">
+          <span class="switch-copy">
+            <span class="switch-title">Local model</span>
+            <span class="switch-hint">Ask Ollama when a rule or a tab is unclear</span>
+          </span>
+          <span class="switch-control">
+            <input id="llm" type="checkbox" role="switch" checked />
+            <span class="switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
+
+        <label class="field" for="model">
+          <span>Installed models</span>
+          <select id="model">
+            <option selected>llama3.2</option>
+            <option>qwen2.5:7b</option>
+            <option>deepseek-r1:14b</option>
+          </select>
+        </label>
+
+        <div class="buttons">
+          <button type="button" class="btn btn-ghost" id="refresh-models">Refresh</button>
+          <button type="button" class="btn btn-ghost" id="test-ollama">Test connection</button>
+          <button type="button" class="btn btn-primary" id="retitle-groups">Rename all groups with AI</button>
+        </div>
+
+        <div id="model-status" class="inline-note" role="status" hidden></div>
+
+        <div class="rename-board" aria-labelledby="rename-board-heading">
+          <h3 id="rename-board-heading">Latest AI rename results</h3>
+          <ul class="rename-list">
+            <li><span class="from">Misc</span><span class="arrow" aria-hidden="true">→</span><span class="to">Research</span></li>
+            <li><span class="from">Untitled</span><span class="arrow" aria-hidden="true">→</span><span class="to">Local</span></li>
+            <li><span class="from">Shopping</span><span class="arrow" aria-hidden="true">→</span><span class="to">Amazon</span></li>
+          </ul>
+        </div>
+      </section>
+
+      <section id="activity" class="panel" aria-labelledby="activity-heading">
+        <div class="panel-head">
+          <div>
+            <h2 id="activity-heading">Activity</h2>
+            <p class="lede">Every extension-driven group change, with who did it.</p>
+          </div>
+          <div class="panel-head-actions">
+            <button type="button" class="btn btn-ghost" id="refresh-activity">Refresh</button>
+            <button type="button" class="btn btn-ghost" id="clear-activity">Clear log</button>
+          </div>
+        </div>
+        <label class="field activity-filter" for="activity-actor">
+          <span>Show</span>
+          <select id="activity-actor">
+            <option value="all">All</option>
+            <option value="ai">AI</option>
+            <option value="user">You</option>
+            <option value="sweep">Sweep</option>
+            <option value="organizer">Organizer</option>
+            <option value="rule">Rule</option>
+            <option value="system">System</option>
+          </select>
+        </label>
+        <ul class="activity-list full" aria-label="Activity log">
+          <li class="activity-item" data-actor="sweep">
+            <span class="activity-mark" data-actor="sweep" aria-hidden="true"></span>
+            <span class="activity-copy"><strong>Sweep</strong> filed 3 tabs into <strong>GitHub</strong></span>
+            <time class="activity-time">9:58 PM</time>
+          </li>
+          <li class="activity-item" data-actor="ai">
+            <span class="activity-mark" data-actor="ai" aria-hidden="true"></span>
+            <span class="activity-copy"><strong>AI</strong> renamed Misc → <strong>Research</strong></span>
+            <time class="activity-time">9:55 PM</time>
+          </li>
+          <li class="activity-item" data-actor="ai">
+            <span class="activity-mark" data-actor="ai" aria-hidden="true"></span>
+            <span class="activity-copy"><strong>AI</strong> renamed Untitled → <strong>Local</strong></span>
+            <time class="activity-time">9:55 PM</time>
+          </li>
+          <li class="activity-item" data-actor="user">
+            <span class="activity-mark" data-actor="user" aria-hidden="true"></span>
+            <span class="activity-copy"><strong>You</strong> recolored Amazon to amber</span>
+            <time class="activity-time">9:40 PM</time>
+          </li>
+          <li class="activity-item" data-actor="organizer">
+            <span class="activity-mark" data-actor="sweep" aria-hidden="true"></span>
+            <span class="activity-copy"><strong>Organizer</strong> filed amazon.com/dp/… into <strong>Amazon</strong></span>
+            <time class="activity-time">9:12 PM</time>
+          </li>
+          <li class="activity-item" data-actor="rule">
+            <span class="activity-mark" data-actor="user" aria-hidden="true"></span>
+            <span class="activity-copy"><strong>Rule</strong> matched “use gb for github”</span>
+            <time class="activity-time">8:01 PM</time>
+          </li>
+          <li class="activity-item" data-actor="system">
+            <span class="activity-mark" aria-hidden="true"></span>
+            <span class="activity-copy"><strong>System</strong> Ollama connection OK · llama3.2</span>
+            <time class="activity-time">7:48 PM</time>
+          </li>
+        </ul>
+      </section>
+
+      <section id="settings" class="panel" aria-labelledby="settings-heading">
+        <h2 id="settings-heading">Settings</h2>
+        <p class="lede">Window-scoped filing and deep links back to the toolbar popup.</p>
+        <label class="switch" for="organizer">
+          <span class="switch-copy">
+            <span class="switch-title">File new tabs</span>
+            <span class="switch-hint">Only in the window you are using</span>
+          </span>
+          <span class="switch-control">
+            <input id="organizer" type="checkbox" role="switch" checked />
+            <span class="switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
+        <p class="settings-note">
+          Status: <span id="status">Organizer is filing new tabs in this window.</span>
+        </p>
+        <a class="btn btn-ghost" href="popup.html">Preview toolbar popup</a>
+      </section>
+    </main>
+
+    <footer class="dash-footer">
+      <span>Design mock only — awaiting approval before extension implementation.</span>
+      <a href="index.html">Review hub</a>
+    </footer>
+
+    <script src="mock.js" defer></script>
+  </body>
+</html>

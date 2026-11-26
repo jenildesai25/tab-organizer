@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        document.querySelector('meta[name="color-scheme"]').content =
+          localStorage.getItem("tab-organizer-mock-color-scheme") ?? "light dark";
+      } catch (_) {}
+    </script>
+    <title>Tab Organizer — Popup mock</title>
+    <link rel="stylesheet" href="shared.css" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body class="atmosphere popup-body">
+    <header class="popup-header">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="4" width="7" height="16" rx="2" fill="#0f766e" />
+            <rect x="12" y="4" width="9" height="7" rx="2" fill="#14b8a6" />
+            <rect x="12" y="13" width="9" height="7" rx="2" fill="#ea580c" />
+          </svg>
+        </span>
+        <div>
+          <h1>Tab Organizer</h1>
+          <p id="status" role="status">Filing on · 18 tabs · 4 groups</p>
+        </div>
+      </div>
+      <div class="popup-header-aside">
+        <div class="theme-toggle compact" role="group" aria-label="Color theme">
+          <button type="button" data-theme="light" aria-pressed="false">Light</button>
+          <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+          <button type="button" data-theme="system" aria-pressed="true">Sys</button>
+        </div>
+        <span class="pill is-ok" title="Ollama reachable on localhost:11434">
+          <span class="dot" aria-hidden="true"></span>
+          llama3.2
+        </span>
+      </div>
+    </header>
+
+    <section class="organize" aria-label="Organize this window">
+      <button id="sweep" class="btn btn-primary btn-block" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 7h16M4 12h10M4 17h13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        Organize this window
+      </button>
+      <div id="progress-panel" class="progress-wrap" hidden>
+        <div class="progress-meta">
+          <span id="progress-label">Filing tabs…</span>
+          <span id="progress-value">0%</span>
+        </div>
+        <label class="sr-only" for="organize-progress">Organize progress</label>
+        <progress id="organize-progress" class="organize-progress" max="100" value="0"></progress>
+      </div>
+      <p id="result" class="inline-note" role="status" hidden>
+        Organized 18 tabs into 4 groups · 2 renamed by AI
+      </p>
+    </section>
+
+    <section class="settings" aria-label="Quick settings">
+      <label class="switch" for="organizer">
+        <span class="switch-copy">
+          <span class="switch-title">File new tabs</span>
+          <span class="switch-hint">Only in the window you are using</span>
+        </span>
+        <span class="switch-control">
+          <input id="organizer" type="checkbox" role="switch" checked />
+          <span class="switch-track" aria-hidden="true"></span>
+        </span>
+      </label>
+
+      <label class="switch" for="llm">
+        <span class="switch-copy">
+          <span class="switch-title">Local model</span>
+          <span class="switch-hint">Ask Ollama when a rule or tab is unclear</span>
+        </span>
+        <span class="switch-control">
+          <input id="llm" type="checkbox" role="switch" checked />
+          <span class="switch-track" aria-hidden="true"></span>
+        </span>
+      </label>
+
+      <div id="llm-controls" class="llm-controls">
+        <label class="field compact" for="model">
+          <span>Model</span>
+          <select id="model">
+            <option selected>llama3.2</option>
+            <option>qwen2.5:7b</option>
+            <option>deepseek-r1:14b</option>
+          </select>
+        </label>
+        <div class="buttons compact">
+          <button id="test-ollama" type="button" class="btn btn-ghost btn-tiny">Test connection</button>
+          <button id="retitle-groups" type="button" class="btn btn-ghost btn-tiny">AI rename</button>
+        </div>
+        <div id="model-status" class="inline-note" role="status" hidden></div>
+      </div>
+    </section>
+
+    <section class="groups-section" aria-labelledby="groups-heading">
+      <div class="section-head">
+        <h2 id="groups-heading">This window</h2>
+        <button type="button" class="btn btn-ghost btn-tiny" id="refresh-groups">Refresh</button>
+      </div>
+      <ul id="groups" class="group-list" aria-label="Tab groups in this window">
+        <li class="group-item" style="--group-color: #3b82f6">
+          <button type="button" class="group-row" aria-expanded="false" data-expand>
+            <span class="group-swatch" aria-hidden="true"></span>
+            <span class="group-copy">
+              <span class="group-name">GitHub</span>
+              <span class="group-meta">github.com · sticky</span>
+            </span>
+            <span class="group-count" aria-label="6 tabs">6</span>
+          </button>
+          <div class="group-tabs">
+            <div class="group-tabs-inner">
+              <div class="tab-chip"><span class="favicon" aria-hidden="true"></span><span class="tab-title">pulls · jenildesai25/tab-organizer</span></div>
+              <div class="tab-chip"><span class="favicon" aria-hidden="true"></span><span class="tab-title">Issues · Chrome MV3 CSP</span></div>
+              <div class="tab-chip"><span class="favicon" aria-hidden="true"></span><span class="tab-title">Notifications</span></div>
+            </div>
+          </div>
+        </li>
+        <li class="group-item" style="--group-color: #22c55e">
+          <button type="button" class="group-row" aria-expanded="false" data-expand>
+            <span class="group-swatch" aria-hidden="true"></span>
+            <span class="group-copy">
+              <span class="group-name">Local</span>
+              <span class="group-meta">localhost · 3 tabs</span>
+            </span>
+            <span class="group-count" aria-label="3 tabs">3</span>
+          </button>
+          <div class="group-tabs">
+            <div class="group-tabs-inner">
+              <div class="tab-chip"><span class="favicon" aria-hidden="true"></span><span class="tab-title">localhost:5173 · popup</span></div>
+              <div class="tab-chip"><span class="favicon" aria-hidden="true"></span><span class="tab-title">Ollama · /api/tags</span></div>
+            </div>
+          </div>
+        </li>
+        <li class="group-item" style="--group-color: #f59e0b">
+          <button type="button" class="group-row" aria-expanded="false" data-expand>
+            <span class="group-swatch" aria-hidden="true"></span>
+            <span class="group-copy">
+              <span class="group-name">Amazon</span>
+              <span class="group-meta">amazon.com</span>
+            </span>
+            <span class="group-count" aria-label="4 tabs">4</span>
+          </button>
+          <div class="group-tabs">
+            <div class="group-tabs-inner">
+              <div class="tab-chip"><span class="favicon" aria-hidden="true"></span><span class="tab-title">Cart · 2 items</span></div>
+              <div class="tab-chip"><span class="favicon" aria-hidden="true"></span><span class="tab-title">USB-C hub</span></div>
+            </div>
+          </div>
+        </li>
+        <li class="group-item" style="--group-color: #ec4899">
+          <button type="button" class="group-row" aria-expanded="false" data-expand>
+            <span class="group-swatch" aria-hidden="true"></span>
+            <span class="group-copy">
+              <span class="group-name">Research</span>
+              <span class="group-meta">AI renamed · was “Misc”</span>
+            </span>
+            <span class="group-count" aria-label="5 tabs">5</span>
+          </button>
+          <div class="group-tabs">
+            <div class="group-tabs-inner">
+              <div class="tab-chip"><span class="favicon" aria-hidden="true"></span><span class="tab-title">MV3 popup size limits</span></div>
+              <div class="tab-chip"><span class="favicon" aria-hidden="true"></span><span class="tab-title">Ollama CORS origins</span></div>
+            </div>
+          </div>
+        </li>
+      </ul>
+    </section>
+
+    <section class="rename-section" aria-labelledby="rename-heading" id="rename-results">
+      <div class="section-head">
+        <h2 id="rename-heading">AI rename results</h2>
+      </div>
+      <ul class="rename-list">
+        <li><span class="from">Misc</span><span class="arrow" aria-hidden="true">→</span><span class="to">Research</span></li>
+        <li><span class="from">Untitled</span><span class="arrow" aria-hidden="true">→</span><span class="to">Local</span></li>
+      </ul>
+    </section>
+
+    <section class="activity-section" aria-labelledby="activity-heading">
+      <div class="section-head">
+        <h2 id="activity-heading">Recent activity</h2>
+        <a class="btn btn-ghost btn-tiny" href="dashboard.html#activity">Full log</a>
+      </div>
+      <ul class="activity-list" aria-label="Recent activity">
+        <li class="activity-item">
+          <span class="activity-mark" data-actor="sweep" aria-hidden="true"></span>
+          <span class="activity-copy"><strong>Sweep</strong> filed 3 tabs into GitHub</span>
+          <time class="activity-time" datetime="2026-11-25T20:58">just now</time>
+        </li>
+        <li class="activity-item">
+          <span class="activity-mark" data-actor="ai" aria-hidden="true"></span>
+          <span class="activity-copy"><strong>AI</strong> renamed Misc → Research</span>
+          <time class="activity-time" datetime="2026-11-25T20:55">3m</time>
+        </li>
+        <li class="activity-item">
+          <span class="activity-mark" data-actor="user" aria-hidden="true"></span>
+          <span class="activity-copy"><strong>You</strong> recolored Amazon to amber</span>
+          <time class="activity-time" datetime="2026-11-25T20:40">18m</time>
+        </li>
+      </ul>
+    </section>
+
+    <a class="dashboard-link" href="dashboard.html">Rules, models &amp; settings →</a>
+
+    <script src="mock.js" defer></script>
+  </body>
+</html>

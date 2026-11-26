@@ -1,0 +1,173 @@
+/* Chrome MV3 popup shell — ~400px utility surface */
+
+.popup-body {
+  width: 400px;
+  max-width: 100vw;
+  min-height: 520px;
+  max-height: 600px;
+  margin: 0;
+  padding: 14px 14px 12px;
+  overflow: auto;
+  background:
+    radial-gradient(420px 220px at 0% -10%, color-mix(in oklab, var(--glow-teal) 50%, transparent), transparent 60%),
+    radial-gradient(360px 200px at 100% 0%, color-mix(in oklab, var(--glow-cta) 38%, transparent), transparent 55%),
+    linear-gradient(180deg, var(--bg-grad-a), var(--bg-grad-b));
+}
+
+.popup-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.popup-header-aside {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.brand-lockup {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+}
+
+.brand-mark {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: color-mix(in oklab, var(--paper-raised) 70%, var(--pill-ok-bg));
+  border: 1px solid color-mix(in oklab, var(--teal) 22%, var(--line));
+  box-shadow: 0 8px 18px color-mix(in oklab, var(--teal-deep) 10%, transparent);
+}
+
+.popup-header h1 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+#status {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.organize {
+  margin-top: 14px;
+}
+
+.settings {
+  margin-top: 12px;
+  padding: 2px 0 4px;
+  border-block: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+}
+
+.llm-controls {
+  margin: 0 0 8px;
+  padding: 0 0 4px 0;
+  display: grid;
+  gap: 6px;
+  overflow: hidden;
+  transition:
+    opacity var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+
+.llm-controls.is-collapsed {
+  opacity: 0.35;
+  pointer-events: none;
+  filter: grayscale(0.2);
+}
+
+.field.compact {
+  margin: 4px 0;
+}
+
+.field.compact > span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.buttons.compact {
+  gap: 6px;
+}
+
+.groups-section,
+.rename-section,
+.activity-section {
+  margin-top: 14px;
+}
+
+.rename-list li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 7px 0;
+  border-bottom: 1px dashed color-mix(in oklab, var(--line) 80%, transparent);
+  font-size: 12.5px;
+}
+
+.rename-list li:last-child {
+  border-bottom: 0;
+}
+
+.rename-list .from {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rename-list .to {
+  font-weight: 650;
+  color: var(--teal-deep);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: end;
+}
+
+.rename-list .arrow {
+  color: var(--cta);
+  font-weight: 700;
+}
+
+.dashboard-link {
+  display: block;
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+  color: var(--teal-deep);
+  font-weight: 650;
+  font-size: 13px;
+  text-decoration: none;
+}
+
+.dashboard-link:hover {
+  color: var(--cta-press);
+}
+
+/* Review frame when opened standalone in a wide browser */
+@media (min-width: 520px) {
+  body.popup-body {
+    margin: 32px auto;
+    border: 1px solid color-mix(in oklab, var(--teal) 18%, var(--line));
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+}
