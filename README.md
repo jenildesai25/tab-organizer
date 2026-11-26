@@ -4,7 +4,7 @@ Chrome extension (Manifest V3) that files tabs into **native Chrome tab groups**
 
 ## Demo
 
-Short walkthrough (~25s): popup (**Organize this window**, Auto-group new tabs, Local model) then dashboard **Groups** and **Activity**.
+Short walkthrough (~25s): popup (**Organize**, Auto-group new tabs, Local model) then dashboard **Groups** and **Activity**.
 
 https://github.com/user-attachments/assets/ae3ac628-2e04-415c-a2ce-bc2baf9e26d9
 
@@ -12,9 +12,9 @@ Local source files: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer
 
 ## Features
 
-- **Organize this window** — One click files every tab in the current window into Chrome tab groups. **Organize all windows** does the same for every normal window.
+- **Organize** — One click files every tab in the current window into Chrome tab groups. A quiet **All windows** control runs the same sweep across every normal window when you need it.
 - **Auto-group new tabs** — When you open a tab, Tab Organizer waits for the page to settle, then creates a group or joins an existing one, and reveals it when useful.
-- **Quiet hours** — Optional daily window (default 11pm–7am local) that pauses auto-group. **Organize this window** still runs.
+- **Quiet hours** — Optional daily window (default 11pm–7am local) that pauses auto-group. **Organize** still runs.
 - **Don’t touch this window** — Temporarily skip auto-group and clean-up in the current window (until Chrome restarts).
 - **Moves with you** — If you navigate from one site to another (for example Google search → WhatsApp), the tab leaves the old group and lands in the right one.
 - **Plain-English rules** — Write short rules like “call linear Work” so sites get the group names you want (see [Rules](#rules-dashboard)). After you rename the same site group a couple of times, the dashboard suggests a matching rule.
@@ -58,7 +58,8 @@ Open the extension popup from the toolbar.
 
 | Control | What it does |
 | --- | --- |
-| **Organize this window** | Sweep the current window and file tabs into groups |
+| **Organize** | Sweep the current window and file tabs into groups |
+| **All windows** | Same sweep for every normal window (quiet secondary control) |
 | **Auto-group new tabs** | When you open a tab, put it in a group (this window only) |
 | **Local model** | When on, ask Ollama for ambiguous rules/tabs |
 | **Model** dropdown | Pick an installed Ollama model |

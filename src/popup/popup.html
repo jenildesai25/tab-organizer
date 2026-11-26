@@ -36,14 +36,21 @@
       </div>
     </header>
 
-    <section class="organize" aria-label="Organize this window">
-      <button id="sweep" class="btn btn-primary btn-block" type="button">
+    <section class="organize" aria-label="Organize">
+      <button id="sweep" class="btn btn-primary btn-block" type="button" title="Group tabs in this window">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M4 7h16M4 12h10M4 17h13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
         </svg>
-        Organize this window
+        <span class="btn-label">Organize</span>
       </button>
-      <button id="sweep-all" class="btn btn-ghost btn-block" type="button">Organize all windows</button>
+      <button
+        id="sweep-all"
+        class="btn-quiet"
+        type="button"
+        title="Group tabs in every normal window (includes this one)"
+      >
+        All windows
+      </button>
       <div id="progress-panel" class="progress-wrap" hidden>
         <div class="progress-meta">
           <span id="progress-label">Grouping tabs…</span>

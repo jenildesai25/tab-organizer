@@ -37,8 +37,17 @@
             File tabs into native Chrome groups — with plain-language rules and an optional local Ollama model.
           </p>
           <div class="hero-actions">
-            <button id="sweep" class="btn btn-primary" type="button">Organize this window</button>
-            <button id="sweep-all" class="btn btn-ghost" type="button">Organize all windows</button>
+            <button id="sweep" class="btn btn-primary" type="button" title="Group tabs in this window">
+              Organize
+            </button>
+            <button
+              id="sweep-all"
+              class="btn-quiet"
+              type="button"
+              title="Group tabs in every normal window (includes this one)"
+            >
+              All windows
+            </button>
           </div>
           <div id="progress-panel" class="progress-wrap hero-progress" hidden>
             <div class="progress-meta">
@@ -103,7 +112,7 @@
           <button type="button" class="btn btn-ghost" id="refresh-groups">Refresh</button>
         </div>
         <p id="groups-empty" class="empty" hidden>
-          No groups in this window yet. Organize this window to create some.
+          No groups in this window yet. Organize to create some.
         </p>
         <p id="groups-error" class="inline-note" role="status" hidden></p>
         <ul id="groups-list" class="group-list dashboard-groups" aria-label="Groups in this window"></ul>
@@ -226,8 +235,8 @@
       <dialog id="onboarding-dialog" class="confirm-dialog" aria-labelledby="onboarding-title">
         <form method="dialog">
           <p class="hero-kicker" id="onboarding-step-label">Welcome · 1 of 3</p>
-          <h3 id="onboarding-title">Organize this window</h3>
-          <p id="onboarding-body">Click Organize this window to file open tabs into Chrome groups by site and title.</p>
+          <h3 id="onboarding-title">Organize</h3>
+          <p id="onboarding-body">Click Organize to file open tabs in this window into Chrome groups by site and title.</p>
           <div class="confirm-actions">
             <button type="submit" value="skip" class="btn btn-ghost">Skip</button>
             <button type="button" id="onboarding-next" class="btn btn-primary">Next</button>
@@ -275,7 +284,7 @@
         <label class="switch" for="quiet-hours-on">
           <span class="switch-copy">
             <span class="switch-title">Quiet hours</span>
-            <span class="switch-hint">Pause auto-group during these hours. Organize this window still works.</span>
+            <span class="switch-hint">Pause auto-group during these hours. Organize still works.</span>
           </span>
           <span class="switch-control">
             <input id="quiet-hours-on" type="checkbox" role="switch" />

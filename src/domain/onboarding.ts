@@ -9,8 +9,8 @@ export type OnboardingStep = {
 export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
   {
     id: 'organize',
-    title: 'Organize this window',
-    body: 'Click Organize this window to file open tabs into Chrome groups by site and title.',
+    title: 'Organize',
+    body: 'Click Organize to file open tabs in this window into Chrome groups by site and title.',
   },
   {
     id: 'protect',

@@ -384,7 +384,7 @@ async function main() {
         if (button) {
           button.disabled = false
           button.innerHTML =
-            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h13" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg> Organize this window'
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h13" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg><span class="btn-label">Organize</span>'
         }
         if (result) {
           result.hidden = false
