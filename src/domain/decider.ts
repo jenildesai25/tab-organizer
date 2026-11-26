@@ -61,7 +61,7 @@ export function decide(input: DecideInput): Action[] {
   const ready: TabState[] = []
 
   for (const tab of input.tabs) {
-    if (!eligible(tab, input.mode)) continue
+    if (!eligible(tab, input.mode, input)) continue
     if (input.mode === 'watch' && !tab.candidate) continue
     if (sharedMembership(input, tab)) continue
     const readiness = readyState(tab, input)
@@ -73,11 +73,14 @@ export function decide(input: DecideInput): Action[] {
       continue
     }
     if (tab.advisorPending && input.suggestion?.tabId !== tab.id) continue
+    // Already filed for this site and still in a matching group — skip.
+    // If the tab navigated away and sits in the wrong site group, re-decide.
     if (
       input.mode === 'watch' &&
       tab.lastFiledDomain === tab.card.domain &&
       tab.groupId !== null &&
-      input.suggestion?.tabId !== tab.id
+      input.suggestion?.tabId !== tab.id &&
+      !mismatchedSiteGroup(tab, input)
     ) {
       continue
     }
@@ -138,12 +141,29 @@ function topicGroupId(intent: Intent | undefined): number | null {
   return intent?.kind === 'topic' ? intent.groupId : null
 }
 
-function eligible(tab: TabState, mode: DecideInput['mode']): boolean {
-  if (tab.pinned || tab.incognito || !tab.http || tab.openedInsideGroup) return false
+function eligible(tab: TabState, mode: DecideInput['mode'], input: DecideInput): boolean {
+  if (tab.pinned || tab.incognito || !tab.http) return false
+  // A link opened inside a group stays put while it is still on that group's site.
+  // After the person navigates to a different site, allow refiling.
+  if (tab.openedInsideGroup && !mismatchedSiteGroup(tab, input)) return false
   // A drag into a group stays put. An explicit sweep still files an ungrouped tab,
   // including one that was marked sticky by an ordinary tab update.
   if (tab.sticky && (mode !== 'sweep' || tab.groupId !== null)) return false
   return true
+}
+
+/**
+ * True when the tab sits in a non-shared site group whose dominant domain does
+ * not cover the tab's current site key (e.g. google.com group, now on whatsapp.com).
+ */
+function mismatchedSiteGroup(tab: TabState, input: DecideInput): boolean {
+  if (tab.groupId === null || tab.card.domain === '') return false
+  const group = input.groups.find((item) => item.id === tab.groupId)
+  if (!group || group.shared || group.dominantDomain == null) return false
+  return !(
+    domainCovered(tab.card.domain, group.dominantDomain) ||
+    domainCovered(group.dominantDomain, tab.card.domain)
+  )
 }
 
 function sharedMembership(input: DecideInput, tab: TabState): boolean {
@@ -183,6 +203,9 @@ function intentFor(tab: TabState, input: DecideInput, ready: TabState[]): Intent
   if (peers.length >= 2 && peers.some((other) => other.id === tab.id)) {
     return { kind: 'site', domain: tab.card.domain }
   }
+
+  // Navigated away from the site group it sits in — refile by site (move or create).
+  if (mismatchedSiteGroup(tab, input)) return { kind: 'site', domain: tab.card.domain }
 
   const topic = bestTopic(tab, input)
   if (topic && topic.score >= FILE_OVERLAP) return { kind: 'topic', groupId: topic.group.id }
@@ -344,9 +367,10 @@ function actionsForSite(tabs: TabState[], domain: string, input: DecideInput): A
     const file = fileIntoGroup(tabs, titled.id, input)
     return file ? [file] : []
   }
-  const ungrouped = tabs.filter((tab) => tab.groupId === null)
-  if (ungrouped.length === 0) return []
-  const created = createGroup(ungrouped, title, input)
+  // Ungrouped tabs, or tabs parked in the wrong site group after a navigation.
+  const creatable = tabs.filter((tab) => tab.groupId === null || mismatchedSiteGroup(tab, input))
+  if (creatable.length === 0) return []
+  const created = createGroup(creatable, title, input)
   return created ? [created] : []
 }
 
