@@ -1,5 +1,5 @@
 import type { FeatureCard } from './types.js'
-import { registrableDomain } from './sites.js'
+import { registrableDomain, siteDomainFromUrl } from './sites.js'
 import { words } from './words.js'
 
 const PLACEHOLDERS = new Set(['', 'new tab', 'loading', 'loading...'])
@@ -52,7 +52,7 @@ export function buildFeatureCard(input: {
   let pathWords: string[] = []
   if (isHttpUrl(input.url)) {
     const url = new URL(input.url)
-    domain = registrableDomain(url.hostname)
+    domain = siteDomainFromUrl(url)
     pathWords = url.pathname
       .split('/')
       .map((segment) => decodeSegment(segment))

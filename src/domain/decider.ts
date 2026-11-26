@@ -1,5 +1,13 @@
 import { titleIsUsable } from './feature-card.js'
-import { colorForKey, domainCovered, siteTitle } from './sites.js'
+import {
+  colorForKey,
+  domainCovered,
+  isLoopbackFilingKey,
+  isStaleLoopbackGroupTitle,
+  preferredSiteGroupTitle,
+  siteTitle,
+  titlesMatch,
+} from './sites.js'
 import type {
   Action,
   AskAdvisorAction,
@@ -113,13 +121,14 @@ export function decide(input: DecideInput): Action[] {
       return otherIntent?.kind === 'site' && otherIntent.domain === intent.domain
     })
     for (const member of members) used.add(member.id)
-    const file = actionsForSite(members, intent.domain, input)
-    if (file) actions.push(file)
+    actions.push(...actionsForSite(members, intent.domain, input))
   }
 
   if (input.mode === 'sweep') {
     const loose = ready.filter((tab) => intents.get(tab.id)?.kind === 'loose')
     actions.push(...clusterLoose(loose, input))
+    actions.push(...retitleStaleLoopbackGroups(input, actions))
+    actions.push(...retitleStaleSiteGroups(input, actions))
   }
 
   return [...actions, ...waits.sort((a, b) => (a.type === 'wait' && b.type === 'wait' ? a.tabId - b.tabId : 0))]
@@ -166,8 +175,7 @@ function intentFor(tab: TabState, input: DecideInput, ready: TabState[]): Intent
   const rule = input.rules.find((item) => item.domains.some((domain) => domainCovered(tab.card.domain, domain)))
   if (rule) return { kind: 'rule', rule }
 
-  const siteGroup = openGroup(input, (group) => group.dominantDomain === tab.card.domain)
-  if (siteGroup) return { kind: 'site', domain: tab.card.domain }
+  if (siteGroup(input, tab.card.domain)) return { kind: 'site', domain: tab.card.domain }
 
   const peers = ready.filter(
     (other) => other.card.domain === tab.card.domain && other.groupId === null && !coveringRule(input, other),
@@ -201,7 +209,7 @@ function suggestionIntent(tab: TabState, input: DecideInput): Intent {
   if (!suggestion || suggestion.tabId !== tab.id) return { kind: 'none' }
   if (suggestion.confidence < ADVISOR_CONFIDENCE || !isShortTitle(suggestion.title)) return { kind: 'none' }
   const title = suggestion.title.trim()
-  const existing = openGroup(input, (group) => group.title.toLowerCase() === title.toLowerCase())
+  const existing = openGroup(input, (group) => titlesMatch(group.title, title))
   if (existing) return { kind: 'topic', groupId: existing.id }
   return { kind: 'site', domain: `topic:${title.toLowerCase()}` }
 }
@@ -255,7 +263,7 @@ function createGroup(tabs: TabState[], title: string, input: DecideInput): FileA
 }
 
 function actionsForRule(tabs: TabState[], rule: CompiledRule, input: DecideInput): Action[] {
-  const titled = openGroup(input, (group) => group.title === rule.title)
+  const titled = openGroup(input, (group) => titlesMatch(group.title, rule.title))
   const dominated = input.groups
     .filter(
       (group) =>
@@ -279,17 +287,106 @@ function actionsForRule(tabs: TabState[], rule: CompiledRule, input: DecideInput
   return actions
 }
 
-function actionsForSite(tabs: TabState[], domain: string, input: DecideInput): FileAction | null {
+/** Prefer one open group for a site: canonical title, then case-insensitive title, then lowest id. */
+function siteGroup(input: DecideInput, domain: string): GroupState | undefined {
+  const matches = input.groups
+    .filter((group) => !group.shared && group.dominantDomain === domain)
+    .sort((a, b) => a.id - b.id)
+  if (matches.length === 0) return undefined
+  const wanted = siteTitle(domain)
+  return (
+    matches.find((group) => group.title === wanted) ??
+    matches.find((group) => titlesMatch(group.title, wanted)) ??
+    matches[0]
+  )
+}
+
+function actionsForSite(tabs: TabState[], domain: string, input: DecideInput): Action[] {
   if (domain.startsWith('topic:')) {
     const title = tabs.length > 0 ? suggestionTitle(input, tabs) : null
-    if (!title) return null
-    return createGroup(tabs, title, input)
+    if (!title) return []
+    const existing = openGroup(input, (group) => titlesMatch(group.title, title))
+    if (existing) {
+      const file = fileIntoGroup(tabs, existing.id, input)
+      return file ? [file] : []
+    }
+    const created = createGroup(tabs, title, input)
+    return created ? [created] : []
   }
-  const existing = openGroup(input, (group) => group.dominantDomain === domain)
-  if (existing) return fileIntoGroup(tabs, existing.id, input)
+  const existing = siteGroup(input, domain)
+  if (existing) {
+    const actions: Action[] = []
+    if (
+      !existing.handRenamed &&
+      isLoopbackFilingKey(domain) &&
+      isStaleLoopbackGroupTitle(existing.title)
+    ) {
+      actions.push(retitle(existing.id, 'Local'))
+    } else if (!existing.handRenamed) {
+      const preferred = preferredSiteGroupTitle(domain, existing.title)
+      if (preferred) actions.push(retitle(existing.id, preferred))
+    }
+    const file = fileIntoGroup(tabs, existing.id, input)
+    if (file) actions.push(file)
+    return actions
+  }
+  const title = siteTitle(domain)
+  // Reuse a same-domain-or-untitled group whose title only differs by case.
+  const titled = openGroup(
+    input,
+    (group) =>
+      titlesMatch(group.title, title) &&
+      (group.dominantDomain === null || group.dominantDomain === domain),
+  )
+  if (titled) {
+    const file = fileIntoGroup(tabs, titled.id, input)
+    return file ? [file] : []
+  }
   const ungrouped = tabs.filter((tab) => tab.groupId === null)
-  if (ungrouped.length < 2) return null
-  return createGroup(ungrouped, siteTitle(domain), input)
+  if (ungrouped.length < 2) return []
+  const created = createGroup(ungrouped, title, input)
+  return created ? [created] : []
+}
+
+/** True when a user rule claims this filing key — do not restore DISPLAY over the rule title. */
+function domainClaimedByRule(input: DecideInput, domain: string | null | undefined): boolean {
+  if (!domain) return false
+  return input.rules.some((rule) => rule.domains.some((item) => domainCovered(domain, item)))
+}
+
+/** Rename leftover "127" / host:port loopback groups to Local on Organize. */
+function retitleStaleLoopbackGroups(input: DecideInput, already: Action[]): RetitleAction[] {
+  const done = new Set(
+    already.filter((action): action is RetitleAction => action.type === 'retitle').map((action) => action.groupId),
+  )
+  const actions: RetitleAction[] = []
+  for (const group of input.groups) {
+    if (group.shared || group.handRenamed || done.has(group.id)) continue
+    if (!isLoopbackFilingKey(group.dominantDomain)) continue
+    if (domainClaimedByRule(input, group.dominantDomain)) continue
+    if (!isStaleLoopbackGroupTitle(group.title) && !preferredSiteGroupTitle(group.dominantDomain, group.title)) {
+      continue
+    }
+    actions.push(retitle(group.id, 'Local'))
+  }
+  return actions
+}
+
+/** Restore "Github" / "DevOps Skills" → "GitHub" (and other stable site labels) on Organize. */
+function retitleStaleSiteGroups(input: DecideInput, already: Action[]): RetitleAction[] {
+  const done = new Set(
+    already.filter((action): action is RetitleAction => action.type === 'retitle').map((action) => action.groupId),
+  )
+  const actions: RetitleAction[] = []
+  for (const group of input.groups) {
+    if (group.shared || group.handRenamed || done.has(group.id)) continue
+    if (isLoopbackFilingKey(group.dominantDomain)) continue
+    if (domainClaimedByRule(input, group.dominantDomain)) continue
+    const preferred = preferredSiteGroupTitle(group.dominantDomain, group.title)
+    if (!preferred) continue
+    actions.push(retitle(group.id, preferred))
+  }
+  return actions
 }
 
 function suggestionTitle(input: DecideInput, tabs: TabState[]): string | null {
@@ -360,8 +457,37 @@ function clusterLoose(tabs: TabState[], input: DecideInput): FileAction[] {
   for (const cluster of clusters) {
     const domains = new Set(cluster.map((tab) => tab.card.domain))
     const domain = cluster[0]?.card.domain ?? ''
-    const title = domains.size === 1 ? siteTitle(domain) : clusterTitle(cluster)
+    if (domains.size === 1) {
+      const existing = siteGroup(input, domain)
+      if (existing) {
+        const file = fileIntoGroup(cluster, existing.id, input)
+        if (file) actions.push(file)
+        continue
+      }
+      const title = siteTitle(domain)
+      const titled = openGroup(
+        input,
+        (group) =>
+          titlesMatch(group.title, title) &&
+          (group.dominantDomain === null || group.dominantDomain === domain),
+      )
+      if (titled) {
+        const file = fileIntoGroup(cluster, titled.id, input)
+        if (file) actions.push(file)
+        continue
+      }
+      const file = createGroup(cluster, title, input)
+      if (file) actions.push(file)
+      continue
+    }
+    const title = clusterTitle(cluster)
     if (title) {
+      const titled = openGroup(input, (group) => titlesMatch(group.title, title))
+      if (titled) {
+        const file = fileIntoGroup(cluster, titled.id, input)
+        if (file) actions.push(file)
+        continue
+      }
       const file = createGroup(cluster, title, input)
       if (file) actions.push(file)
       continue

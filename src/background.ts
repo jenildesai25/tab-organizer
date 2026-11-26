@@ -1,21 +1,58 @@
 import { fileTabs, retitleGroup } from './apply.js'
-import { cancelAdvisor, enqueueAdvisor } from './advisor.js'
+import { cancelAdvisor, enqueueAdvisor, RETITLE_TIMEOUT_MS } from './advisor.js'
+import {
+  filterActivityByActor,
+  type ActivityActor,
+  type ActivityDraft,
+} from './domain/activity-log.js'
 import { extractEmbeddedHttpUrl, resolveTabUrl, type ChromeTabLike } from './domain/chrome-tab.js'
 import { decide } from './domain/decider.js'
 import { buildFeatureCard, isHttpUrl, titleIsUsable } from './domain/feature-card.js'
-import { advisorMessages, parseAdvisorContent, parseRuleContent, ruleMessages } from './domain/prompts.js'
+import {
+  advisorMessages,
+  buildGroupRetitlePayload,
+  parseAdvisorContent,
+  parseRetitleContent,
+  parseRuleContent,
+  retitleGroupMessages,
+  ruleMessages,
+} from './domain/prompts.js'
 import { claimRule, compileSentence, deleteRule, retitlesForSavedRule } from './domain/rules.js'
-import { canonicalSite } from './domain/sites.js'
+import { decideSiteRetitle, rejectRetitleSuggestion } from './domain/site-retitle.js'
+import { canonicalSite, titlesMatch } from './domain/sites.js'
 import { groupStateFromChrome, tabStateFromChrome } from './domain/sweep-chrome.js'
 import { buildSweepDiag, type SweepDiag } from './domain/sweep-diag.js'
 import { pickSweepWindowId } from './domain/sweep-window.js'
-import type { Action, DecideInput, WaitAction } from './domain/types.js'
+import { ADVISOR_CONFIDENCE, type Action, type DecideInput, type WaitAction } from './domain/types.js'
 import { isShortTitle } from './domain/words.js'
 import { marksSticky } from './domain/stickiness.js'
 import { describeSweep, sweepClaimsNothing } from './domain/summary.js'
-import { listLocalModels, ollamaChat } from './ollama.js'
-import type { ModelsResult, PreviewResult, StateResult, SweepResult, ToBackground } from './protocol.js'
-import { loadSettings, saveSettings, type Settings } from './storage.js'
+import { isChromeColor, tabGroupViewFromChrome, tabGroupViewsFromChrome } from './domain/tab-groups.js'
+import { describeOllamaFailure, listLocalModels, ollamaChat, OLLAMA_DOWN_MESSAGE } from './ollama.js'
+import type {
+  ActivityLogResult,
+  ClearActivityResult,
+  ListGroupsResult,
+  ModelsResult,
+  PreviewResult,
+  RetitleGroupResult,
+  RetitleGroupsResult,
+  RetitleProgress,
+  StateResult,
+  SweepResult,
+  TestOllamaResult,
+  ToBackground,
+  UngroupResult,
+  UpdateGroupResult,
+} from './protocol.js'
+import {
+  appendActivity,
+  clearActivityLog,
+  loadActivityLog,
+  loadSettings,
+  saveSettings,
+  type Settings,
+} from './storage.js'
 
 const sticky = new Set<number>()
 const candidates = new Set<number>()
@@ -33,6 +70,8 @@ let organizerOn = false
 let llmOn = false
 let statusNote = ''
 let settingsEpoch = 0
+let retitleProgress: RetitleProgress | null = null
+let retitleRunning = false
 
 function markTabs(ids: number[]): void {
   for (const id of ids) {
@@ -150,6 +189,18 @@ function armSettle(windowId: number, action: WaitAction): void {
   )
 }
 
+function filingActor(mode: 'watch' | 'sweep'): ActivityActor {
+  return mode === 'sweep' ? 'sweep' : 'organizer'
+}
+
+async function recordActivity(draft: ActivityDraft): Promise<void> {
+  try {
+    await appendActivity(draft)
+  } catch {
+    // Activity is best-effort; never block filing on a log write.
+  }
+}
+
 async function apply(
   windowId: number,
   actions: Action[],
@@ -158,16 +209,58 @@ async function apply(
   mode: 'watch' | 'sweep',
 ): Promise<void> {
   let failed = false
+  const actor = filingActor(mode)
   for (const action of actions) {
     try {
       if (action.type === 'wait') armSettle(windowId, action)
-      else if (action.type === 'retitle') await retitleGroup(action, markGroup)
-      else if (action.type === 'file') {
-        await fileTabs(windowId, action, markTabs, markGroup)
+      else if (action.type === 'retitle') {
+        const oldTitle = groupTitles.get(action.groupId) ?? ''
+        await retitleGroup(action, markGroup)
+        await recordActivity({
+          actor,
+          action: 'group.rename',
+          groupId: action.groupId,
+          oldTitle,
+          newTitle: action.title,
+          groupTitle: action.title,
+        })
+      } else if (action.type === 'file') {
+        const groupId = await fileTabs(windowId, action, markTabs, markGroup)
         for (const id of action.tabIds) {
           const domain = domains.get(id)
           if (domain) filed.set(id, domain)
           advisorPending.delete(id)
+        }
+        if (groupId != null) {
+          if (action.create) {
+            await recordActivity({
+              actor,
+              action: 'group.create',
+              groupId,
+              groupTitle: action.create.title,
+              newTitle: action.create.title,
+              tabId: action.tabIds[0],
+              siteKey: domains.get(action.tabIds[0] ?? -1),
+              tabCount: action.tabIds.length,
+            })
+          } else {
+            let groupTitle = groupTitles.get(groupId) ?? ''
+            try {
+              const group = await chrome.tabGroups.get(groupId)
+              groupTitle = group.title ?? groupTitle
+            } catch {
+              // Group may have closed; keep the cached title.
+            }
+            await recordActivity({
+              actor,
+              action: 'tab.file',
+              groupId,
+              groupTitle,
+              tabId: action.tabIds[0],
+              siteKey: domains.get(action.tabIds[0] ?? -1),
+              tabCount: action.tabIds.length,
+            })
+          }
         }
       } else if (action.type === 'ask-advisor') queueAdvice(windowId, action, settings, mode)
     } catch {
@@ -184,7 +277,7 @@ function queueAdvice(
   origin: 'watch' | 'sweep',
 ): void {
   if (!settings.llmOn || !settings.model.trim()) {
-    statusNote = settings.model.trim() ? "Ollama isn't running." : 'Choose a local model.'
+    statusNote = settings.model.trim() ? OLLAMA_DOWN_MESSAGE : 'Choose a local model.'
     return
   }
   advisorPending.add(action.tabId)
@@ -216,12 +309,12 @@ function queueAdvice(
         return null
       }
       return null
-    } catch {
+    } catch (error) {
       advisorPending.delete(action.tabId)
-      if (!signal.aborted) statusNote = "Ollama isn't running."
+      if (!signal.aborted) statusNote = describeOllamaFailure(error)
       return null
     }
-  })
+  }).catch(() => {})
 }
 
 async function focusedWindowId(): Promise<number> {
@@ -319,10 +412,54 @@ function statusLine(settings: Settings): string {
 
 async function listModels(): Promise<ModelsResult> {
   try {
-    const models = await listLocalModels(AbortSignal.timeout(2000))
+    const models = await listLocalModels(AbortSignal.timeout(5000))
     return { ok: true, permitted: true, models }
-  } catch {
-    return { ok: false, permitted: true, models: [], message: "Ollama isn't running." }
+  } catch (error) {
+    return { ok: false, permitted: true, models: [], message: describeOllamaFailure(error) }
+  }
+}
+
+const PING_MESSAGES = [{ role: 'user' as const, content: 'Reply with JSON only: {"ok":true}' }]
+
+async function testOllama(): Promise<TestOllamaResult> {
+  const settings = await loadSettings()
+  llmOn = settings.llmOn
+  if (!settings.llmOn) return { ok: false, message: 'Turn on the local model.' }
+  const model = settings.model.trim()
+  if (!model) return { ok: false, message: 'Choose a local model.' }
+
+  try {
+    const available = await listLocalModels(AbortSignal.timeout(5000))
+    if (!available.some((entry) => entry.name === model)) {
+      return { ok: false, message: `Model "${model}" is not installed in Ollama.` }
+    }
+  } catch (error) {
+    return { ok: false, message: describeOllamaFailure(error) }
+  }
+
+  const started = Date.now()
+  try {
+    const content = await enqueueAdvisor((signal) =>
+      ollamaChat({ model, messages: PING_MESSAGES, signal }),
+    )
+    if (content === null) return { ok: false, message: 'Connection test was cancelled.' }
+    const ms = Date.now() - started
+    return {
+      ok: true,
+      message: `Connected. ${model} responded in ${(ms / 1000).toFixed(1)}s.`,
+      ms,
+    }
+  } catch (error) {
+    const message = describeOllamaFailure(error)
+    if (/timed out/i.test(message)) {
+      return {
+        ok: false,
+        message:
+          'Ollama timed out while warming the model. Wait for it to finish loading, try again, or pick a smaller model.',
+        ms: Date.now() - started,
+      }
+    }
+    return { ok: false, message, ms: Date.now() - started }
   }
 }
 
@@ -330,7 +467,7 @@ async function currentState(): Promise<StateResult> {
   const settings = await loadSettings()
   organizerOn = settings.organizerOn
   llmOn = settings.llmOn
-  return { ...settings, status: statusLine(settings) }
+  return { ...settings, status: statusLine(settings), retitle: retitleProgress }
 }
 
 async function previewRule(sentence: string): Promise<PreviewResult> {
@@ -342,10 +479,15 @@ async function previewRule(sentence: string): Promise<PreviewResult> {
   }
   if (!settings.llmOn) return { ok: false, message: 'Turn on the local model to interpret this sentence.' }
   if (!settings.model.trim()) return { ok: false, message: 'Choose a local model.' }
-  const content = await enqueueAdvisor((signal) =>
-    ollamaChat({ model: settings.model.trim(), messages: ruleMessages(sentence), signal }),
-  )
-  if (!content) return { ok: false, message: "Ollama isn't running." }
+  let content: string | null
+  try {
+    content = await enqueueAdvisor((signal) =>
+      ollamaChat({ model: settings.model.trim(), messages: ruleMessages(sentence), signal }),
+    )
+  } catch (error) {
+    return { ok: false, message: describeOllamaFailure(error) }
+  }
+  if (!content) return { ok: false, message: OLLAMA_DOWN_MESSAGE }
   const parsed = parseRuleContent(content)
   const domains = [...new Set((parsed?.domains ?? []).map((domain) => canonicalSite(domain)).filter((domain) => domain !== null))]
   if (!parsed || !isShortTitle(parsed.title) || domains.length === 0) {
@@ -372,7 +514,17 @@ async function saveRule(sentence: string, domains: string[], title: string): Pro
   const [groups, tabs] = await Promise.all([chrome.tabGroups.query({}), chrome.tabs.query({})])
   for (const action of retitlesForSavedRule(incoming, groups.map((group) => groupStateFromChrome(group, tabs, handRenamed)))) {
     try {
+      const oldTitle = groupTitles.get(action.groupId) ?? ''
       await retitleGroup(action, markGroup)
+      await recordActivity({
+        actor: 'rule',
+        action: 'group.rename',
+        groupId: action.groupId,
+        oldTitle,
+        newTitle: action.title,
+        groupTitle: action.title,
+        reason: incoming.sentence,
+      })
     } catch {
       // A group can close between the query and the update.
     }
@@ -448,11 +600,480 @@ async function handle(message: ToBackground): Promise<unknown> {
     }
   }
   if (message.type === 'list-models') return listModels()
+  if (message.type === 'test-ollama') return testOllama()
+  if (message.type === 'list-groups') return listGroups(message.windowId)
+  if (message.type === 'update-group') {
+    return updateGroup(message.groupId, {
+      title: message.title,
+      color: message.color,
+      collapsed: message.collapsed,
+    })
+  }
+  if (message.type === 'ungroup') return ungroupTabs(message.groupId)
+  if (message.type === 'retitle-groups') return retitleGroups(message.windowId)
+  if (message.type === 'get-activity') {
+    const entries = await loadActivityLog()
+    const filtered = filterActivityByActor(entries, message.actor ?? 'all')
+    const limit = message.limit && message.limit > 0 ? message.limit : filtered.length
+    return { ok: true, entries: filtered.slice(0, limit) } satisfies ActivityLogResult
+  }
+  if (message.type === 'clear-activity') {
+    await clearActivityLog()
+    return { ok: true } satisfies ClearActivityResult
+  }
   return { ok: false, message: 'Unknown message.' }
 }
 
+async function retitleGroups(requestedId: number): Promise<RetitleGroupsResult> {
+  if (retitleRunning) return { ok: false, message: 'A rename is already running.' }
+  const settings = await loadSettings()
+  llmOn = settings.llmOn
+  if (!settings.llmOn) return { ok: false, message: 'Turn on the local model.' }
+  if (!settings.model.trim()) return { ok: false, message: 'Choose a local model.' }
+
+  const model = settings.model.trim()
+  try {
+    const available = await listLocalModels(AbortSignal.timeout(5000))
+    if (!available.some((entry) => entry.name === model)) {
+      return { ok: false, message: `Model "${model}" is not installed in Ollama.` }
+    }
+  } catch (error) {
+    return { ok: false, message: describeOllamaFailure(error) }
+  }
+
+  let windowId: number
+  try {
+    windowId = await resolveSweepWindowId(requestedId)
+  } catch (error) {
+    const text = error instanceof Error && error.message ? error.message : 'Could not find a window to rename.'
+    return { ok: false, message: text }
+  }
+
+  const [groups, queried] = await Promise.all([
+    chrome.tabGroups.query({ windowId }),
+    chrome.tabs.query({ windowId }),
+  ])
+  const tabs = await hydrateTabs(queried)
+  const results: RetitleGroupResult[] = []
+  let updated = 0
+  let skipped = 0
+  let failed = 0
+
+  for (const group of groups) {
+    if (group.shared === true) {
+      skipped += 1
+      results.push({
+        groupId: group.id,
+        oldTitle: group.title ?? '',
+        status: 'skipped',
+        reason: 'Shared',
+      })
+      await recordActivity({
+        actor: 'ai',
+        action: 'rename.skip',
+        groupId: group.id,
+        oldTitle: group.title ?? '',
+        groupTitle: group.title ?? '',
+        reason: 'Shared',
+        model,
+      })
+    }
+  }
+
+  const targets = groups.filter((group) => group.shared !== true)
+  if (targets.length === 0) {
+    const summary =
+      results.length === 0
+        ? 'No groups to rename in this window.'
+        : skipped === 1
+          ? 'Skipped 1 shared group.'
+          : `Skipped ${skipped} shared groups.`
+    return { ok: true, updated: 0, skipped, failed: 0, summary, results }
+  }
+
+  retitleRunning = true
+  retitleProgress = { current: 0, total: targets.length, results: [...results] }
+  let cancelled = false
+
+  try {
+    for (let index = 0; index < targets.length; index += 1) {
+      if (!llmOn) break
+      const group = targets[index]!
+      const currentTitle = (group.title ?? '').trim()
+      retitleProgress = { current: index + 1, total: targets.length, results: [...results] }
+
+      const memberCards = tabs
+        .filter((tab) => tab.groupId === group.id)
+        .map((tab) => buildFeatureCard({ url: resolveTabUrl(tab), title: tab.title || '' }))
+
+      // Manual renames keep their label; do not force GitHub/Local over them.
+      const siteDecision = handRenamed.has(group.id)
+        ? ({ kind: 'ask-model' } as const)
+        : decideSiteRetitle(currentTitle, memberCards, { rules: settings.rules })
+      if (siteDecision.kind === 'skip') {
+        skipped += 1
+        results.push({
+          groupId: group.id,
+          oldTitle: currentTitle,
+          status: 'skipped',
+          reason: siteDecision.reason,
+        })
+        await recordActivity({
+          actor: 'system',
+          action: 'rename.skip',
+          groupId: group.id,
+          oldTitle: currentTitle,
+          groupTitle: currentTitle,
+          siteKey: siteDecision.domain,
+          reason: siteDecision.reason,
+          model,
+        })
+        retitleProgress = { current: index + 1, total: targets.length, results: [...results] }
+        continue
+      }
+
+      if (siteDecision.kind === 'use-site') {
+        if (titlesMatch(currentTitle, siteDecision.title)) {
+          skipped += 1
+          results.push({
+            groupId: group.id,
+            oldTitle: currentTitle,
+            status: 'skipped',
+            reason: 'already clear',
+          })
+          await recordActivity({
+            actor: 'system',
+            action: 'rename.skip',
+            groupId: group.id,
+            oldTitle: currentTitle,
+            groupTitle: currentTitle,
+            siteKey: siteDecision.domain,
+            reason: 'already clear',
+            model,
+          })
+          retitleProgress = { current: index + 1, total: targets.length, results: [...results] }
+          continue
+        }
+        try {
+          markGroup(group.id)
+          await chrome.tabGroups.update(group.id, { title: siteDecision.title })
+          updated += 1
+          results.push({
+            groupId: group.id,
+            oldTitle: currentTitle,
+            newTitle: siteDecision.title,
+            status: 'renamed',
+          })
+          await recordActivity({
+            actor: 'system',
+            action: 'group.rename',
+            groupId: group.id,
+            oldTitle: currentTitle,
+            newTitle: siteDecision.title,
+            groupTitle: siteDecision.title,
+            siteKey: siteDecision.domain,
+            reason: siteDecision.reason,
+            model,
+          })
+        } catch (error) {
+          failed += 1
+          const text = error instanceof Error && error.message ? error.message : 'Could not rename.'
+          results.push({
+            groupId: group.id,
+            oldTitle: currentTitle,
+            newTitle: siteDecision.title,
+            status: 'failed',
+            reason: text,
+          })
+          await recordActivity({
+            actor: 'system',
+            action: 'rename.skip',
+            groupId: group.id,
+            oldTitle: currentTitle,
+            newTitle: siteDecision.title,
+            groupTitle: currentTitle,
+            siteKey: siteDecision.domain,
+            reason: text,
+            model,
+          })
+        }
+        retitleProgress = { current: index + 1, total: targets.length, results: [...results] }
+        continue
+      }
+
+      const payload = buildGroupRetitlePayload(group.title ?? '', memberCards)
+      let content: string | null
+      try {
+        content = await enqueueAdvisor(
+          (signal) => ollamaChat({ model, messages: retitleGroupMessages(payload), signal }),
+          { timeoutMs: RETITLE_TIMEOUT_MS },
+        )
+      } catch (error) {
+        if (!llmOn) break
+        failed += 1
+        results.push({
+          groupId: group.id,
+          oldTitle: currentTitle,
+          status: 'failed',
+          reason: describeOllamaFailure(error),
+        })
+        retitleProgress = { current: index + 1, total: targets.length, results: [...results] }
+        continue
+      }
+
+      if (!llmOn) break
+      if (!content) {
+        cancelled = true
+        failed += 1
+        results.push({
+          groupId: group.id,
+          oldTitle: currentTitle,
+          status: 'failed',
+          reason: 'Cancelled',
+        })
+        break
+      }
+
+      const parsed = parseRetitleContent(content)
+      if (
+        !parsed ||
+        parsed.title === '' ||
+        parsed.confidence < ADVISOR_CONFIDENCE ||
+        !isShortTitle(parsed.title)
+      ) {
+        skipped += 1
+        results.push({
+          groupId: group.id,
+          oldTitle: currentTitle,
+          status: 'skipped',
+          reason: 'Low confidence',
+        })
+        await recordActivity({
+          actor: 'ai',
+          action: 'rename.skip',
+          groupId: group.id,
+          oldTitle: currentTitle,
+          groupTitle: currentTitle,
+          reason: 'Low confidence',
+          model,
+        })
+        retitleProgress = { current: index + 1, total: targets.length, results: [...results] }
+        continue
+      }
+      if (titlesMatch(parsed.title, currentTitle)) {
+        skipped += 1
+        results.push({
+          groupId: group.id,
+          oldTitle: currentTitle,
+          status: 'skipped',
+          reason: 'already clear',
+        })
+        await recordActivity({
+          actor: 'ai',
+          action: 'rename.skip',
+          groupId: group.id,
+          oldTitle: currentTitle,
+          groupTitle: currentTitle,
+          reason: 'already clear',
+          model,
+        })
+        retitleProgress = { current: index + 1, total: targets.length, results: [...results] }
+        continue
+      }
+
+      const rejected = handRenamed.has(group.id)
+        ? null
+        : rejectRetitleSuggestion(currentTitle, parsed.title, memberCards, {
+            rules: settings.rules,
+          })
+      if (rejected) {
+        skipped += 1
+        results.push({
+          groupId: group.id,
+          oldTitle: currentTitle,
+          status: 'skipped',
+          reason: rejected,
+        })
+        await recordActivity({
+          actor: 'ai',
+          action: 'rename.skip',
+          groupId: group.id,
+          oldTitle: currentTitle,
+          newTitle: parsed.title,
+          groupTitle: currentTitle,
+          reason: rejected,
+          model,
+        })
+        retitleProgress = { current: index + 1, total: targets.length, results: [...results] }
+        continue
+      }
+
+      try {
+        markGroup(group.id)
+        await chrome.tabGroups.update(group.id, { title: parsed.title })
+        updated += 1
+        results.push({
+          groupId: group.id,
+          oldTitle: currentTitle,
+          newTitle: parsed.title,
+          status: 'renamed',
+        })
+        await recordActivity({
+          actor: 'ai',
+          action: 'group.rename',
+          groupId: group.id,
+          oldTitle: currentTitle,
+          newTitle: parsed.title,
+          groupTitle: parsed.title,
+          model,
+        })
+      } catch (error) {
+        failed += 1
+        const text = error instanceof Error && error.message ? error.message : 'Could not rename.'
+        results.push({
+          groupId: group.id,
+          oldTitle: currentTitle,
+          newTitle: parsed.title,
+          status: 'failed',
+          reason: text,
+        })
+        await recordActivity({
+          actor: 'ai',
+          action: 'rename.skip',
+          groupId: group.id,
+          oldTitle: currentTitle,
+          newTitle: parsed.title,
+          groupTitle: currentTitle,
+          reason: text,
+          model,
+        })
+      }
+      retitleProgress = { current: index + 1, total: targets.length, results: [...results] }
+    }
+  } finally {
+    retitleProgress = null
+    retitleRunning = false
+  }
+
+  const aiSkipped = results.filter((r) => r.status === 'skipped' && r.reason !== 'Shared').length
+  if ((!llmOn || cancelled) && updated === 0 && aiSkipped === 0 && failed <= 1) {
+    return { ok: false, message: 'Rename cancelled.' }
+  }
+
+  const order = new Map(groups.map((group, index) => [group.id, index]))
+  results.sort((left, right) => (order.get(left.groupId) ?? 0) - (order.get(right.groupId) ?? 0))
+
+  const parts = [`Renamed ${updated}`]
+  if (skipped > 0) parts.push(`skipped ${skipped}`)
+  if (failed > 0) parts.push(`failed ${failed}`)
+  return {
+    ok: true,
+    updated,
+    skipped,
+    failed,
+    summary: `${parts.join(', ')}.`,
+    results,
+  }
+}
+
+async function listGroups(requestedId: number): Promise<ListGroupsResult> {
+  try {
+    const windowId = await resolveSweepWindowId(requestedId)
+    const [groups, tabs] = await Promise.all([
+      chrome.tabGroups.query({ windowId }),
+      chrome.tabs.query({ windowId }),
+    ])
+    return { ok: true, windowId, groups: tabGroupViewsFromChrome(groups, tabs) }
+  } catch (error) {
+    const text = error instanceof Error && error.message ? error.message : 'Could not list groups.'
+    return { ok: false, message: text }
+  }
+}
+
+async function updateGroup(
+  groupId: number,
+  patch: { title?: string; color?: string; collapsed?: boolean },
+): Promise<UpdateGroupResult> {
+  try {
+    const existing = await chrome.tabGroups.get(groupId)
+    if (existing.shared) return { ok: false, message: 'Shared groups can’t be edited here.' }
+    const update: chrome.tabGroups.UpdateProperties = {}
+    if (patch.title !== undefined) update.title = patch.title
+    if (patch.color !== undefined) {
+      if (!isChromeColor(patch.color)) return { ok: false, message: 'That color isn’t supported.' }
+      update.color = patch.color
+    }
+    if (patch.collapsed !== undefined) update.collapsed = patch.collapsed
+    if (Object.keys(update).length === 0) {
+      const tabs = await chrome.tabs.query({ windowId: existing.windowId })
+      return { ok: true, group: tabGroupViewFromChrome(existing, tabs) }
+    }
+    const oldTitle = existing.title ?? ''
+    const oldColor = existing.color
+    markGroup(groupId)
+    const updated = (await chrome.tabGroups.update(groupId, update)) ?? (await chrome.tabGroups.get(groupId))
+    if (patch.title !== undefined && patch.title !== oldTitle) {
+      await recordActivity({
+        actor: 'user',
+        action: 'group.rename',
+        groupId,
+        oldTitle,
+        newTitle: updated.title ?? patch.title,
+        groupTitle: updated.title ?? patch.title,
+      })
+    }
+    if (patch.color !== undefined && patch.color !== oldColor) {
+      await recordActivity({
+        actor: 'user',
+        action: 'group.recolor',
+        groupId,
+        groupTitle: updated.title ?? oldTitle,
+        color: patch.color,
+      })
+    }
+    const tabs = await chrome.tabs.query({ windowId: updated.windowId })
+    return { ok: true, group: tabGroupViewFromChrome(updated, tabs) }
+  } catch (error) {
+    const text = error instanceof Error && error.message ? error.message : 'Could not update that group.'
+    return { ok: false, message: text }
+  }
+}
+
+async function ungroupTabs(groupId: number): Promise<UngroupResult> {
+  try {
+    const existing = await chrome.tabGroups.get(groupId)
+    if (existing.shared) return { ok: false, message: 'Shared groups can’t be deleted here.' }
+    const tabs = await chrome.tabs.query({ groupId })
+    const ids = tabs.flatMap((tab) => (tab.id == null ? [] : [tab.id]))
+    const first = ids[0]
+    if (first === undefined) return { ok: true }
+    const tabIds: [number, ...number[]] = [first, ...ids.slice(1)]
+    const title = existing.title ?? ''
+    markTabs(tabIds)
+    await chrome.tabs.ungroup(tabIds)
+    await recordActivity({
+      actor: 'user',
+      action: 'group.ungroup',
+      groupId,
+      groupTitle: title,
+      oldTitle: title,
+      tabCount: tabIds.length,
+    })
+    return { ok: true }
+  } catch (error) {
+    const text = error instanceof Error && error.message ? error.message : 'Could not ungroup those tabs.'
+    return { ok: false, message: text }
+  }
+}
+
 chrome.runtime.onMessage.addListener((message: ToBackground, _sender, sendResponse) => {
-  void handle(message).then(sendResponse, () => sendResponse({ ok: false, message: 'Something went wrong.' }))
+  void (async () => {
+    try {
+      sendResponse(await handle(message))
+    } catch {
+      sendResponse({ ok: false, message: 'Something went wrong.' })
+    }
+  })()
   return true
 })
 

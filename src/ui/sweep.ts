@@ -5,6 +5,16 @@ function showResult(result: HTMLElement, text: string): void {
   result.hidden = text === ''
 }
 
+function resultText(response: SweepResult): string {
+  if (response.ok) {
+    const diag = response.diag?.line
+    if (diag && !response.summary.includes(diag)) return `${response.summary}\n${diag}`
+    return response.summary
+  }
+  const diag = response.diag?.line
+  return diag ? `${response.message}\n${diag}` : response.message
+}
+
 async function send<T>(message: ToBackground): Promise<T> {
   return chrome.runtime.sendMessage(message) as Promise<T>
 }
@@ -41,6 +51,7 @@ export function bindSweep(
   button: HTMLButtonElement,
   result: HTMLElement,
   onState: (state: StateResult) => void,
+  onDone?: (response: SweepResult) => void,
 ): void {
   button.addEventListener('click', () => {
     void (async () => {
@@ -56,11 +67,13 @@ export function bindSweep(
         }
         const response = await send<SweepResult>({ type: 'sweep', windowId: win.id })
         if (!response.ok) {
-          showResult(result, response.message)
+          showResult(result, resultText(response))
+          onDone?.(response)
           return
         }
         onState(response)
-        showResult(result, response.summary)
+        showResult(result, resultText(response))
+        onDone?.(response)
       } catch {
         showResult(result, 'Could not group this window.')
       } finally {

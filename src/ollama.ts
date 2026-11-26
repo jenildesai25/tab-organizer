@@ -3,6 +3,67 @@ import type { ChatMessage } from './domain/prompts.js'
 const HOST = 'http://127.0.0.1:11434'
 
 export const OLLAMA_ORIGIN = `${HOST}/*`
+export const OLLAMA_HOST_PERMISSIONS = [
+  'http://127.0.0.1:11434/*',
+  'http://localhost:11434/*',
+] as const
+
+const DOWN_MESSAGE =
+  "Ollama isn't running. Start it with `ollama serve`, then hit Refresh."
+
+/** Env value that lets Chrome extensions call a local Ollama. */
+export function ollamaOriginsAllowlist(extensionId?: string): string {
+  const id = extensionId?.trim()
+  return id ? `chrome-extension://${id}` : 'chrome-extension://*'
+}
+
+/** One-line shell launch for macOS/zsh (and other shells that take env prefixes). */
+export function ollamaOriginsLaunchCommand(extensionId?: string): string {
+  return `OLLAMA_ORIGINS=${ollamaOriginsAllowlist(extensionId)} ollama serve`
+}
+
+export function describeOllamaOriginsBlock(extensionId?: string): string {
+  const launch = ollamaOriginsLaunchCommand(extensionId)
+  return (
+    `Ollama blocked this extension (403). Chrome sends Origin: chrome-extension://…. ` +
+    `Quit Ollama, then start it with:\n${launch}\n` +
+    `Or use OLLAMA_ORIGINS=* if you want every origin allowed.`
+  )
+}
+
+function extensionIdHint(): string | undefined {
+  try {
+    return typeof chrome !== 'undefined' ? chrome.runtime?.id : undefined
+  } catch {
+    return undefined
+  }
+}
+
+export function describeOllamaFailure(error: unknown, extensionId = extensionIdHint()): string {
+  if (error && typeof error === 'object') {
+    const name = 'name' in error && typeof error.name === 'string' ? error.name : ''
+    const message = 'message' in error && typeof error.message === 'string' ? error.message : ''
+    if (name === 'TimeoutError' || name === 'AbortError' || /timed out/i.test(message)) {
+      return message && /timed out/i.test(message)
+        ? message
+        : 'Ollama timed out. The model may still be loading — wait and try again, or pick a smaller model.'
+    }
+    if (/Ollama replied 404/i.test(message)) {
+      return 'That model is not installed in Ollama.'
+    }
+    if (/Ollama replied 403/i.test(message)) {
+      return describeOllamaOriginsBlock(extensionId)
+    }
+    if (/Ollama replied \d+/i.test(message)) {
+      return message
+    }
+    if (name === 'TypeError' || /Failed to fetch|NetworkError|ECONNREFUSED/i.test(message)) {
+      return DOWN_MESSAGE
+    }
+    if (message) return message
+  }
+  return DOWN_MESSAGE
+}
 
 export async function ollamaChat(options: {
   model: string
@@ -71,3 +132,5 @@ export async function ollamaReachable(signal?: AbortSignal): Promise<boolean> {
     return false
   }
 }
+
+export { DOWN_MESSAGE as OLLAMA_DOWN_MESSAGE }

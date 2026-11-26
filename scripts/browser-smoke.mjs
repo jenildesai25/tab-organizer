@@ -222,6 +222,7 @@ async function runOrganizeFlow(dashboard) {
     const tabsAfter = await chrome.tabs.query({ windowId: win.id })
     const groupsAfter = await chrome.tabGroups.query({ windowId: win.id })
     const groupedTabs = tabsAfter.filter((tab) => tab.groupId != null && tab.groupId >= 0)
+    const listed = await chrome.runtime.sendMessage({ type: 'list-groups', windowId: win.id })
 
     return {
       windowId: win.id,
@@ -235,6 +236,7 @@ async function runOrganizeFlow(dashboard) {
         title: group.title || '',
         color: group.color,
       })),
+      listed,
       sweep,
       sampleBefore,
       sampleAfter: tabsAfter.slice(0, 20).map((tab) => ({
@@ -251,12 +253,13 @@ async function runOrganizeFlow(dashboard) {
 }
 
 function assertOrganize(outcome) {
-  const { sweep, groupsAfter, groupedTabCount, sampleBefore } = outcome
+  const { sweep, groupsAfter, groupedTabCount, sampleBefore, listed } = outcome
   console.log('\n--- Organize outcome ---')
   console.log(`Tabs: ${outcome.tabCount}, discarded attempts: ${outcome.discarded}`)
   console.log(`Groups before→after: ${outcome.groupsBefore}→${groupsAfter}`)
   console.log(`Grouped tabs: ${groupedTabCount}`)
   console.log(`Sweep: ${JSON.stringify(sweep, null, 2)}`)
+  console.log(`list-groups: ${JSON.stringify(listed, null, 2)}`)
   if (sweep?.diag) console.log(`Diag: ${JSON.stringify(sweep.diag, null, 2)}`)
   console.log('Sample tabs before sweep:')
   console.log(JSON.stringify(sampleBefore, null, 2))
@@ -311,8 +314,14 @@ function assertOrganize(outcome) {
     return false
   }
 
+  if (!listed || listed.ok !== true || !Array.isArray(listed.groups) || listed.groups.length < 1) {
+    fail('Expected list-groups to return ≥1 group after Organize', { listed, groups: outcome.groups })
+    return false
+  }
+
   console.log('\nPASS: real tab groups created in Chromium.')
   console.log(`Groups: ${outcome.groups.map((g) => g.title || g.id).join(', ')}`)
+  console.log(`list-groups count: ${listed.groups.length}`)
   console.log(`Summary: ${summary}`)
   return true
 }

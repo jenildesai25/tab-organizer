@@ -6,17 +6,17 @@
     <link rel="stylesheet" href="popup.css" />
   </head>
   <body>
-    <header>
+    <header class="header">
       <h1>Tab Organizer</h1>
       <p id="status" role="status">Organizer is off.</p>
     </header>
 
-    <section class="sweep-block">
+    <section class="organize" aria-label="Organize">
       <button id="sweep" type="button">Organize this window</button>
-      <p id="result" aria-live="polite" hidden></p>
+      <p id="result" class="result" aria-live="polite" hidden></p>
     </section>
 
-    <section class="settings">
+    <section class="settings" aria-label="Settings">
       <label class="switch">
         <span class="switch-copy">
           <span class="switch-title">File new tabs</span>
@@ -27,9 +27,51 @@
           <span class="switch-track" aria-hidden="true"></span>
         </span>
       </label>
+
+      <label class="switch">
+        <span class="switch-copy">
+          <span class="switch-title">Local model</span>
+          <span class="switch-hint">Ask Ollama when a rule or tab is unclear</span>
+        </span>
+        <span class="switch-control">
+          <input id="llm" type="checkbox" role="switch" />
+          <span class="switch-track" aria-hidden="true"></span>
+        </span>
+      </label>
+
+      <div id="llm-controls" class="llm-controls" hidden>
+        <label class="field compact" for="model">
+          <span>Model</span>
+          <select id="model"></select>
+        </label>
+        <div class="buttons compact">
+          <button id="test-ollama" type="button" class="ghost" disabled>Test connection</button>
+          <button id="retitle-groups" type="button" class="ghost" disabled>Rename groups with AI</button>
+        </div>
+        <div id="model-status" class="inline-note" role="status" hidden></div>
+      </div>
     </section>
 
-    <button id="open-dashboard" type="button">Rules and local models</button>
+    <section class="groups-section" aria-labelledby="groups-heading">
+      <div class="section-head">
+        <h2 id="groups-heading">This window</h2>
+        <button id="refresh-groups" type="button" class="ghost tiny">Refresh</button>
+      </div>
+      <p id="groups-empty" class="empty" hidden>No groups yet.</p>
+      <p id="groups-error" class="inline-note" role="status" hidden></p>
+      <ul id="groups" class="group-list"></ul>
+    </section>
+
+    <section class="activity-section" aria-labelledby="activity-heading">
+      <div class="section-head">
+        <h2 id="activity-heading">Recent activity</h2>
+        <button id="refresh-activity" type="button" class="ghost tiny">Refresh</button>
+      </div>
+      <p id="activity-empty" class="empty" hidden>No activity yet.</p>
+      <ul id="activity" class="activity-list" aria-label="Recent activity"></ul>
+    </section>
+
+    <button id="open-dashboard" type="button" class="linkish">Rules &amp; more</button>
     <script type="module" src="popup.js"></script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-import { colorForKey, canonicalSite, domainCovered } from './sites.js'
+import { colorForKey, canonicalSite, domainCovered, titlesMatch } from './sites.js'
 import type { CompiledRule, GroupState, RetitleAction } from './types.js'
 import { isShortTitle } from './words.js'
 
@@ -103,7 +103,7 @@ export function retitlesForSavedRule(rule: CompiledRule, groups: GroupState[]): 
   for (const group of groups) {
     if (group.shared || !group.dominantDomain) continue
     const claimed = rule.domains.some((domain) => domainCovered(group.dominantDomain as string, domain))
-    if (!claimed || group.title === rule.title) continue
+    if (!claimed || titlesMatch(group.title, rule.title)) continue
     actions.push({
       type: 'retitle',
       groupId: group.id,

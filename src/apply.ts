@@ -5,12 +5,13 @@ export async function retitleGroup(action: RetitleAction, markGroup: (groupId: n
   await chrome.tabGroups.update(action.groupId, { title: action.title, color: action.color })
 }
 
+/** Returns the group id used or created, or null when nothing was filed. */
 export async function fileTabs(
   windowId: number,
   action: FileAction,
   markTabs: (tabIds: number[]) => void,
   markGroup: (groupId: number) => void,
-): Promise<void> {
+): Promise<number | null> {
   markTabs(action.tabIds)
   if (action.create) {
     const anchor = action.create.aroundTabId
@@ -29,12 +30,13 @@ export async function fileTabs(
       markTabs(rest)
       await chrome.tabs.group({ groupId, tabIds: tabIdList(rest) })
     }
-    return
+    return groupId
   }
-  if (action.groupId === null) return
+  if (action.groupId === null) return null
   markGroup(action.groupId)
   if (action.expand) await chrome.tabGroups.update(action.groupId, { collapsed: false })
   await chrome.tabs.group({ groupId: action.groupId, tabIds: tabIdList(action.tabIds) })
+  return action.groupId
 }
 
 function tabIdList(ids: number[]): [number, ...number[]] {

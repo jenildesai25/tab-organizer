@@ -371,16 +371,142 @@ export const fixtures: Fixture[] = [
     input: decideInput({
       rules: [githubRule],
       tabs: [
-        tab(1, 'acme.github.io', 'Project notes', { active: true }),
-        tab(2, 'acme.github.io', 'Docs'),
+        tab(1, 'github.io', 'Project notes', { active: true }),
+        tab(2, 'github.io', 'Docs'),
       ],
     }),
     expect: {
       types: ['file'],
-      createTitle: 'Acme',
+      createTitle: 'GitHub Pages',
       aroundTabId: 1,
       tabIds: [1, 2],
       expand: true,
+    },
+  },
+  {
+    name: 'github.io tabs title as GitHub Pages not Github',
+    input: decideInput({
+      organizerOn: false,
+      focused: false,
+      mode: 'sweep',
+      tabs: [
+        tab(1, 'github.io', 'Transformer Explainer', { active: true, candidate: false }),
+        tab(2, 'github.io', 'Docs', { candidate: false }),
+      ],
+    }),
+    expect: {
+      types: ['file'],
+      createTitle: 'GitHub Pages',
+      expand: true,
+      tabIds: [1, 2],
+    },
+  },
+  {
+    name: 'case-insensitive title match files into existing GitHub group',
+    input: decideInput({
+      groups: [
+        group(10, 'Github', {
+          dominantDomain: 'github.com',
+          domains: ['github.com'],
+          size: 2,
+        }),
+      ],
+      tabs: [tab(1, 'github.com', 'Pull request', { active: true })],
+    }),
+    expect: {
+      types: ['retitle', 'file'],
+      retitle: { groupId: 10, title: 'GitHub' },
+      expand: true,
+      groupId: 10,
+      tabIds: [1],
+    },
+  },
+  {
+    name: 'a sweep retitles leftover Github on github.com to GitHub',
+    input: decideInput({
+      organizerOn: false,
+      focused: false,
+      mode: 'sweep',
+      groups: [
+        group(10, 'Github', {
+          dominantDomain: 'github.com',
+          domains: ['github.com'],
+          size: 2,
+        }),
+      ],
+      tabs: [
+        tab(1, 'github.com', 'Pull request', { groupId: 10, active: true, candidate: false }),
+        tab(2, 'github.com', 'Issue list', { groupId: 10, candidate: false }),
+      ],
+    }),
+    expect: {
+      types: ['retitle'],
+      retitle: { groupId: 10, title: 'GitHub' },
+    },
+  },
+  {
+    name: 'a sweep restores DevOps Skills on github.com to GitHub',
+    input: decideInput({
+      organizerOn: false,
+      focused: false,
+      mode: 'sweep',
+      groups: [
+        group(10, 'DevOps Skills', {
+          dominantDomain: 'github.com',
+          domains: ['github.com'],
+          size: 3,
+        }),
+      ],
+      tabs: [
+        tab(1, 'github.com', 'Actions', { groupId: 10, active: true, candidate: false }),
+        tab(2, 'github.com', 'Pull request', { groupId: 10, candidate: false }),
+        tab(3, 'github.com', 'Skills', { groupId: 10, candidate: false }),
+      ],
+    }),
+    expect: {
+      types: ['retitle'],
+      retitle: { groupId: 10, title: 'GitHub' },
+    },
+  },
+  {
+    name: 'a sweep keeps a rule title and does not restore GitHub over gb',
+    input: decideInput({
+      organizerOn: false,
+      focused: false,
+      mode: 'sweep',
+      rules: [githubRule],
+      groups: [
+        group(10, 'gb', {
+          dominantDomain: 'github.com',
+          domains: ['github.com'],
+          size: 2,
+        }),
+      ],
+      tabs: [
+        tab(1, 'github.com', 'Pull request', { groupId: 10, active: true, candidate: false }),
+        tab(2, 'github.com', 'Issue list', { groupId: 10, candidate: false }),
+      ],
+    }),
+    expect: { types: [] },
+  },
+  {
+    name: 'a sweep retitles leftover Github on github.io to GitHub Pages',
+    input: decideInput({
+      organizerOn: false,
+      focused: false,
+      mode: 'sweep',
+      groups: [
+        group(11, 'Github', {
+          dominantDomain: 'github.io',
+          domains: ['github.io'],
+          size: 1,
+        }),
+      ],
+      tabs: [tab(1, 'github.io', 'Transformer Explainer', { groupId: 11, active: true, candidate: false })],
+    }),
+    expect: {
+      types: ['retitle'],
+      retitle: { groupId: 11, title: 'GitHub Pages' },
     },
   },
   {
@@ -558,6 +684,88 @@ export const fixtures: Fixture[] = [
         { createTitle: 'GitHub', expand: true, tabIds: [1, 2] },
         { createTitle: 'Amazon', expand: false, tabIds: [3] },
       ],
+    },
+  },
+  {
+    name: 'a sweep files a lone localhost tab into the shared Local group',
+    input: decideInput({
+      organizerOn: false,
+      focused: false,
+      mode: 'sweep',
+      tabs: [tab(1, 'localhost', 'OmniRoute', { active: true, candidate: false })],
+    }),
+    expect: {
+      types: ['file'],
+      createTitle: 'Local',
+      expand: true,
+      tabIds: [1],
+    },
+  },
+  {
+    name: 'a sweep files a lone 127.0.0.1 tab as Local (never 127)',
+    input: decideInput({
+      organizerOn: false,
+      focused: false,
+      mode: 'sweep',
+      tabs: [
+        tab(1, 'localhost', 'App', {
+          active: true,
+          candidate: false,
+          card: card('localhost', 'App'),
+        }),
+      ],
+    }),
+    expect: {
+      types: ['file'],
+      createTitle: 'Local',
+      expand: true,
+      tabIds: [1],
+    },
+  },
+  {
+    name: 'a sweep retitles a leftover 127 loopback group to Local',
+    input: decideInput({
+      organizerOn: false,
+      focused: false,
+      mode: 'sweep',
+      groups: [
+        group(10, '127', {
+          dominantDomain: 'localhost',
+          domains: ['localhost'],
+          size: 2,
+        }),
+      ],
+      tabs: [
+        tab(1, 'localhost', 'App A', { groupId: 10, active: true, candidate: false }),
+        tab(2, 'localhost', 'App B', { groupId: 10, candidate: false }),
+      ],
+    }),
+    expect: {
+      types: ['retitle'],
+      retitle: { groupId: 10, title: 'Local' },
+    },
+  },
+  {
+    name: 'a sweep restores a thematic Local title to Local',
+    input: decideInput({
+      organizerOn: false,
+      focused: false,
+      mode: 'sweep',
+      groups: [
+        group(10, 'Dev Dashboard', {
+          dominantDomain: 'localhost',
+          domains: ['localhost'],
+          size: 2,
+        }),
+      ],
+      tabs: [
+        tab(1, 'localhost', 'App A', { groupId: 10, active: true, candidate: false }),
+        tab(2, 'localhost', 'App B', { groupId: 10, candidate: false }),
+      ],
+    }),
+    expect: {
+      types: ['retitle'],
+      retitle: { groupId: 10, title: 'Local' },
     },
   },
   {

@@ -305,4 +305,111 @@ describe('sweep from chrome-shaped tabs', () => {
     const titles = files.map((file) => (file.type === 'file' ? file.create?.title : null))
     expect(titles).toEqual(['GitHub', 'Google', 'YouTube'])
   })
+
+  it('files github.io Pages as GitHub Pages, not Github', () => {
+    const result = sweepChromeWindow({
+      tabs: [
+        {
+          id: 1,
+          url: 'https://poloclub.github.io/transformer-explainer/',
+          title: 'Transformer Explainer',
+          status: 'complete',
+          active: true,
+          groupId: -1,
+        },
+        {
+          id: 2,
+          url: 'https://acme.github.io/docs/',
+          title: 'Docs',
+          status: 'complete',
+          groupId: -1,
+        },
+      ],
+    })
+    const files = result.actions.filter((action) => action.type === 'file')
+    expect(files).toHaveLength(1)
+    expect(files[0]).toMatchObject({
+      type: 'file',
+      create: { title: 'GitHub Pages' },
+    })
+    expect(result.tabs.every((tab) => tab.card.domain === 'github.io')).toBe(true)
+    expect(JSON.stringify(files[0])).not.toContain('"Github"')
+  })
+
+  it('files a lone http://localhost:20128 tab into the shared Local group', () => {
+    expect(classifyChromeTab({ url: 'http://localhost:20128/dashboard/providers?cat=local' })).toBe('http')
+
+    const result = sweepChromeWindow({
+      tabs: [
+        {
+          id: 1,
+          url: 'http://localhost:20128/dashboard/providers?cat=local',
+          title: 'OmniRoute — A',
+          status: 'complete',
+          active: true,
+          groupId: -1,
+        },
+      ],
+    })
+    const files = result.actions.filter((action) => action.type === 'file')
+    expect(files).toHaveLength(1)
+    expect(files[0]).toMatchObject({
+      type: 'file',
+      tabIds: [1],
+      create: { title: 'Local', aroundTabId: 1 },
+    })
+    expect(result.tabs[0]?.card.domain).toBe('localhost')
+    expect(result.summary).toContain('Grouped 1 into 1 groups')
+  })
+
+  it('files http://127.0.0.1:20128 as Local, never 127', () => {
+    const result = sweepChromeWindow({
+      tabs: [
+        {
+          id: 1,
+          url: 'http://127.0.0.1:20128/dashboard',
+          title: 'OmniRoute',
+          status: 'complete',
+          active: true,
+          groupId: -1,
+        },
+      ],
+    })
+    const files = result.actions.filter((action) => action.type === 'file')
+    expect(files).toHaveLength(1)
+    expect(files[0]).toMatchObject({
+      type: 'file',
+      tabIds: [1],
+      create: { title: 'Local', aroundTabId: 1 },
+    })
+    expect(result.tabs[0]?.card.domain).toBe('localhost')
+    expect(JSON.stringify(files[0])).not.toContain('"127"')
+  })
+
+  it('retitles an existing 127 loopback group to Local on Organize', () => {
+    const result = sweepChromeWindow({
+      groups: [{ id: 10, title: '127', color: 'green', collapsed: false }],
+      tabs: [
+        {
+          id: 1,
+          url: 'http://127.0.0.1:20128/a',
+          title: 'App A',
+          status: 'complete',
+          active: true,
+          groupId: 10,
+        },
+        {
+          id: 2,
+          url: 'http://127.0.0.1:20128/b',
+          title: 'App B',
+          status: 'complete',
+          groupId: 10,
+        },
+      ],
+    })
+    expect(result.groups[0]?.dominantDomain).toBe('localhost')
+    expect(result.actions).toContainEqual(
+      expect.objectContaining({ type: 'retitle', groupId: 10, title: 'Local' }),
+    )
+  })
 })
