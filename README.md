@@ -28,6 +28,7 @@ Local source files: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer
 - **Theme** — Light, dark, or match the system.
 - **Backup** — Export or import rules, Protect lists, layouts, and settings as a local JSON file.
 - **First-run tour** — Short dashboard walkthrough: Organize, Protect, optional local model.
+- **Keyboard shortcuts** — Suggested: `Alt+Shift+O` Organize this window, `Alt+Shift+P` Protect this site, `Alt+Shift+D` open dashboard (change in `chrome://extensions/shortcuts`).
 - **Privacy-first** — Feature cards stay local; activity stores site keys / domains, not full URLs. See [Privacy](#privacy).
 
 ## Prerequisites
