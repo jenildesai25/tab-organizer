@@ -2,6 +2,7 @@ import type { ActivityActor, ActivityEntry, ActivityFilter } from './domain/acti
 import type { SweepDiag } from './domain/sweep-diag.js'
 import type { CleanupUndoHint } from './domain/cleanup-undo.js'
 import type { ProtectLists } from './domain/tab-cleanup.js'
+import type { WorkspaceLayout } from './domain/workspace-layout.js'
 import type { TabGroupView } from './domain/tab-groups.js'
 import type { ChromeColor, CompiledRule } from './domain/types.js'
 import type { LocalModel } from './ollama.js'
@@ -10,6 +11,7 @@ export type { ActivityActor, ActivityAction, ActivityEntry, ActivityFilter } fro
 export type { SweepDiag, SweepDiagSample } from './domain/sweep-diag.js'
 export type { CleanupUndoHint } from './domain/cleanup-undo.js'
 export type { ProtectLists } from './domain/tab-cleanup.js'
+export type { WorkspaceLayout, LayoutGroup } from './domain/workspace-layout.js'
 export type { TabGroupView } from './domain/tab-groups.js'
 
 export type PreviewResult =
@@ -82,6 +84,16 @@ export type CleanupRunResult =
 
 export type CleanupUndoResult =
   | { ok: true; restored: number; summary: string }
+  | { ok: false; message: string }
+
+export type LayoutsResult = { ok: true; layouts: WorkspaceLayout[] }
+
+export type SaveLayoutResult =
+  | { ok: true; layouts: WorkspaceLayout[]; summary: string }
+  | { ok: false; message: string }
+
+export type ApplyLayoutResult =
+  | { ok: true; grouped: number; groups: number; summary: string }
   | { ok: false; message: string }
 
 export type ProtectUpdateResult =
@@ -182,3 +194,7 @@ export type ToBackground =
       tabIds?: number[]
     }
   | { type: 'undo-cleanup' }
+  | { type: 'list-layouts' }
+  | { type: 'save-layout'; name: string; windowId?: number }
+  | { type: 'apply-layout'; id: string; windowId?: number }
+  | { type: 'delete-layout'; id: string }

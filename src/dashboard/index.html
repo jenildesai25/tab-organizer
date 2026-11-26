@@ -102,6 +102,23 @@
         </p>
         <p id="groups-error" class="inline-note" role="status" hidden></p>
         <ul id="groups-list" class="group-list dashboard-groups" aria-label="Groups in this window"></ul>
+
+        <h3 class="settings-subhead" id="layouts-heading">Saved layouts</h3>
+        <p class="lede">
+          Save this window’s named groups, then re-apply that layout later to open tabs that still match.
+        </p>
+        <form id="layout-form" class="rule-form">
+          <label class="field" for="layout-name">
+            <span>Layout name</span>
+            <input id="layout-name" type="text" maxlength="40" placeholder="Work desk" autocomplete="off" />
+          </label>
+          <div class="buttons">
+            <button id="save-layout" class="btn btn-primary" type="submit">Save this window</button>
+          </div>
+        </form>
+        <p id="layouts-note" class="inline-note" role="status" hidden></p>
+        <p id="layouts-empty" class="empty" hidden>No saved layouts yet.</p>
+        <ul id="layouts-list" class="rule-list" aria-label="Saved layouts"></ul>
       </section>
 
       <section id="models" class="panel" aria-labelledby="models-heading">

@@ -19,6 +19,7 @@ Local source files: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer
 - **Local model (optional)** — Turn on Ollama on your machine when a rule or tab is unclear. Nothing is sent to a Tab Organizer server.
 - **AI rename groups** — Rewrite group titles from the tabs inside them; tabs stay where they are.
 - **Dashboard Groups** — Rename, recolor, or ungroup from the Groups panel.
+- **Saved layouts** — Name the groups in this window and re-apply that layout later to matching open tabs.
 - **Clean up old tabs** — Optional (default off). Close http(s) tabs you haven’t used in 7 / 30 / 90 days (or a custom age), using Chrome `lastAccessed` and `chrome.alarms`. **Clean up now** previews a count and asks before closing (this window). Automatic clean-up checks all normal windows. Always skips pinned tabs, the active tab, non-http(s) pages, and anything you Protect. **Undo last clean-up** reopens those tabs for about 10 minutes.
 - **Protect** — Don’t auto-close chosen sites, groups (Groups ⋯ → “Never auto-clean this group”), or pages (saved by address, not tab id). Manage the list in Settings.
 - **Activity log** — Plain-language history of organizes, auto-files, AI renames, clean-ups, your edits, and rules. Filter and clear anytime.
