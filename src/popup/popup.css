@@ -96,7 +96,7 @@ body.popup-body {
 
 .organize {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   margin-top: 10px;
 }
 
