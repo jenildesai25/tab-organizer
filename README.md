@@ -93,10 +93,5 @@ npm test              # unit tests (vitest)
 npm run build         # typecheck + bundle into dist/
 npm run test:browser  # Puppeteer smoke against a built extension
 npm run check         # TypeScript only
-npm run package:cws   # zip dist/ → release/tab-organizer-v*.zip
 node scripts/record-demo.mjs  # regenerate docs/demo video (needs build)
 ```
-
-## Chrome Web Store
-
-Listing copy, permission justifications, and the human registration checklist live in [`CHROMEWEBSTORE.md`](CHROMEWEBSTORE.md). Package for upload: `release/tab-organizer-v0.3.21.zip` (from `npm run package:cws`).
