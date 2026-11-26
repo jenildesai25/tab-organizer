@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tab Organizer",
-  "version": "0.4.14",
+  "version": "0.4.15",
   "description": "Files tabs into groups from the site, title, and plain-language rules. Optional clean-up, Protect lists, layouts, and local Ollama.",
   "permissions": [
     "tabs",

@@ -25,7 +25,7 @@ Files tabs into groups from the site, the title, and rules you write in plain la
 Tab Organizer files your open tabs into native Chrome tab groups using the site, the tab title, and short rules you write in plain English.
 
 FEATURES
-• Organize this window — or Organize all windows
+• Organize — files the current window; All windows for every normal window
 • Auto-group new tabs — focused window only; optional Quiet hours; Don’t touch this window
 • Plain-language rules — e.g. “use gb for github”; suggestions after you rename a site group by hand
 • Saved layouts — re-apply named groups to matching open tabs
@@ -37,7 +37,7 @@ FEATURES
 
 HOW TO USE
 1. Click the Tab Organizer icon in the toolbar
-2. Choose Organize this window (or all windows), or turn on Auto-group new tabs
+2. Click Organize (or All windows), or turn on Auto-group new tabs
 3. Open the dashboard for Rules, Protect, Clean up, layouts, and Backup
 4. (Optional) Install Ollama locally, turn on Local model, pick a model, and Test connection
 
@@ -87,7 +87,7 @@ English
 
 CWS requires at least one screenshot at **1280×800** or **640×400**. Suggested shots:
 
-1. **Popup** — Organize this window / all windows, Auto-group, Don’t touch this window.
+1. **Popup** — Organize / All windows, Auto-group, Don’t touch this window.
 2. **Dashboard → Rules** — saved rules and a suggestion after hand rename (e.g. “use gb for github”).
 3. **Dashboard → Settings** — Clean up / Protect presets, or Groups with a saved layout.
 

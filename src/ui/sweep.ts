@@ -83,6 +83,17 @@ export async function browserWindow(): Promise<chrome.windows.Window | null> {
   }
 }
 
+function buttonLabel(button: HTMLButtonElement): { get: () => string; set: (text: string) => void } {
+  const labelEl = button.querySelector<HTMLElement>('.btn-label')
+  return {
+    get: () => (labelEl?.textContent ?? button.textContent ?? '').trim(),
+    set: (text) => {
+      if (labelEl) labelEl.textContent = text
+      else button.textContent = text
+    },
+  }
+}
+
 export function bindSweep(
   button: HTMLButtonElement,
   result: HTMLElement,
@@ -92,9 +103,10 @@ export function bindSweep(
 ): void {
   button.addEventListener('click', () => {
     void (async () => {
-      const label = button.textContent
+      const label = buttonLabel(button)
+      const idle = label.get() || 'Organize'
       button.disabled = true
-      button.textContent = 'Organizing…'
+      label.set('Organizing…')
       button.setAttribute('aria-busy', 'true')
       showResult(result, '')
       setProgress(progress, 'running', 'Grouping tabs…')
@@ -121,7 +133,7 @@ export function bindSweep(
         setProgress(progress, 'idle')
       } finally {
         button.disabled = false
-        button.textContent = label || 'Organize this window'
+        label.set(idle)
         button.removeAttribute('aria-busy')
       }
     })()
@@ -138,9 +150,10 @@ export function bindSweepAll(
 ): void {
   button.addEventListener('click', () => {
     void (async () => {
-      const label = button.textContent
+      const label = buttonLabel(button)
+      const idle = label.get() || 'All windows'
       button.disabled = true
-      button.textContent = 'Organizing all…'
+      label.set('Organizing all…')
       button.setAttribute('aria-busy', 'true')
       showResult(result, '')
       setProgress(progress, 'running', 'Grouping all windows…')
@@ -161,7 +174,7 @@ export function bindSweepAll(
         setProgress(progress, 'idle')
       } finally {
         button.disabled = false
-        button.textContent = label || 'Organize all windows'
+        label.set(idle)
         button.removeAttribute('aria-busy')
       }
     })()
