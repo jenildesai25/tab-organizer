@@ -41,7 +41,7 @@
           </div>
           <div id="progress-panel" class="progress-wrap hero-progress" hidden>
             <div class="progress-meta">
-              <span id="progress-label">Filing tabs…</span>
+              <span id="progress-label">Grouping tabs…</span>
               <span id="progress-value">…</span>
             </div>
             <label class="sr-only" for="organize-progress">Organize progress</label>
@@ -56,7 +56,7 @@
       <div class="snapshot" role="status" aria-label="Window snapshot">
         <div><strong id="snap-tabs">—</strong><span>tabs</span></div>
         <div><strong id="snap-groups">—</strong><span>groups</span></div>
-        <div><strong id="snap-filing" class="ok-text">Off</strong><span>filing</span></div>
+        <div><strong id="snap-filing" class="ok-text">Off</strong><span>auto-group</span></div>
         <div><strong id="snap-model">Off</strong><span>local model</span></div>
       </div>
 
@@ -203,11 +203,11 @@
 
       <section id="settings" class="panel" aria-labelledby="settings-heading">
         <h2 id="settings-heading">Settings</h2>
-        <p class="lede">Window-scoped filing and appearance.</p>
+        <p class="lede">Window-scoped auto-grouping and appearance.</p>
         <label class="switch" for="organizer">
           <span class="switch-copy">
-            <span class="switch-title">File new tabs</span>
-            <span class="switch-hint">Only in the window you are using</span>
+            <span class="switch-title">Auto-group new tabs</span>
+            <span class="switch-hint">When you open a tab, put it in a group (this window only)</span>
           </span>
           <span class="switch-control">
             <input id="organizer" type="checkbox" role="switch" />
@@ -215,7 +215,7 @@
           </span>
         </label>
         <p class="settings-note">
-          Status: <span id="status">Organizer is off.</span>
+          Status: <span id="status">Auto-group is off.</span>
         </p>
       </section>
     </main>

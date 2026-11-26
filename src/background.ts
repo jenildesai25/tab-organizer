@@ -427,7 +427,7 @@ function schedule(windowId: number): void {
 }
 
 function statusLine(settings: Settings): string {
-  const line = settings.organizerOn ? 'Watching the focused window.' : 'Organizer is off.'
+  const line = settings.organizerOn ? 'Auto-grouping in this window.' : 'Auto-group is off.'
   return statusNote ? `${line} ${statusNote}` : line
 }
 

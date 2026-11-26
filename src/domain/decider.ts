@@ -188,6 +188,8 @@ function intentFor(tab: TabState, input: DecideInput, ready: TabState[]): Intent
   if (topic && topic.score >= FILE_OVERLAP) return { kind: 'topic', groupId: topic.group.id }
   if (input.mode === 'sweep' && tab.groupId === null) return { kind: 'loose' }
   if (topic && topic.score >= ASK_OVERLAP && input.llmOn) return { kind: 'ask' }
+  // Live organizer: a new ungrouped tab gets its own site group when nothing matches.
+  if (input.mode === 'watch' && tab.groupId === null) return { kind: 'site', domain: tab.card.domain }
   return { kind: 'none' }
 }
 
@@ -343,7 +345,7 @@ function actionsForSite(tabs: TabState[], domain: string, input: DecideInput): A
     return file ? [file] : []
   }
   const ungrouped = tabs.filter((tab) => tab.groupId === null)
-  if (ungrouped.length < 2) return []
+  if (ungrouped.length === 0) return []
   const created = createGroup(ungrouped, title, input)
   return created ? [created] : []
 }

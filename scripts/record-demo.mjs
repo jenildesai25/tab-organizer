@@ -330,7 +330,7 @@ async function main() {
       page,
       recorder,
       'File tabs into native groups',
-      'Organize · File new tabs · optional local Ollama · Groups & Activity',
+      'Organize · Auto-group new tabs · optional local Ollama · Groups & Activity',
       2000,
     )
 
@@ -358,7 +358,7 @@ async function main() {
         const result = document.getElementById('result')
         const button = document.getElementById('sweep')
         if (panel) panel.hidden = false
-        if (label) label.textContent = 'Filing tabs…'
+        if (label) label.textContent = 'Grouping tabs…'
         if (value) value.textContent = '0%'
         if (bar) bar.value = 0
         if (button) {
