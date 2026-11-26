@@ -2,10 +2,10 @@
 
 > Last Updated: 2026-11-26
 >
-> Security gate for **0.3.21** is cleared (PR #3): sender check, no `tabUrl` in
-> activity, production sweep diag without samples. Package below is ready to
-> upload. **You** still must host the privacy policy, add screenshots, and click
-> Submit — this agent does not submit for you.
+> Listing copy updated for **0.4.12** (organize all windows, clean-up + undo,
+> Protect presets, quiet hours, layouts, backup, onboarding). Package with
+> `npm run build && npm run package:cws`. **You** still must host the privacy
+> policy, add screenshots, and click Submit — this agent does not submit for you.
 
 ## Store Listing
 
@@ -25,33 +25,37 @@ Files tabs into groups from the site, the title, and rules you write in plain la
 Tab Organizer files your open tabs into native Chrome tab groups using the site, the tab title, and short rules you write in plain English.
 
 FEATURES
-• Organize this window — sweep the current window and file tabs into groups
-• Auto-group new tabs — when you open a tab, put it in a group (focused window only)
-• Plain-language rules — tell Tab Organizer what to name each Chrome tab group (e.g. “use gb for github” → GitHub tabs go in a group named gb; “call linear Work” → Linear tabs go in Work)
+• Organize this window — or Organize all windows
+• Auto-group new tabs — focused window only; optional Quiet hours; Don’t touch this window
+• Plain-language rules — e.g. “use gb for github”; suggestions after you rename a site group by hand
+• Saved layouts — re-apply named groups to matching open tabs
+• Clean up old tabs — optional; preview and confirm; Undo for about 10 minutes; Protect lists and presets (Mail, Calendar, Banking, Shopping)
 • Group management — rename, recolor, or ungroup from the dashboard
-• Activity history — a local, plain-language log of what the extension did (domains / site keys, not full URLs)
-• Optional local model — when you turn it on, ask a model running on your own machine (Ollama) for ambiguous rules or tabs; nothing is sent to our servers
+• Backup — export or import settings as a local JSON file
+• Activity history — local plain-language log (domains / site keys, not full URLs)
+• Optional local model — Ollama on your machine only; nothing sent to our servers
 
 HOW TO USE
 1. Click the Tab Organizer icon in the toolbar
-2. Choose Organize this window, or turn on Auto-group new tabs
-3. Open Rules in the dashboard to say what to name tab groups for certain sites (e.g. “call linear Work”), then Check and Save
+2. Choose Organize this window (or all windows), or turn on Auto-group new tabs
+3. Open the dashboard for Rules, Protect, Clean up, layouts, and Backup
 4. (Optional) Install Ollama locally, turn on Local model, pick a model, and Test connection
 
 PRIVACY
-Tab Organizer keeps your data on your device. Settings and activity history stay in Chrome local storage. Activity entries use site keys / domains and group titles — not full tab URLs. There is no Tab Organizer remote server. If you enable Local model, a small feature card (domain, stripped title, path words) is sent only to Ollama on localhost — never to us.
+Tab Organizer keeps your data on your device. Settings and activity history stay in Chrome local storage. Activity entries use site keys / domains and group titles — not full tab URLs. A short-lived clean-up undo may keep http(s) URLs in session storage for about 10 minutes. There is no Tab Organizer remote server. If you enable Local model, a small feature card is sent only to Ollama on localhost — never to us.
 
 PERMISSIONS
 • Tabs — read tab URLs and titles so tabs can be filed into the right groups
 • Tab groups — create and update Chrome’s native tab groups
 • Storage — save your rules, settings, and local activity history on this device
+• Alarms — optional hourly clean-up of old tabs when you turn that feature on
 • Access to 127.0.0.1:11434 and localhost:11434 — only so the optional Local model can talk to Ollama on your machine
 
 SUPPORT
 Questions or bugs: https://github.com/jenildesai25/tab-organizer/issues
 Email: jenil.desai25@gmail.com
 
-Version 0.3.21 — security hardening for store submission (sender check; activity without full URLs; redacted sweep diagnostics).
+Version 0.4.12 — clean-up, Protect, layouts, quiet hours, backup, and onboarding for store listing.
 ```
 
 **Category** [REQUIRED]
@@ -83,9 +87,9 @@ English
 
 CWS requires at least one screenshot at **1280×800** or **640×400**. Suggested shots:
 
-1. **Popup** — header with Local model / Organize controls; show groups summary.
-2. **Dashboard → Rules** — a few saved rules with clear meaning (e.g. “use gb for github” → group **gb**; “call linear Work” → group **Work**).
-3. **Dashboard → Groups or Activity** — prove native grouping / local history.
+1. **Popup** — Organize this window / all windows, Auto-group, Don’t touch this window.
+2. **Dashboard → Rules** — saved rules and a suggestion after hand rename (e.g. “use gb for github”).
+3. **Dashboard → Settings** — Clean up / Protect presets, or Groups with a saved layout.
 
 Reference UI from local mocks under `.scratch/ui-mock/shots/` (not store-sized; resize or re-capture before upload). Do not upload annotated “proof” crops.
 
@@ -97,7 +101,8 @@ Paste each justification into the corresponding field in the Developer Dashboard
 |------------|------|---------------|
 | `tabs` | permissions | Needed to read each tab’s URL and title so the extension can decide which Chrome tab group the tab belongs in, run Organize this window / Auto-group new tabs, and record a local activity entry when a tab is filed. |
 | `tabGroups` | permissions | Needed to create, rename, recolor, and update Chrome’s native tab groups when organizing tabs or when you edit groups from the dashboard. |
-| `storage` | permissions | Needed to save your grouping rules, on/off settings (including optional Local model choice), theme preference, and a local activity history on this device only (`chrome.storage.local`). |
+| `storage` | permissions | Needed to save your grouping rules, on/off settings (including optional Local model choice), theme preference, Protect lists, layouts, and a local activity history on this device only (`chrome.storage.local` / session for short-lived undo). |
+| `alarms` | permissions | Needed only when you enable Clean up old tabs automatically, so Chrome can wake the service worker hourly to scan for unused tabs. |
 | `http://127.0.0.1:11434/*` | host_permissions | Optional Local model feature only. Lets the extension call Ollama running on your machine at 127.0.0.1:11434 (list models, test connection, ask for help on ambiguous rules/tabs). No remote Tab Organizer server. |
 | `http://localhost:11434/*` | host_permissions | Same as above for the `localhost` hostname alias some Ollama installs use. Scoped to port 11434 only. |
 
@@ -118,7 +123,13 @@ Needed to create and update Chrome’s native tab groups—assigning tabs into g
 **storage**
 
 ```
-Needed to store your rules, organizer/Local model settings, theme preference, and a capped local activity log on this device using Chrome local storage. Data is not synced to our servers; we do not operate a remote backend for this extension.
+Needed to store your rules, organizer/Local model settings, Protect lists, layouts, theme preference, and a capped local activity log on this device using Chrome local storage. Short-lived clean-up undo uses session storage. Data is not synced to our servers; we do not operate a remote backend for this extension.
+```
+
+**alarms**
+
+```
+Needed only when you turn on Clean up old tabs automatically. Schedules an hourly Chrome alarm so the extension can scan for unused tabs in the background. No network calls are made by this permission.
 ```
 
 **http://127.0.0.1:11434/***
