@@ -11,8 +11,8 @@ Tab Organizer organizes your Chrome tabs into native tab groups on your device. 
 The extension reads and may store the following **on your device only** (via Chrome local storage):
 
 - **Tab URLs and titles** while filing tabs into groups (read in memory to decide grouping). Full tab URLs are **not** written to the activity history.
-- **Your settings**: whether auto-file is on, whether the optional local model is on, which model name you selected, the grouping rules you wrote, and optional Free up memory preferences (auto-unload, idle minutes, never-list domains).
-- **Activity log entries**: a short local history (capped) of organize / rename / rule / memory-free actions, using **site keys / domains** and group titles — never a `tabUrl` field. Older installs that stored a full URL are stripped on read.
+- **Your settings**: whether auto-file is on, whether the optional local model is on, which model name you selected, and the grouping rules you wrote.
+- **Activity log entries**: a short local history (capped) of organize / rename / rule actions, using **site keys / domains** and group titles — never a `tabUrl` field. Older installs that stored a full URL are stripped on read.
 - **UI preferences** such as light/dark theme.
 
 Diagnostic summaries shown in the UI use hostname/counts only; production responses do not include full-URL samples.
@@ -38,7 +38,6 @@ All settings and activity history use **Chrome local storage on your device**. T
 Data is used only to:
 
 - File tabs into Chrome tab groups according to site, title, and your rules
-- Optionally unload idle tabs with Chrome’s native discard to free memory on your device
 - Optionally ask your local Ollama model when a rule or tab is unclear
 - Show you a local activity history and let you manage groups in the dashboard
 

@@ -203,7 +203,7 @@
 
       <section id="settings" class="panel" aria-labelledby="settings-heading">
         <h2 id="settings-heading">Settings</h2>
-        <p class="lede">Window-scoped auto-grouping, memory, and appearance.</p>
+        <p class="lede">Window-scoped auto-grouping and appearance.</p>
         <label class="switch" for="organizer">
           <span class="switch-copy">
             <span class="switch-title">Auto-group new tabs</span>
@@ -217,39 +217,6 @@
         <p class="settings-note">
           Status: <span id="status">Auto-group is off.</span>
         </p>
-
-        <h3 class="settings-subhead">Free up memory</h3>
-        <p class="lede">
-          Unload idle tabs with Chrome’s native discard to save RAM. Pinned, playing, and active tabs stay loaded. Never a placeholder page.
-        </p>
-        <label class="switch" for="auto-discard">
-          <span class="switch-copy">
-            <span class="switch-title">Auto-unload idle tabs</span>
-            <span class="switch-hint">Scan in the background and free inactive http(s) tabs</span>
-          </span>
-          <span class="switch-control">
-            <input id="auto-discard" type="checkbox" role="switch" />
-            <span class="switch-track" aria-hidden="true"></span>
-          </span>
-        </label>
-        <label class="field" for="idle-minutes">
-          <span>Unload after idle (minutes)</span>
-          <input id="idle-minutes" type="number" min="5" max="180" step="1" value="30" />
-        </label>
-        <label class="field" for="never-domains">
-          <span>Never unload these sites</span>
-          <textarea
-            id="never-domains"
-            rows="3"
-            placeholder="github.com&#10;mail.google.com"
-          ></textarea>
-        </label>
-        <div class="buttons">
-          <button id="save-never-domains" type="button" class="btn btn-ghost">Save never-list</button>
-          <button id="discard-tab" type="button" class="btn btn-ghost">Free this tab</button>
-          <button id="reload-tab" type="button" class="btn btn-ghost">Reload tab</button>
-        </div>
-        <p id="memory-note" class="inline-note" role="status" hidden></p>
       </section>
     </main>
 

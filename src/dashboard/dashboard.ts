@@ -1,16 +1,13 @@
 import type { ActivityFilter } from '../domain/activity-log.js'
-import { clampIdleMinutes } from '../domain/tab-suspend.js'
 import type { ChromeColor, CompiledRule } from '../domain/types.js'
 import type { TabGroupView } from '../domain/tab-groups.js'
 import type { LocalModel } from '../ollama.js'
 import type {
   ActivityLogResult,
   ClearActivityResult,
-  DiscardTabResult,
   ListGroupsResult,
   ModelsResult,
   PreviewResult,
-  ReloadTabResult,
   RetitleGroupsResult,
   StateResult,
   TestOllamaResult,
@@ -67,13 +64,6 @@ const healthConnected = document.querySelector<HTMLElement>('#health-connected')
 const healthModels = document.querySelector<HTMLElement>('#health-models')!
 const healthWarm = document.querySelector<HTMLElement>('#health-warm')!
 const versionLabel = document.querySelector<HTMLElement>('#version-label')
-const autoDiscard = document.querySelector<HTMLInputElement>('#auto-discard')!
-const idleMinutes = document.querySelector<HTMLInputElement>('#idle-minutes')!
-const neverDomains = document.querySelector<HTMLTextAreaElement>('#never-domains')!
-const saveNeverDomains = document.querySelector<HTMLButtonElement>('#save-never-domains')!
-const discardTab = document.querySelector<HTMLButtonElement>('#discard-tab')!
-const reloadTab = document.querySelector<HTMLButtonElement>('#reload-tab')!
-const memoryNote = document.querySelector<HTMLParagraphElement>('#memory-note')!
 
 const RETITLE_LABEL = 'Rename all groups with AI'
 const TEST_LABEL = 'Test connection'
@@ -372,22 +362,6 @@ function syncTestControls(): void {
   testOllama.disabled = !llmOn
 }
 
-function showMemoryNote(text: string): void {
-  memoryNote.textContent = text
-  memoryNote.hidden = text === ''
-}
-
-function syncMemoryControls(state: StateResult): void {
-  autoDiscard.checked = state.autoDiscardOn
-  idleMinutes.value = String(state.idleMinutes)
-  idleMinutes.disabled = !state.autoDiscardOn
-  neverDomains.value = state.neverDomains.join('\n')
-  const active = state.activeTab
-  const discarded = active?.discarded === true
-  discardTab.disabled = !active || discarded
-  reloadTab.disabled = !active
-}
-
 function renderState(state: StateResult): void {
   llmOn = state.llmOn
   llm.checked = state.llmOn
@@ -406,7 +380,6 @@ function renderState(state: StateResult): void {
   }
   syncRetitleControls()
   syncTestControls()
-  syncMemoryControls(state)
   paintSnapshot()
   paintHealth({ connected: listedOnce ? models.length > 0 || Boolean(selected) : null })
 }
@@ -605,51 +578,6 @@ document.addEventListener('click', () => {
 organizer.addEventListener('change', () => {
   void (async () => {
     renderState(await send<StateResult>({ type: 'set-organizer', on: organizer.checked }))
-  })()
-})
-
-autoDiscard.addEventListener('change', () => {
-  void (async () => {
-    renderState(await send<StateResult>({ type: 'set-auto-discard', on: autoDiscard.checked }))
-  })()
-})
-
-idleMinutes.addEventListener('change', () => {
-  void (async () => {
-    const minutes = clampIdleMinutes(idleMinutes.value)
-    idleMinutes.value = String(minutes)
-    renderState(await send<StateResult>({ type: 'set-idle-minutes', minutes }))
-  })()
-})
-
-saveNeverDomains.addEventListener('click', () => {
-  void (async () => {
-    const domains = neverDomains.value.split(/[\n,]+/)
-    const state = await send<StateResult>({ type: 'set-never-domains', domains })
-    renderState(state)
-    showMemoryNote(
-      state.neverDomains.length === 0
-        ? 'Never-list cleared.'
-        : `Never unload: ${state.neverDomains.join(', ')}.`,
-    )
-  })()
-})
-
-discardTab.addEventListener('click', () => {
-  void (async () => {
-    const result = await send<DiscardTabResult>({ type: 'discard-tab' })
-    showMemoryNote(result.ok ? result.summary : result.message)
-    renderState(await send<StateResult>({ type: 'get-state' }))
-    await loadActivity()
-  })()
-})
-
-reloadTab.addEventListener('click', () => {
-  void (async () => {
-    const result = await send<ReloadTabResult>({ type: 'reload-tab' })
-    showMemoryNote(result.ok ? result.summary : result.message)
-    renderState(await send<StateResult>({ type: 'get-state' }))
-    await loadActivity()
   })()
 })
 

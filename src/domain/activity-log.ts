@@ -10,8 +10,6 @@ export type ActivityAction =
   | 'group.recolor'
   | 'group.ungroup'
   | 'tab.file'
-  | 'tab.discard'
-  | 'tab.reload'
   | 'rename.skip'
 
 export type ActivityEntry = {
@@ -43,8 +41,6 @@ const ACTIONS = new Set<ActivityAction>([
   'group.recolor',
   'group.ungroup',
   'tab.file',
-  'tab.discard',
-  'tab.reload',
   'rename.skip',
 ])
 
@@ -130,7 +126,7 @@ export function actorsForFilter(filter: ActivityFilter): ReadonlySet<ActivityAct
     case 'you':
       return new Set<ActivityActor>(['user'])
     case 'organize':
-      return new Set<ActivityActor>(['sweep', 'organizer', 'system'])
+      return new Set<ActivityActor>(['sweep', 'organizer'])
     case 'rules':
       return new Set<ActivityActor>(['rule'])
   }
@@ -236,16 +232,6 @@ export function formatActivityBody(entry: ActivityEntry): string {
       const count = entry.tabCount ?? 1
       const noun = count === 1 ? 'a tab' : `${count} tabs`
       body = `${who} put ${noun} in ${quoteTitle(entry.groupTitle ?? entry.newTitle)}`
-      break
-    }
-    case 'tab.discard': {
-      const site = entry.siteKey?.trim()
-      body = site ? `${who} freed memory on ${site}` : `${who} freed memory on a tab`
-      break
-    }
-    case 'tab.reload': {
-      const site = entry.siteKey?.trim()
-      body = site ? `${who} reloaded ${site}` : `${who} reloaded a tab`
       break
     }
     case 'rename.skip': {
