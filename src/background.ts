@@ -2022,6 +2022,43 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   void runCleanup({ scope: 'all', confirmedByAlarm: true }).catch(() => {})
 })
 
+chrome.commands.onCommand.addListener((command) => {
+  void (async () => {
+    if (command === 'organize-window') {
+      try {
+        const windowId = await focusedWindowId()
+        if (windowId === chrome.windows.WINDOW_ID_NONE) return
+        await run(windowId, 'sweep')
+      } catch {
+        // Shortcut failures stay silent.
+      }
+      return
+    }
+    if (command === 'protect-active-site') {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+        const domain = tab ? siteKeyForCleanupTab(tab) : ''
+        if (!domain) return
+        await saveProtect((protect) => {
+          const set = new Set(protect.domains)
+          set.add(domain)
+          return { ...protect, domains: [...set] }
+        }, `Won’t auto-close ${domain}.`)
+      } catch {
+        // Shortcut failures stay silent.
+      }
+      return
+    }
+    if (command === 'open-dashboard') {
+      try {
+        await chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/index.html') })
+      } catch {
+        // Shortcut failures stay silent.
+      }
+    }
+  })()
+})
+
 async function boot(): Promise<void> {
   const epoch = settingsEpoch
   const settings = await loadSettings()

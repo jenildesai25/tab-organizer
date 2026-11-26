@@ -55,7 +55,7 @@ SUPPORT
 Questions or bugs: https://github.com/jenildesai25/tab-organizer/issues
 Email: jenil.desai25@gmail.com
 
-Version 0.4.12 — clean-up, Protect, layouts, quiet hours, backup, and onboarding for store listing.
+Version 0.4.13 — adds keyboard shortcuts (Organize, Protect site, open dashboard).
 ```
 
 **Category** [REQUIRED]
