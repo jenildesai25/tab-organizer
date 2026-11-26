@@ -33,7 +33,7 @@ const resultLine = document.querySelector<HTMLParagraphElement>('#result')!
 const sentence = document.querySelector<HTMLTextAreaElement>('#sentence')!
 const save = document.querySelector<HTMLButtonElement>('#save')!
 const confirmation = document.querySelector<HTMLParagraphElement>('#confirmation')!
-const rules = document.querySelector<HTMLUListElement>('#rules')!
+const rules = document.querySelector<HTMLUListElement>('#rule-list')!
 const form = document.querySelector<HTMLFormElement>('#rule-form')!
 const llm = document.querySelector<HTMLInputElement>('#llm')!
 const modelSelect = document.querySelector<HTMLSelectElement>('#model')!
@@ -45,7 +45,7 @@ const groupsList = document.querySelector<HTMLUListElement>('#groups-list')!
 const groupsEmpty = document.querySelector<HTMLParagraphElement>('#groups-empty')!
 const groupsError = document.querySelector<HTMLParagraphElement>('#groups-error')!
 const refreshGroups = document.querySelector<HTMLButtonElement>('#refresh-groups')!
-const activityList = document.querySelector<HTMLUListElement>('#activity')!
+const activityList = document.querySelector<HTMLUListElement>('#activity-list')!
 const activityEmpty = document.querySelector<HTMLParagraphElement>('#activity-empty')!
 const refreshActivity = document.querySelector<HTMLButtonElement>('#refresh-activity')!
 const clearActivity = document.querySelector<HTMLButtonElement>('#clear-activity')!
@@ -62,6 +62,7 @@ const healthConnected = document.querySelector<HTMLElement>('#health-connected')
 const healthModels = document.querySelector<HTMLElement>('#health-models')!
 const healthWarm = document.querySelector<HTMLElement>('#health-warm')!
 const heroVisual = document.querySelector<HTMLElement>('#hero-visual')!
+const versionLabel = document.querySelector<HTMLElement>('#version-label')
 
 const RETITLE_LABEL = 'Rename all groups with AI'
 const TEST_LABEL = 'Test connection'
@@ -723,6 +724,9 @@ save.addEventListener('click', () => {
 })
 
 void bindThemeToggle()
+if (versionLabel) {
+  versionLabel.textContent = `v${chrome.runtime.getManifest().version}`
+}
 void (async () => {
   const state = await send<StateResult>({ type: 'get-state' })
   renderState(state)

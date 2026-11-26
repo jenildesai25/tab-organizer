@@ -30,9 +30,9 @@
           <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
           <button type="button" data-theme="system" aria-pressed="true">Sys</button>
         </div>
-        <span id="ollama-pill" class="pill" hidden title="Local model status">
+        <span id="ollama-pill" class="pill ollama-pill" hidden title="">
           <span class="dot" aria-hidden="true"></span>
-          <span id="ollama-pill-label">Local model</span>
+          <span id="ollama-pill-label"></span>
         </span>
       </div>
     </header>
@@ -44,6 +44,14 @@
         </svg>
         Organize this window
       </button>
+      <div id="progress-panel" class="progress-wrap" hidden>
+        <div class="progress-meta">
+          <span id="progress-label">Filing tabs…</span>
+          <span id="progress-value">…</span>
+        </div>
+        <label class="sr-only" for="organize-progress">Organize progress</label>
+        <progress id="organize-progress" class="organize-progress" max="100"></progress>
+      </div>
       <p id="result" class="inline-note" role="status" hidden></p>
     </section>
 
@@ -77,7 +85,7 @@
         </label>
         <div class="buttons compact">
           <button id="test-ollama" type="button" class="btn btn-ghost btn-tiny" disabled>Test connection</button>
-          <button id="retitle-groups" type="button" class="btn btn-ghost btn-tiny" disabled>Rename groups with AI</button>
+          <button id="retitle-groups" type="button" class="btn btn-ghost btn-tiny" disabled>AI rename</button>
         </div>
         <div id="model-status" class="inline-note" role="status" hidden></div>
       </div>

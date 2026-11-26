@@ -22,12 +22,29 @@
             <button type="button" data-theme="system" aria-pressed="true">System</button>
           </div>
         </div>
-        <h1 class="hero-brand">Tab Organizer</h1>
+        <div class="hero-brand-row">
+          <span class="brand-mark-inline" aria-hidden="true">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+              <rect x="3" y="4" width="7" height="16" rx="2" fill="#0f766e" />
+              <rect x="12" y="4" width="9" height="7" rx="2" fill="#14b8a6" />
+              <rect x="12" y="13" width="9" height="7" rx="2" fill="#ea580c" />
+            </svg>
+          </span>
+          <h1 class="hero-brand">Tab Organizer</h1>
+        </div>
         <p class="hero-lede">
           File tabs into native Chrome groups — with plain-language rules and an optional local Ollama model.
         </p>
         <div class="hero-actions">
           <button id="sweep" class="btn btn-primary" type="button">Organize this window</button>
+        </div>
+        <div id="progress-panel" class="progress-wrap hero-progress" hidden>
+          <div class="progress-meta">
+            <span id="progress-label">Filing tabs…</span>
+            <span id="progress-value">…</span>
+          </div>
+          <label class="sr-only" for="organize-progress">Organize progress</label>
+          <progress id="organize-progress" class="organize-progress" max="100"></progress>
         </div>
         <p id="result" class="inline-note hero-result" role="status" hidden></p>
       </div>
@@ -73,20 +90,24 @@
             <h2 id="groups-heading">Groups</h2>
             <p class="lede">Rename, recolor, or ungroup. Tabs stay open.</p>
           </div>
-          <button id="refresh-groups" type="button" class="btn btn-ghost">Refresh</button>
+          <button type="button" class="btn btn-ghost" id="refresh-groups">Refresh</button>
         </div>
         <p id="groups-empty" class="empty" hidden>
           No groups in this window yet. Organize this window to create some.
         </p>
         <p id="groups-error" class="inline-note" role="status" hidden></p>
-        <ul id="group-list" class="group-list dashboard-groups" aria-label="Groups in this window"></ul>
+        <ul id="groups-list" class="group-list dashboard-groups" aria-label="Groups in this window"></ul>
       </section>
 
       <section id="models" class="panel" aria-labelledby="models-heading">
         <h2 id="models-heading">Local models</h2>
         <p class="lede">Ollama on this machine. Nothing is sent away.</p>
 
-        <div id="health-strip" class="health-strip" role="status" hidden></div>
+        <div id="health-strip" class="health-strip" role="status">
+          <span id="health-connected" class="pill"><span class="dot" aria-hidden="true"></span> Not checked</span>
+          <span id="health-models" class="pill" hidden></span>
+          <span id="health-warm" class="pill" hidden></span>
+        </div>
 
         <label class="switch" for="llm">
           <span class="switch-copy">
@@ -105,18 +126,11 @@
         </label>
 
         <div class="buttons">
-          <button id="refresh-models" type="button" class="btn btn-ghost">Refresh</button>
-          <button id="test-ollama" type="button" class="btn btn-ghost" disabled>Test connection</button>
+          <button type="button" class="btn btn-ghost" id="refresh-models">Refresh</button>
+          <button type="button" class="btn btn-ghost" id="test-ollama" disabled>Test connection</button>
+          <button type="button" class="btn btn-primary" id="retitle-groups" disabled>Rename all groups with AI</button>
         </div>
 
-        <div id="retitle-block" class="retitle-block" hidden>
-          <p class="lede retitle-hint">Rewrites group names from tab titles. Tabs stay where they are.</p>
-          <div class="buttons">
-            <button id="retitle-groups" type="button" class="btn btn-primary" disabled>
-              Rename all groups with AI
-            </button>
-          </div>
-        </div>
         <div id="model-status" class="inline-note" role="status" hidden></div>
       </section>
 
@@ -127,8 +141,8 @@
             <p class="lede">Every extension-driven group change, with who did it.</p>
           </div>
           <div class="panel-head-actions">
-            <button id="refresh-activity" type="button" class="btn btn-ghost">Refresh</button>
-            <button id="clear-activity" type="button" class="btn btn-ghost">Clear log</button>
+            <button type="button" class="btn btn-ghost" id="refresh-activity">Refresh</button>
+            <button type="button" class="btn btn-ghost" id="clear-activity">Clear log</button>
           </div>
         </div>
         <label class="field activity-filter" for="activity-actor">
@@ -149,7 +163,7 @@
 
       <section id="settings" class="panel" aria-labelledby="settings-heading">
         <h2 id="settings-heading">Settings</h2>
-        <p class="lede">Window-scoped filing and the color theme for this extension.</p>
+        <p class="lede">Window-scoped filing and appearance.</p>
         <label class="switch" for="organizer">
           <span class="switch-copy">
             <span class="switch-title">File new tabs</span>
@@ -167,7 +181,7 @@
     </main>
 
     <footer class="dash-footer">
-      <span>Tab Organizer · local-first Chrome extension</span>
+      <span>Local-first · tabs stay on this machine</span>
       <span id="version-label"></span>
     </footer>
 
