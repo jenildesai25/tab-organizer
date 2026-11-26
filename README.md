@@ -8,10 +8,6 @@ Short walkthrough (~25s): popup (**Organize this window**, File new tabs, Local 
 
 https://github.com/user-attachments/assets/ae3ac628-2e04-415c-a2ce-bc2baf9e26d9
 
-GIF fallback (same clip):
-
-![Tab Organizer demo](docs/demo/tab-organizer-demo.gif)
-
 Local source files: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer-demo.mp4) (also `.webm`, poster JPG). Regenerate with `npm run build && npm run record:demo`.
 
 ## Prerequisites

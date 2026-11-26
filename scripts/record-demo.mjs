@@ -486,7 +486,6 @@ async function main() {
 
   const mp4 = path.join(outDir, 'tab-organizer-demo.mp4')
   const webm = path.join(outDir, 'tab-organizer-demo.webm')
-  const gif = path.join(outDir, 'tab-organizer-demo.gif')
   const poster = path.join(outDir, 'tab-organizer-demo-poster.jpg')
 
   await run('ffmpeg', [
@@ -530,7 +529,7 @@ async function main() {
     console.warn('webm encode skipped:', error instanceof Error ? error.message : error)
   }
 
-  // Poster ~ mid popup Organize beat, plus a compact GIF fallback for README.
+  // Poster ~ mid popup Organize beat.
   const posterFrame = Math.min(frames.length - 1, Math.max(0, Math.floor(frames.length * 0.22)))
   try {
     await run('ffmpeg', [
@@ -550,24 +549,8 @@ async function main() {
     console.warn('poster skipped:', error instanceof Error ? error.message : error)
   }
 
-  try {
-    await run('ffmpeg', [
-      '-y',
-      '-i',
-      mp4,
-      '-vf',
-      'fps=10,scale=720:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer',
-      '-loop',
-      '0',
-      gif,
-    ])
-    console.log(`Wrote ${gif}`)
-  } catch (error) {
-    console.warn('gif encode skipped:', error instanceof Error ? error.message : error)
-  }
-
   const { readFileSync } = await import('node:fs')
-  const outputs = [mp4, webm, gif, poster].filter((f) => existsSync(f))
+  const outputs = [mp4, webm, poster].filter((f) => existsSync(f))
   const meta = {
     version: JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')).version,
     frames: frames.length,
