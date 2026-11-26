@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tab Organizer</title>
+    <link rel="stylesheet" href="dashboard.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Tab Organizer</h1>
+        <p id="status" role="status">Organizer is off.</p>
+      </header>
+
+      <section aria-labelledby="window-heading">
+        <h2 id="window-heading">This window</h2>
+        <p class="lede">Group the pages open in this window.</p>
+        <button id="sweep" type="button">Organize this window</button>
+        <p id="result" aria-live="polite" hidden></p>
+      </section>
+
+      <section aria-labelledby="rules-heading">
+        <h2 id="rules-heading">Rules</h2>
+        <p class="lede">A short sentence, such as “use gb for github”.</p>
+        <form id="rule-form">
+          <label class="field" for="sentence">
+            <span>Rule</span>
+            <textarea id="sentence" rows="2" placeholder="use gb for github"></textarea>
+          </label>
+          <div class="buttons">
+            <button id="preview" type="submit">Check</button>
+            <button id="save" type="button" disabled>Save</button>
+          </div>
+          <p id="confirmation" hidden></p>
+        </form>
+        <ul id="rules"></ul>
+      </section>
+
+      <section aria-labelledby="models-heading">
+        <h2 id="models-heading">Local models</h2>
+        <p class="lede">Optional. Ollama on this machine. Nothing is sent away.</p>
+        <label class="switch">
+          <span class="switch-copy">
+            <span class="switch-title">Local model</span>
+            <span class="switch-hint">Ask Ollama when a rule or a tab is unclear</span>
+          </span>
+          <span class="switch-control">
+            <input id="llm" type="checkbox" role="switch" />
+            <span class="switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
+        <label class="field" for="model">
+          <span>Installed models</span>
+          <select id="model"></select>
+        </label>
+        <div class="buttons">
+          <button id="refresh-models" type="button">Refresh</button>
+        </div>
+        <p id="model-status" role="status" hidden></p>
+      </section>
+    </main>
+    <script type="module" src="dashboard.js"></script>
+  </body>
+</html>

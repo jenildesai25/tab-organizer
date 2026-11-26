@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Tab Organizer</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Tab Organizer</h1>
+      <p id="status" role="status">Organizer is off.</p>
+    </header>
+
+    <section class="sweep-block">
+      <button id="sweep" type="button">Organize this window</button>
+      <p id="result" aria-live="polite" hidden></p>
+    </section>
+
+    <section class="settings">
+      <label class="switch">
+        <span class="switch-copy">
+          <span class="switch-title">File new tabs</span>
+          <span class="switch-hint">Only in the window you are using</span>
+        </span>
+        <span class="switch-control">
+          <input id="organizer" type="checkbox" role="switch" />
+          <span class="switch-track" aria-hidden="true"></span>
+        </span>
+      </label>
+    </section>
+
+    <button id="open-dashboard" type="button">Rules and local models</button>
+    <script type="module" src="popup.js"></script>
+  </body>
+</html>

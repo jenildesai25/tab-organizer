@@ -1,0 +1,283 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f3f1ec;
+  --text: #1c1b19;
+  --muted: #5f5d57;
+  --line: #ddd9d0;
+  --fill: #fffcf7;
+  --track: #d3d1c8;
+  --knob: #ffffff;
+  --accent: #1858d8;
+  --accent-text: #ffffff;
+  --accent-press: #1348b4;
+  --note: #e7eef8;
+  --confirm: #eceae4;
+  font: 16px/1.45 ui-sans-serif, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141413;
+    --text: #f4f3ef;
+    --muted: #b0aea6;
+    --line: #34332f;
+    --fill: #1e1e1c;
+    --track: #3f3e39;
+    --knob: #f4f3ef;
+    --accent: #6aa2ff;
+    --accent-text: #08111f;
+    --accent-press: #8eb6ff;
+    --note: #1c2838;
+    --confirm: #2a2a27;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+main {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 32px 20px 72px;
+}
+
+header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+}
+
+#status,
+.lede {
+  margin: 6px 0 0;
+  color: var(--muted);
+}
+
+section {
+  margin-top: 16px;
+  padding: 18px;
+  background: var(--fill);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+
+section h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--fill);
+  color: var(--text);
+  cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#sweep {
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px 14px;
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 650;
+}
+
+#sweep:hover:not(:disabled),
+#sweep:active:not(:disabled) {
+  background: var(--accent-press);
+}
+
+#sweep:disabled {
+  opacity: 0.6;
+}
+
+#result,
+#confirmation,
+#model-status {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--note);
+  color: var(--text);
+}
+
+#confirmation {
+  background: var(--confirm);
+}
+
+.switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+  cursor: pointer;
+}
+
+.switch-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.switch-title {
+  font-weight: 650;
+}
+
+.switch-hint {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.switch-control {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex: none;
+}
+
+.switch-control input {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--track);
+}
+
+.switch-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--knob);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 28%);
+  transition: transform 120ms ease;
+}
+
+.switch-control input:checked + .switch-track {
+  background: var(--accent);
+}
+
+.switch-control input:checked + .switch-track::after {
+  transform: translateX(18px);
+}
+
+.switch-control input:focus-visible + .switch-track {
+  outline: 2px solid var(--text);
+  outline-offset: 2px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+textarea,
+select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+#rules {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+#rules:empty {
+  display: none;
+}
+
+#rules li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+
+#rules p {
+  margin: 0;
+}
+
+#rules button {
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+}
+
+#rules button:hover {
+  color: var(--text);
+  background: var(--line);
+}
