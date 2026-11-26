@@ -147,10 +147,19 @@ async function openAndProbe(browser, extensionId, pagePath, criticalIds) {
       /feTurbulence|fractalNoise|noise/i.test(grainBg)
 
     const paintErrors = []
-    const groups = document.getElementById('groups') || document.getElementById('groups-list')
+    const popupGroupsList = document.getElementById('groups')
+    const popupHasGroupRows = document.querySelectorAll('.groups-section .group-item, .groups-section .group-list').length
+    if (location.pathname.includes('/popup/') && (popupGroupsList || popupHasGroupRows > 0)) {
+      paintErrors.push('popup still renders a full groups list (expected summary only)')
+    }
+    const groupsSummary = document.getElementById('groups-summary')
+    if (location.pathname.includes('/popup/') && !groupsSummary) {
+      paintErrors.push('popup missing #groups-summary')
+    }
+    const dashGroups = document.getElementById('groups-list')
     try {
-      if (groups) {
-        groups.replaceChildren()
+      if (dashGroups) {
+        dashGroups.replaceChildren()
         const li = document.createElement('li')
         li.className = 'group-item'
         const copy = document.createElement('div')
@@ -161,7 +170,7 @@ async function openAndProbe(browser, extensionId, pagePath, criticalIds) {
         name.title = 'YouTube'
         copy.append(name)
         li.append(document.createElement('span'), copy)
-        groups.append(li)
+        dashGroups.append(li)
         const shown = name.getBoundingClientRect().width
         const full = name.scrollWidth
         paintErrors.push(
@@ -197,10 +206,13 @@ async function openAndProbe(browser, extensionId, pagePath, criticalIds) {
     const themeRect = themeToggle?.getBoundingClientRect()
     const brand = document.querySelector('.brand-lockup, .hero-brand-row')
     const brandRect = brand?.getBoundingClientRect()
+    const brandMark = document.querySelector('.brand-mark')
+    const brandMarkRect = brandMark?.getBoundingClientRect()
     const statusEl = document.getElementById('status')
     const statusRect = statusEl?.getBoundingClientRect()
     let themeOverlapsBrand = false
     let themeOverlapsStatus = false
+    let themeClipped = false
     if (themeRect && brandRect) {
       themeOverlapsBrand =
         themeRect.left < brandRect.right - 2 &&
@@ -215,10 +227,14 @@ async function openAndProbe(browser, extensionId, pagePath, criticalIds) {
         themeRect.top < statusRect.bottom - 2 &&
         themeRect.bottom > statusRect.top + 2
     }
+    if (themeRect) {
+      themeClipped = themeRect.left < -0.5 || themeRect.right > document.documentElement.clientWidth + 0.5
+    }
 
     const rootWidth = Math.round(
       Math.max(document.documentElement.getBoundingClientRect().width, document.body.getBoundingClientRect().width),
     )
+    const cssWidth = getComputedStyle(document.documentElement).width
     const mainMax =
       getComputedStyle(document.querySelector('main') || document.body).maxWidth || ''
     const hasFloatingStack = !!document.querySelector('.hero-visual, .stack-card')
@@ -232,9 +248,13 @@ async function openAndProbe(browser, extensionId, pagePath, criticalIds) {
       paintErrors: paintErrors.filter(Boolean),
       bodyClass: document.body.className,
       rootWidth,
+      cssWidth,
       mainMax,
       themeOverlapsBrand,
       themeOverlapsStatus,
+      themeClipped,
+      brandVisible: !!(brandRect && brandRect.width > 20 && brandRect.height > 10),
+      brandMarkVisible: !!(brandMarkRect && brandMarkRect.width > 10 && brandMarkRect.height > 10),
       hasFloatingStack,
       pathname: location.pathname,
     }
@@ -274,11 +294,23 @@ async function main() {
   console.log(`Extension id: ${id}`)
   console.log(`Mode: ${mode}`)
 
+  const popupCss = readFileSync(path.join(dist, 'popup/popup.css'), 'utf8')
+  if (!/width:\s*520px/.test(popupCss)) {
+    fail('dist/popup/popup.css must set width: 520px', popupCss.slice(0, 240))
+    return
+  }
+  if (/max-width:\s*100vw/.test(popupCss)) {
+    fail('dist/popup/popup.css must not use max-width: 100vw (caps Chrome popup width)')
+    return
+  }
+  console.log('popup.css: width 520px present, no 100vw cap')
+
   const popupCritical = [
     'sweep',
     'organizer',
     'llm',
-    'groups',
+    'groups-summary',
+    'manage-groups',
     'progress-panel',
     'organize-progress',
     'refresh-groups',
@@ -309,8 +341,24 @@ async function main() {
     if (popup.probe.hasGrain) fail('Popup still has grain ::before', popup.probe)
     if (popup.probe.paintErrors.length) fail('Popup paint errors', popup.probe.paintErrors)
     if (popup.pageErrors.length) fail('Popup uncaught exceptions', popup.pageErrors)
-    if (popup.probe.rootWidth < 440) {
-      fail('Popup root width too narrow (want ≥440px)', popup.probe.rootWidth)
+    if (popup.probe.rootWidth < 480) {
+      fail('Popup root width too narrow (want ≥480px)', {
+        rootWidth: popup.probe.rootWidth,
+        cssWidth: popup.probe.cssWidth,
+      })
+    }
+    if (!popup.probe.brandVisible || !popup.probe.brandMarkVisible) {
+      fail('Popup brand mark/title not visible', {
+        brandVisible: popup.probe.brandVisible,
+        brandMarkVisible: popup.probe.brandMarkVisible,
+        rootWidth: popup.probe.rootWidth,
+      })
+    }
+    if (popup.probe.themeClipped) {
+      fail('Popup theme toggle is clipped by the popup edge', {
+        themeClipped: popup.probe.themeClipped,
+        rootWidth: popup.probe.rootWidth,
+      })
     }
     if (popup.probe.themeOverlapsBrand || popup.probe.themeOverlapsStatus) {
       fail('Popup theme toggle overlaps brand/status', {

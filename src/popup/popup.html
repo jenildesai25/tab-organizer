@@ -2,7 +2,6 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
     <script src="../ui/theme-boot.js"></script>
     <title>Tab Organizer</title>
@@ -96,9 +95,11 @@
         <h2 id="groups-heading">This window</h2>
         <button id="refresh-groups" type="button" class="btn btn-ghost btn-tiny">Refresh</button>
       </div>
-      <p id="groups-empty" class="empty" hidden>No groups yet.</p>
+      <p id="groups-summary" class="groups-summary" role="status">Counting groups…</p>
       <p id="groups-error" class="inline-note" role="status" hidden></p>
-      <ul id="groups" class="group-list" aria-label="Tab groups in this window"></ul>
+      <button id="manage-groups" type="button" class="btn btn-ghost btn-tiny manage-groups">
+        Manage in dashboard
+      </button>
     </section>
 
     <section class="activity-section" aria-labelledby="activity-heading">

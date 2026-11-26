@@ -35,7 +35,7 @@ Open the extension popup from the toolbar.
 | **Model** dropdown | Pick an installed Ollama model |
 | **Test connection** | Verify the extension can reach Ollama |
 | **Rename groups with AI** | Rewrite group titles from tab titles (tabs stay put) |
-| **This window** | Live groups in the current window (refresh as needed) |
+| **This window** | Compact group count for the current window; open the dashboard to manage groups |
 | **Recent activity** | Short log of recent group changes |
 | **Rules & more** | Opens the dashboard |
 
