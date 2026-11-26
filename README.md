@@ -49,13 +49,17 @@ Open the extension popup from the toolbar.
 
 ### Rules (dashboard)
 
-In the dashboard, add short English rules, then **Check** and **Save**. Examples:
+Rules tell Tab Organizer **what to name the Chrome tab group** for certain sites. Without a rule, a site often gets a default name (for example, Linear tabs might land in a group called “Linear”). With a rule, you pick the name.
 
-- `use gb for github`
-- `call linear Work`
-- `put github and gitlab in Code`
+In the dashboard, add a short English rule, then **Check** and **Save**.
 
-Rules map domains (and subdomains) into a short group title. You can also rename, recolor, or ungroup from the dashboard **Groups** panel.
+| You write | Matches | Group name | In other words |
+| --- | --- | --- | --- |
+| `use gb for github` | Tabs from github.com | **gb** | GitHub tabs go in a group named gb. |
+| `call linear Work` | Tabs from Linear | **Work** | Linear tabs go in a group named Work (not “Linear”). |
+| `put github and gitlab in Code` | Tabs from GitHub and GitLab | **Code** | Both sites share one group named Code. |
+
+You can also rename, recolor, or ungroup from the dashboard **Groups** panel.
 
 ### Activity (dashboard)
 
