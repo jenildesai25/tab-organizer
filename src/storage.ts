@@ -8,6 +8,7 @@ import {
 import { createAsyncMutex } from './domain/concurrency.js'
 import {
   boundGroupIds,
+  omitGroupBinding,
   parseGroupFingerprints,
   rebindGroupFingerprints,
   type GroupFingerprint,
@@ -161,7 +162,8 @@ export async function rememberHandRenamedGroup(
   return handRenamedMutex.run(async () => {
     const storedIds = await loadHandRenamedIds()
     const fingerprints = await loadHandRenamedFingerprints()
-    const rebound = rebindGroupFingerprints(fingerprints, live).filter((row) => row.id !== groupId)
+    const snapshot = live.find((group) => group.id === groupId)
+    const rebound = omitGroupBinding(rebindGroupFingerprints(fingerprints, live), groupId, snapshot, live)
     if (fingerprint) rebound.push({ id: groupId, fingerprint })
     const liveIds = new Set(live.map((group) => group.id))
     const ids = uniqueIds([
@@ -178,11 +180,18 @@ export async function rememberHandRenamedGroup(
 export async function forgetHandRenamedGroup(
   groupId: number,
   live: readonly LiveGroupSnapshot[],
+  title = '',
 ): Promise<number[]> {
   return handRenamedMutex.run(async () => {
     const storedIds = await loadHandRenamedIds()
     const fingerprints = await loadHandRenamedFingerprints()
-    const rebound = rebindGroupFingerprints(fingerprints, live).filter((row) => row.id !== groupId)
+    const snapshot = live.find((group) => group.id === groupId) ?? {
+      id: groupId,
+      title,
+      color: '',
+      patterns: [],
+    }
+    const rebound = omitGroupBinding(rebindGroupFingerprints(fingerprints, live), groupId, snapshot, live)
     const ids = uniqueIds([
       ...storedIds.filter((id) => id !== groupId && live.some((group) => group.id === id)),
       ...boundGroupIds(rebound),

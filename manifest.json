@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Tab Organizer",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Files tabs into groups from the site, the title, and rules you write in plain language. Optionally close unused tabs with Protect lists.",
   "permissions": [
     "tabs",

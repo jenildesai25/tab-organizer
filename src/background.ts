@@ -23,6 +23,7 @@ import { claimRule, compileSentence, deleteRule, retitlesForSavedRule, ruleToSav
 import {
   boundGroupIds,
   groupFingerprint,
+  omitGroupBinding,
   rebindGroupFingerprints,
   type LiveGroupSnapshot,
 } from './domain/group-identity.js'
@@ -144,9 +145,9 @@ async function rememberHandRenamed(groupId: number): Promise<void> {
   applyHandRenamedIds(await rememberHandRenamedGroup(groupId, fingerprint, live))
 }
 
-async function forgetHandRenamed(groupId: number): Promise<void> {
+async function forgetHandRenamed(groupId: number, title = ''): Promise<void> {
   const live = await liveGroupSnapshots()
-  applyHandRenamedIds(await forgetHandRenamedGroup(groupId, live))
+  applyHandRenamedIds(await forgetHandRenamedGroup(groupId, live, title))
 }
 
 function markTabs(ids: number[]): void {
@@ -728,12 +729,25 @@ async function saveProtect(
   return { ok: true, protect: settings.protect, summary }
 }
 
-async function rebindProtectGroups(): Promise<Settings> {
+async function rebindProtectGroups(removed?: { id: number; title: string }): Promise<Settings> {
   const live = await liveGroupSnapshots()
   return updateSettings((current) => {
-    const rebound = rebindGroupFingerprints(current.protect.groups, live)
+    let rebound = rebindGroupFingerprints(current.protect.groups, live)
+    if (removed) {
+      rebound = omitGroupBinding(
+        rebound,
+        removed.id,
+        { id: removed.id, title: removed.title, color: '', patterns: [] },
+        live,
+      )
+    }
     const liveIds = new Set(live.map((group) => group.id))
-    const groupIds = [...new Set([...current.protect.groupIds.filter((id) => liveIds.has(id)), ...boundGroupIds(rebound)])]
+    const groupIds = [
+      ...new Set([
+        ...current.protect.groupIds.filter((id) => liveIds.has(id) && id !== removed?.id),
+        ...boundGroupIds(rebound),
+      ]),
+    ]
     return {
       ...current,
       protect: {
@@ -944,11 +958,12 @@ async function handle(message: ToBackground): Promise<unknown> {
   if (message.type === 'protect-group') {
     const fingerprint = message.protect ? await fingerprintForGroup(message.groupId) : null
     const live = await liveGroupSnapshots()
-    return saveProtect(async (protect) => {
+    const snapshot = live.find((group) => group.id === message.groupId)
+    return saveProtect((protect) => {
       const set = new Set(protect.groupIds)
       if (message.protect) set.add(message.groupId)
       else set.delete(message.groupId)
-      const rebound = rebindGroupFingerprints(protect.groups, live).filter((row) => row.id !== message.groupId)
+      const rebound = omitGroupBinding(rebindGroupFingerprints(protect.groups, live), message.groupId, snapshot, live)
       if (message.protect && fingerprint) rebound.push({ id: message.groupId, fingerprint })
       const liveIds = new Set(live.map((group) => group.id))
       return {
@@ -989,8 +1004,9 @@ async function handle(message: ToBackground): Promise<unknown> {
   }
   if (message.type === 'remove-protect-group') {
     const live = await liveGroupSnapshots()
+    const snapshot = live.find((group) => group.id === message.groupId)
     return saveProtect((protect) => {
-      const rebound = rebindGroupFingerprints(protect.groups, live).filter((row) => row.id !== message.groupId)
+      const rebound = omitGroupBinding(rebindGroupFingerprints(protect.groups, live), message.groupId, snapshot, live)
       return {
         ...protect,
         groupIds: protect.groupIds.filter((id) => id !== message.groupId),
@@ -1550,9 +1566,10 @@ chrome.tabGroups.onUpdated.addListener((group) => {
 })
 
 chrome.tabGroups.onRemoved.addListener((group) => {
-  void forgetHandRenamed(group.id)
+  const title = groupTitles.get(group.id) ?? ''
+  void forgetHandRenamed(group.id, title)
   groupTitles.delete(group.id)
-  void rebindProtectGroups().catch(() => {})
+  void rebindProtectGroups({ id: group.id, title }).catch(() => {})
 })
 
 chrome.windows.onFocusChanged.addListener((windowId) => {
