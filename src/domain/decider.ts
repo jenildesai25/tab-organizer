@@ -246,8 +246,21 @@ function suggestionIntent(tab: TabState, input: DecideInput): Intent {
   if (suggestion.confidence < ADVISOR_CONFIDENCE || !isShortTitle(suggestion.title)) return { kind: 'none' }
   const title = suggestion.title.trim()
   const existing = openGroup(input, (group) => titlesMatch(group.title, title))
-  if (existing) return { kind: 'topic', groupId: existing.id }
+  if (existing) {
+    if (!suggestionMayJoin(tab, existing)) return { kind: 'none' }
+    return { kind: 'topic', groupId: existing.id }
+  }
   return { kind: 'site', domain: `topic:${title.toLowerCase()}` }
+}
+
+/** A model may name a group only when the tab already belongs with that group. */
+function suggestionMayJoin(tab: TabState, group: GroupState): boolean {
+  if (titlesMatch(group.title, siteTitle(tab.card.domain))) return true
+  const domains = [group.dominantDomain, ...group.domains].filter((domain): domain is string => Boolean(domain))
+  if (domains.some((domain) => domainCovered(tab.card.domain, domain) || domainCovered(domain, tab.card.domain))) {
+    return true
+  }
+  return jaccard([...tab.card.titleWords, ...tab.card.pathWords], group.words) >= FILE_OVERLAP
 }
 
 function bestTopic(tab: TabState, input: DecideInput): { group: GroupState; score: number } | null {

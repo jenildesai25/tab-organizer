@@ -56,6 +56,20 @@ export function compileSentence(sentence: string): DraftRule | null {
   return null
 }
 
+/**
+ * Rule to persist. A sentence the local compiler understands wins over anything
+ * the caller or the model claimed. Otherwise only a parsed model result is used.
+ */
+export function ruleToSave(
+  sentence: string,
+  model: { title: string; domains: string[] } | null,
+): DraftRule | null {
+  const local = compileSentence(sentence)
+  if (local) return local
+  if (!model) return null
+  return finish(sentence.trim(), model.title, model.domains)
+}
+
 function finish(sentence: string, title: string, sites: string[]): DraftRule | null {
   if (!isShortTitle(title) || sites.length === 0) return null
   const domains: string[] = []

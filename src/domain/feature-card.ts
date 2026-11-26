@@ -39,7 +39,8 @@ function decodeSegment(segment: string): string {
 function isSecret(word: string): boolean {
   if (word.includes('@')) return true
   if (word.length >= 16 && /^[a-f0-9]+$/i.test(word)) return true
-  if (word.length >= 24) return true
+  if (word.length >= 20) return true
+  if (word.length >= 12 && /[a-z]/i.test(word) && /\d/.test(word)) return true
   return false
 }
 

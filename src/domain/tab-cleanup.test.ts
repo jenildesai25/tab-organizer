@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CLEANUP_ALARM_PERIOD_MINUTES,
   DEFAULT_CLEANUP_AGE_DAYS,
   MAX_CLEANUP_AGE_DAYS,
   MIN_CLEANUP_AGE_DAYS,
   clampCleanupAgeDays,
+  cleanupAlarmAction,
   cleanupEligibility,
+  filterConfirmedTargets,
   formatCleanupAgeLabel,
   normalizeProtectDomains,
   normalizeProtectGroupIds,
@@ -21,7 +24,7 @@ const NOW = 1_700_000_000_000
 const AGE_DAYS = 30
 const AGE_MS = AGE_DAYS * 24 * 60 * 60_000
 
-const emptyProtect: ProtectLists = { domains: [], groupIds: [], urlPatterns: [] }
+const emptyProtect: ProtectLists = { domains: [], groupIds: [], urlPatterns: [], groups: [] }
 
 function tab(
   partial: Partial<Parameters<typeof cleanupEligibility>[0]> & { id?: number } = {},
@@ -152,6 +155,30 @@ describe('cleanupEligibility', () => {
   it('skips incognito and missing id', () => {
     expect(cleanupEligibility(tab({ incognito: true }), opts).reason).toBe('incognito')
     expect(cleanupEligibility(tab({ id: undefined }), opts).reason).toBe('no-id')
+  })
+
+  it('does not treat a missing or zero lastAccessed as unused since 1970', () => {
+    expect(cleanupEligibility(tab({ lastAccessed: undefined }), opts).reason).toBe('unknown-age')
+    expect(cleanupEligibility(tab({ lastAccessed: 0 }), opts).reason).toBe('unknown-age')
+    expect(cleanupEligibility(tab({ lastAccessed: Number.NaN }), opts).ok).toBe(false)
+  })
+})
+
+describe('manual confirmation and the cleanup alarm', () => {
+  it('closes only ids the user confirmed', () => {
+    const targets = selectCleanupTargets(
+      [tab({ id: 11 }), tab({ id: 13 })],
+      { now: NOW, ageDays: AGE_DAYS, protect: emptyProtect },
+    )
+    expect(filterConfirmedTargets(targets, [13, 99]).map((row) => row.tabId)).toEqual([13])
+  })
+
+  it('keeps an alarm that is already scheduled at the right period', () => {
+    expect(cleanupAlarmAction(undefined, false)).toBe('keep')
+    expect(cleanupAlarmAction({ periodInMinutes: 60 }, false)).toBe('clear')
+    expect(cleanupAlarmAction(undefined, true)).toBe('create')
+    expect(cleanupAlarmAction({ periodInMinutes: CLEANUP_ALARM_PERIOD_MINUTES }, true)).toBe('keep')
+    expect(cleanupAlarmAction({ periodInMinutes: 1 }, true)).toBe('create')
   })
 })
 

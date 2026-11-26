@@ -57,6 +57,10 @@ export type CleanupPreviewResult =
       count: number
       ageDays: number
       scope: 'window' | 'all'
+      /** Window the count came from. Manual clean-up must pass this back. */
+      windowId?: number
+      /** Tabs the user is about to confirm. Manual clean-up may close only these. */
+      tabIds: number[]
       sampleSiteKeys: string[]
       summary: string
     }
@@ -158,13 +162,13 @@ export type ToBackground =
   /** Dry-run count for confirmation UI. Manual defaults to this window. */
   | { type: 'preview-cleanup'; windowId?: number; scope?: 'window' | 'all' }
   /**
-   * Close old tabs. Manual calls must pass `confirm: true` after preview.
-   * Auto alarm uses `confirmedByAlarm: true` instead.
+   * Close old tabs the user already previewed.
+   * `tabIds` is the set they confirmed. The alarm does not use this message.
    */
   | {
       type: 'run-cleanup'
       windowId?: number
       scope?: 'window' | 'all'
       confirm?: boolean
-      confirmedByAlarm?: boolean
+      tabIds?: number[]
     }

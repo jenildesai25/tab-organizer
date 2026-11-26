@@ -19,7 +19,13 @@ import {
   ruleMessages,
 } from './domain/prompts.js'
 import { createSingleFlightGate } from './domain/concurrency.js'
-import { claimRule, compileSentence, deleteRule, retitlesForSavedRule } from './domain/rules.js'
+import { claimRule, compileSentence, deleteRule, retitlesForSavedRule, ruleToSave } from './domain/rules.js'
+import {
+  boundGroupIds,
+  groupFingerprint,
+  rebindGroupFingerprints,
+  type LiveGroupSnapshot,
+} from './domain/group-identity.js'
 import { decideSiteRetitle, rejectRetitleSuggestion } from './domain/site-retitle.js'
 import { canonicalSite, titlesMatch } from './domain/sites.js'
 import { groupStateFromChrome, tabStateFromChrome } from './domain/sweep-chrome.js'
@@ -34,6 +40,8 @@ import {
   CLEANUP_ALARM_NAME,
   CLEANUP_ALARM_PERIOD_MINUTES,
   clampCleanupAgeDays,
+  cleanupAlarmAction,
+  filterConfirmedTargets,
   formatCleanupAgeLabel,
   normalizeProtectDomains,
   normalizeUrlPattern,
@@ -67,11 +75,11 @@ import {
   appendActivity,
   clearActivityLog,
   loadActivityLog,
+  forgetHandRenamedGroup,
   loadSettings,
-  pruneProtectGroups,
-  restoreHandRenamedIds,
-  saveHandRenamedIds,
-  saveSettings,
+  rememberHandRenamedGroup,
+  restoreHandRenamedGroups,
+  updateSettings,
   type Settings,
 } from './storage.js'
 
@@ -94,19 +102,51 @@ let statusNote = ''
 let settingsEpoch = 0
 let retitleProgress: RetitleProgress | null = null
 
-async function persistHandRenamed(): Promise<void> {
-  await saveHandRenamedIds(handRenamed)
+function applyHandRenamedIds(ids: readonly number[]): void {
+  handRenamed.clear()
+  for (const id of ids) handRenamed.add(id)
+}
+
+async function liveGroupSnapshots(): Promise<LiveGroupSnapshot[]> {
+  const [groups, tabs] = await Promise.all([chrome.tabGroups.query({}), chrome.tabs.query({})])
+  return groups.map((group) => ({
+    id: group.id,
+    title: group.title ?? '',
+    color: group.color ?? '',
+    patterns: tabs.flatMap((tab) => {
+      if (tab.groupId !== group.id) return []
+      const pattern = urlPatternForCleanupTab(tab)
+      return pattern ? [pattern] : []
+    }),
+  }))
+}
+
+async function fingerprintForGroup(groupId: number): Promise<ReturnType<typeof groupFingerprint>> {
+  try {
+    const group = await chrome.tabGroups.get(groupId)
+    const tabs = await chrome.tabs.query({ groupId })
+    return groupFingerprint({
+      title: group.title ?? '',
+      color: group.color,
+      urls: tabs.flatMap((tab) => {
+        const pattern = urlPatternForCleanupTab(tab)
+        return pattern ? [pattern] : []
+      }),
+    })
+  } catch {
+    return null
+  }
 }
 
 async function rememberHandRenamed(groupId: number): Promise<void> {
-  if (handRenamed.has(groupId)) return
-  handRenamed.add(groupId)
-  await persistHandRenamed()
+  const live = await liveGroupSnapshots()
+  const fingerprint = await fingerprintForGroup(groupId)
+  applyHandRenamedIds(await rememberHandRenamedGroup(groupId, fingerprint, live))
 }
 
 async function forgetHandRenamed(groupId: number): Promise<void> {
-  if (!handRenamed.delete(groupId)) return
-  await persistHandRenamed()
+  const live = await liveGroupSnapshots()
+  applyHandRenamedIds(await forgetHandRenamedGroup(groupId, live))
 }
 
 function markTabs(ids: number[]): void {
@@ -526,11 +566,16 @@ async function activeTabSnapshot(): Promise<StateResult['activeTab']> {
 }
 
 async function syncCleanupAlarm(enabled: boolean): Promise<void> {
-  await chrome.alarms.clear(CLEANUP_ALARM_NAME)
-  if (!enabled) return
-  await chrome.alarms.create(CLEANUP_ALARM_NAME, {
-    periodInMinutes: CLEANUP_ALARM_PERIOD_MINUTES,
-  })
+  const existing = await chrome.alarms.get(CLEANUP_ALARM_NAME)
+  const action = cleanupAlarmAction(existing, enabled)
+  if (action === 'keep') return
+  if (existing) await chrome.alarms.clear(CLEANUP_ALARM_NAME)
+  if (action === 'create') {
+    await chrome.alarms.create(CLEANUP_ALARM_NAME, {
+      delayInMinutes: CLEANUP_ALARM_PERIOD_MINUTES,
+      periodInMinutes: CLEANUP_ALARM_PERIOD_MINUTES,
+    })
+  }
 }
 
 async function resolveCleanupWindowId(windowId?: number): Promise<number> {
@@ -578,7 +623,8 @@ async function previewCleanup(
 ): Promise<CleanupPreviewResult> {
   try {
     const settings = await loadSettings()
-    const tabs = await collectCleanupTabs(scope, windowId)
+    const resolvedWindowId = scope === 'window' ? await resolveCleanupWindowId(windowId) : undefined
+    const tabs = await collectCleanupTabs(scope, resolvedWindowId ?? windowId)
     const targets = selectCleanupTargets(tabs, {
       now: Date.now(),
       ageDays: settings.cleanupAgeDays,
@@ -600,6 +646,8 @@ async function previewCleanup(
       count: targets.length,
       ageDays: settings.cleanupAgeDays,
       scope,
+      windowId: resolvedWindowId,
+      tabIds: targets.map((row) => row.tabId),
       sampleSiteKeys,
       summary,
     }
@@ -614,23 +662,29 @@ async function runCleanup(options: {
   windowId?: number
   confirm?: boolean
   confirmedByAlarm?: boolean
+  tabIds?: readonly number[]
 }): Promise<CleanupRunResult> {
   if (!options.confirm && !options.confirmedByAlarm) {
     return { ok: false, message: 'Confirm before closing tabs.' }
   }
+  if (!options.confirmedByAlarm && (!options.tabIds || options.tabIds.length === 0)) {
+    return { ok: false, message: 'Preview clean-up before closing tabs.' }
+  }
 
-  const settings = await loadSettings()
-  if (options.confirmedByAlarm && !settings.cleanupOn) {
+  const loaded = await loadSettings()
+  if (options.confirmedByAlarm && !loaded.cleanupOn) {
     return { ok: true, closed: 0, skipped: 0, summary: 'Clean up old tabs is off.' }
   }
+  const settings = await rebindProtectGroups()
 
   try {
     const tabs = await collectCleanupTabs(options.scope, options.windowId)
-    const targets = selectCleanupTargets(tabs, {
+    const eligible = selectCleanupTargets(tabs, {
       now: Date.now(),
       ageDays: settings.cleanupAgeDays,
       protect: settings.protect,
     })
+    const targets = options.confirmedByAlarm ? eligible : filterConfirmedTargets(eligible, options.tabIds ?? [])
     if (targets.length === 0) {
       return {
         ok: true,
@@ -663,10 +717,32 @@ async function runCleanup(options: {
   }
 }
 
-async function saveProtect(protect: ProtectLists, summary: string): Promise<ProtectUpdateResult> {
-  const settings = await loadSettings()
-  await saveSettings({ ...settings, protect })
-  return { ok: true, protect, summary }
+async function saveProtect(
+  mutate: (protect: ProtectLists) => ProtectLists | Promise<ProtectLists>,
+  summary: string,
+): Promise<ProtectUpdateResult> {
+  const settings = await updateSettings(async (current) => ({
+    ...current,
+    protect: await mutate(current.protect),
+  }))
+  return { ok: true, protect: settings.protect, summary }
+}
+
+async function rebindProtectGroups(): Promise<Settings> {
+  const live = await liveGroupSnapshots()
+  return updateSettings((current) => {
+    const rebound = rebindGroupFingerprints(current.protect.groups, live)
+    const liveIds = new Set(live.map((group) => group.id))
+    const groupIds = [...new Set([...current.protect.groupIds.filter((id) => liveIds.has(id)), ...boundGroupIds(rebound)])]
+    return {
+      ...current,
+      protect: {
+        ...current.protect,
+        groupIds,
+        groups: rebound.map((row) => row.fingerprint),
+      },
+    }
+  })
 }
 
 async function currentState(): Promise<StateResult> {
@@ -713,15 +789,34 @@ async function previewRule(sentence: string): Promise<PreviewResult> {
   return { ok: true, confirmation: claimed.confirmation, domains, title: parsed.title.trim() }
 }
 
-async function saveRule(sentence: string, domains: string[], title: string): Promise<PreviewResult & { rules?: Settings['rules'] }> {
-  const canonical = [...new Set(domains.map((domain) => canonicalSite(domain)).filter((domain) => domain !== null))]
-  if (!isShortTitle(title) || canonical.length === 0) {
-    return { ok: false, message: "That sentence couldn't be matched to sites." }
+async function saveRule(sentence: string, _domains: string[], _title: string): Promise<PreviewResult & { rules?: Settings['rules'] }> {
+  const local = compileSentence(sentence)
+  let drafted = local
+  if (!drafted) {
+    const settings = await loadSettings()
+    if (!settings.llmOn) return { ok: false, message: 'Turn on the local model to interpret this sentence.' }
+    if (!settings.model.trim()) return { ok: false, message: 'Choose a local model.' }
+    let content: string | null
+    try {
+      content = await enqueueAdvisor((signal) =>
+        ollamaChat({ model: settings.model.trim(), messages: ruleMessages(sentence), signal }),
+      )
+    } catch (error) {
+      return { ok: false, message: describeOllamaFailure(error) }
+    }
+    if (!content) return { ok: false, message: OLLAMA_DOWN_MESSAGE }
+    drafted = ruleToSave(sentence, parseRuleContent(content))
   }
-  const settings = await loadSettings()
-  const incoming = { id: crypto.randomUUID(), sentence: sentence.trim(), domains: canonical, title: title.trim() }
-  const claimed = claimRule(settings.rules, incoming)
-  await saveSettings({ ...settings, rules: claimed.rules })
+  if (!drafted) return { ok: false, message: "That sentence couldn't be matched to sites." }
+  const incoming = { id: crypto.randomUUID(), ...drafted }
+  const settings = await updateSettings((current) => {
+    const claimed = claimRule(current.rules, incoming)
+    return { ...current, rules: claimed.rules }
+  })
+  const claimed = claimRule(
+    settings.rules.filter((rule) => rule.id !== incoming.id),
+    incoming,
+  )
   const [groups, tabs] = await Promise.all([chrome.tabGroups.query({}), chrome.tabs.query({})])
   for (const action of retitlesForSavedRule(incoming, groups.map((group) => groupStateFromChrome(group, tabs, handRenamed)))) {
     try {
@@ -740,41 +835,36 @@ async function saveRule(sentence: string, domains: string[], title: string): Pro
       // A group can close between the query and the update.
     }
   }
-  return { ok: true, confirmation: claimed.confirmation, domains: canonical, title: incoming.title, rules: claimed.rules }
+  return { ok: true, confirmation: claimed.confirmation, domains: incoming.domains, title: incoming.title, rules: settings.rules }
 }
 
 async function handle(message: ToBackground): Promise<unknown> {
   if (message.type === 'get-state') return currentState()
   if (message.type === 'set-organizer') {
     settingsEpoch += 1
-    const settings = await loadSettings()
     organizerOn = message.on
-    await saveSettings({ ...settings, organizerOn: message.on })
+    await updateSettings((current) => ({ ...current, organizerOn: message.on }))
     return currentState()
   }
   if (message.type === 'set-llm') {
     settingsEpoch += 1
-    const settings = await loadSettings()
     llmOn = message.on
     if (!message.on) {
       cancelAdvisor()
       advisorPending.clear()
       statusNote = ''
     }
-    await saveSettings({ ...settings, llmOn: message.on })
+    await updateSettings((current) => ({ ...current, llmOn: message.on }))
     return currentState()
   }
   if (message.type === 'set-model') {
-    const settings = await loadSettings()
-    await saveSettings({ ...settings, model: message.model.trim() })
+    await updateSettings((current) => ({ ...current, model: message.model.trim() }))
     return currentState()
   }
   if (message.type === 'preview-rule') return previewRule(message.sentence)
   if (message.type === 'save-rule') return saveRule(message.sentence, message.domains, message.title)
   if (message.type === 'delete-rule') {
-    const settings = await loadSettings()
-    const rules = deleteRule(settings.rules, message.id)
-    await saveSettings({ ...settings, rules })
+    await updateSettings((current) => ({ ...current, rules: deleteRule(current.rules, message.id) }))
     return currentState()
   }
   if (message.type === 'sweep') {
@@ -836,105 +926,98 @@ async function handle(message: ToBackground): Promise<unknown> {
   }
   if (message.type === 'set-cleanup') {
     settingsEpoch += 1
-    const settings = await loadSettings()
-    await saveSettings({ ...settings, cleanupOn: message.on })
+    await updateSettings((current) => ({ ...current, cleanupOn: message.on }))
     await syncCleanupAlarm(message.on)
     return currentState()
   }
   if (message.type === 'set-cleanup-age') {
-    const settings = await loadSettings()
-    await saveSettings({ ...settings, cleanupAgeDays: clampCleanupAgeDays(message.days) })
+    await updateSettings((current) => ({ ...current, cleanupAgeDays: clampCleanupAgeDays(message.days) }))
     return currentState()
   }
   if (message.type === 'set-protect-domains') {
-    const settings = await loadSettings()
-    const protect = {
-      ...settings.protect,
-      domains: normalizeProtectDomains(message.domains),
-    }
-    await saveSettings({ ...settings, protect })
+    await updateSettings((current) => ({
+      ...current,
+      protect: { ...current.protect, domains: normalizeProtectDomains(message.domains) },
+    }))
     return currentState()
   }
   if (message.type === 'protect-group') {
-    const settings = await loadSettings()
-    const set = new Set(settings.protect.groupIds)
-    if (message.protect) set.add(message.groupId)
-    else set.delete(message.groupId)
-    return saveProtect(
-      { ...settings.protect, groupIds: [...set] },
-      message.protect
-        ? 'This group will not be auto-closed.'
-        : 'This group can be auto-closed again.',
-    )
+    const fingerprint = message.protect ? await fingerprintForGroup(message.groupId) : null
+    const live = await liveGroupSnapshots()
+    return saveProtect(async (protect) => {
+      const set = new Set(protect.groupIds)
+      if (message.protect) set.add(message.groupId)
+      else set.delete(message.groupId)
+      const rebound = rebindGroupFingerprints(protect.groups, live).filter((row) => row.id !== message.groupId)
+      if (message.protect && fingerprint) rebound.push({ id: message.groupId, fingerprint })
+      const liveIds = new Set(live.map((group) => group.id))
+      return {
+        ...protect,
+        groupIds: [...new Set([...[...set].filter((id) => liveIds.has(id)), ...boundGroupIds(rebound)])],
+        groups: rebound.map((row) => row.fingerprint),
+      }
+    }, message.protect ? 'This group will not be auto-closed.' : 'This group can be auto-closed again.')
   }
   if (message.type === 'protect-domain') {
-    const settings = await loadSettings()
     const domain = normalizeProtectDomains([message.domain])[0]
     if (!domain) return { ok: false, message: 'Enter a site like github.com.' } satisfies ProtectUpdateResult
-    const set = new Set(settings.protect.domains)
-    if (message.protect) set.add(domain)
-    else set.delete(domain)
-    return saveProtect(
-      { ...settings.protect, domains: [...set] },
-      message.protect
-        ? `Won’t auto-close ${domain}.`
-        : `${domain} can be auto-closed again.`,
-    )
+    return saveProtect((protect) => {
+      const set = new Set(protect.domains)
+      if (message.protect) set.add(domain)
+      else set.delete(domain)
+      return { ...protect, domains: [...set] }
+    }, message.protect ? `Won’t auto-close ${domain}.` : `${domain} can be auto-closed again.`)
   }
   if (message.type === 'protect-url') {
-    const settings = await loadSettings()
     const pattern = normalizeUrlPattern(message.url)
     if (!pattern) return { ok: false, message: 'That page address could not be saved.' } satisfies ProtectUpdateResult
-    const set = new Set(settings.protect.urlPatterns)
-    if (message.protect) set.add(pattern)
-    else set.delete(pattern)
-    return saveProtect(
-      { ...settings.protect, urlPatterns: [...set] },
-      message.protect
-        ? 'Won’t auto-close this page.'
-        : 'This page can be auto-closed again.',
-    )
+    return saveProtect((protect) => {
+      const set = new Set(protect.urlPatterns)
+      if (message.protect) set.add(pattern)
+      else set.delete(pattern)
+      return { ...protect, urlPatterns: [...set] }
+    }, message.protect ? 'Won’t auto-close this page.' : 'This page can be auto-closed again.')
   }
   if (message.type === 'remove-protect-domain') {
-    const settings = await loadSettings()
     return saveProtect(
-      {
-        ...settings.protect,
-        domains: settings.protect.domains.filter((domain) => domain !== message.domain),
-      },
+      (protect) => ({
+        ...protect,
+        domains: protect.domains.filter((domain) => domain !== message.domain),
+      }),
       'Removed site protection.',
     )
   }
   if (message.type === 'remove-protect-group') {
-    const settings = await loadSettings()
-    return saveProtect(
-      {
-        ...settings.protect,
-        groupIds: settings.protect.groupIds.filter((id) => id !== message.groupId),
-      },
-      'Removed group protection.',
-    )
+    const live = await liveGroupSnapshots()
+    return saveProtect((protect) => {
+      const rebound = rebindGroupFingerprints(protect.groups, live).filter((row) => row.id !== message.groupId)
+      return {
+        ...protect,
+        groupIds: protect.groupIds.filter((id) => id !== message.groupId),
+        groups: rebound.map((row) => row.fingerprint),
+      }
+    }, 'Removed group protection.')
   }
   if (message.type === 'remove-protect-url') {
-    const settings = await loadSettings()
     const pattern = normalizeUrlPattern(message.url) ?? message.url
     return saveProtect(
-      {
-        ...settings.protect,
-        urlPatterns: settings.protect.urlPatterns.filter((entry) => entry !== pattern),
-      },
+      (protect) => ({
+        ...protect,
+        urlPatterns: protect.urlPatterns.filter((entry) => entry !== pattern),
+      }),
       'Removed page protection.',
     )
   }
   if (message.type === 'preview-cleanup') {
+    await rebindProtectGroups()
     return previewCleanup(message.scope ?? 'window', message.windowId)
   }
   if (message.type === 'run-cleanup') {
     return runCleanup({
       scope: message.scope ?? 'window',
       windowId: message.windowId,
-      confirm: message.confirm,
-      confirmedByAlarm: message.confirmedByAlarm,
+      confirm: message.confirm === true,
+      tabIds: message.tabIds,
     })
   }
   return { ok: false, message: 'Unknown message.' }
@@ -1469,17 +1552,7 @@ chrome.tabGroups.onUpdated.addListener((group) => {
 chrome.tabGroups.onRemoved.addListener((group) => {
   void forgetHandRenamed(group.id)
   groupTitles.delete(group.id)
-  void (async () => {
-    const settings = await loadSettings()
-    if (!settings.protect.groupIds.includes(group.id)) return
-    await saveSettings({
-      ...settings,
-      protect: {
-        ...settings.protect,
-        groupIds: settings.protect.groupIds.filter((id) => id !== group.id),
-      },
-    })
-  })()
+  void rebindProtectGroups().catch(() => {})
 })
 
 chrome.windows.onFocusChanged.addListener((windowId) => {
@@ -1520,11 +1593,9 @@ async function boot(): Promise<void> {
   for (const group of groups) {
     if (!groupTitles.has(group.id)) groupTitles.set(group.id, group.title ?? '')
   }
-  const liveIds = new Set(groups.map((group) => group.id))
-  const restored = await restoreHandRenamedIds(liveIds)
-  handRenamed.clear()
-  for (const id of restored) handRenamed.add(id)
-  await pruneProtectGroups(liveIds)
+  const live = await liveGroupSnapshots()
+  applyHandRenamedIds(await restoreHandRenamedGroups(live))
+  await rebindProtectGroups()
 }
 
 void boot()

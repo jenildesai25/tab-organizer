@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { claimRule, compileSentence, deleteRule, retitlesForDeletedRule, retitlesForSavedRule } from './rules.js'
+import { claimRule, compileSentence, deleteRule, retitlesForDeletedRule, retitlesForSavedRule, ruleToSave } from './rules.js'
 import { colorForKey } from './sites.js'
 import type { GroupState } from './types.js'
 
@@ -97,5 +97,24 @@ describe('retitles', () => {
   it('deleting a rule emits no retitle', () => {
     expect(deleteRule([rule], 'gb')).toEqual([])
     expect(retitlesForDeletedRule()).toEqual([])
+  })
+})
+
+describe('ruleToSave', () => {
+  it('keeps the compiled sentence when the model names a different site', () => {
+    expect(ruleToSave('use gb for github', { title: 'Evil', domains: ['evil.com'] })).toEqual({
+      sentence: 'use gb for github',
+      domains: ['github.com'],
+      title: 'gb',
+    })
+  })
+
+  it('uses only the model when the sentence does not compile', () => {
+    expect(ruleToSave('file my usual shopping somewhere', { title: 'Shop', domains: ['amazon.com'] })).toEqual({
+      sentence: 'file my usual shopping somewhere',
+      domains: ['amazon.com'],
+      title: 'Shop',
+    })
+    expect(ruleToSave('file my usual shopping somewhere', null)).toBeNull()
   })
 })
