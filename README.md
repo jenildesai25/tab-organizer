@@ -12,7 +12,7 @@ Local source files: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer
 
 ## Features
 
-- **Organize this window** — One click files every tab in the current window into Chrome tab groups.
+- **Organize this window** — One click files every tab in the current window into Chrome tab groups. **Organize all windows** does the same for every normal window.
 - **Auto-group new tabs** — When you open a tab, Tab Organizer waits for the page to settle, then creates a group or joins an existing one, and reveals it when useful.
 - **Quiet hours** — Optional daily window (default 11pm–7am local) that pauses auto-group. **Organize this window** still runs.
 - **Moves with you** — If you navigate from one site to another (for example Google search → WhatsApp), the tab leaves the old group and lands in the right one.

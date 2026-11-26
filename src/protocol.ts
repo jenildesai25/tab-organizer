@@ -156,6 +156,7 @@ export type ToBackground =
   | { type: 'save-rule'; sentence: string; domains: string[]; title: string }
   | { type: 'delete-rule'; id: string }
   | { type: 'sweep'; windowId: number }
+  | { type: 'sweep-all' }
   | { type: 'list-models' }
   | { type: 'test-ollama' }
   | { type: 'list-groups'; windowId: number }

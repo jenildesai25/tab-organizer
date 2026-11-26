@@ -127,3 +127,43 @@ export function bindSweep(
     })()
   })
 }
+
+/** Organize every normal non-incognito window. */
+export function bindSweepAll(
+  button: HTMLButtonElement,
+  result: HTMLElement,
+  onState: (state: StateResult) => void,
+  onDone?: (response: SweepResult) => void,
+  progress?: SweepProgressEls,
+): void {
+  button.addEventListener('click', () => {
+    void (async () => {
+      const label = button.textContent
+      button.disabled = true
+      button.textContent = 'Organizing all…'
+      button.setAttribute('aria-busy', 'true')
+      showResult(result, '')
+      setProgress(progress, 'running', 'Grouping all windows…')
+      try {
+        const response = await send<SweepResult>({ type: 'sweep-all' })
+        if (!response.ok) {
+          showResult(result, resultText(response))
+          setProgress(progress, 'idle')
+          onDone?.(response)
+          return
+        }
+        onState(response)
+        showResult(result, resultText(response))
+        setProgress(progress, 'done')
+        onDone?.(response)
+      } catch {
+        showResult(result, 'Could not organize all windows.')
+        setProgress(progress, 'idle')
+      } finally {
+        button.disabled = false
+        button.textContent = label || 'Organize all windows'
+        button.removeAttribute('aria-busy')
+      }
+    })()
+  })
+}
