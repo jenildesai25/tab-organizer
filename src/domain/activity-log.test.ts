@@ -184,6 +184,30 @@ describe('formatActivityLine', () => {
     expect(line).toMatch(/Just now · AI renamed/)
   })
 
+  it('formats tab.close in plain English', () => {
+    expect(
+      formatActivityLine(
+        entry({
+          actor: 'system',
+          action: 'tab.close',
+          tabCount: 3,
+          reason: 'unused for 30 days',
+        }),
+      ),
+    ).toContain('Tab Organizer closed 3 old tabs (unused for 30 days)')
+
+    expect(
+      formatActivityLine(
+        entry({
+          actor: 'user',
+          action: 'tab.close',
+          tabCount: 1,
+          reason: 'unused for 7 days',
+        }),
+      ),
+    ).toContain('You closed 1 old tab (unused for 7 days)')
+  })
+
   it('formats organize file, user rename, and AI skip lines in plain English', () => {
     expect(
       formatActivityLine(

@@ -1,13 +1,17 @@
 import type { ActivityFilter } from '../domain/activity-log.js'
+import { CLEANUP_AGE_PRESETS, formatCleanupAgeLabel } from '../domain/tab-cleanup.js'
 import type { ChromeColor, CompiledRule } from '../domain/types.js'
 import type { TabGroupView } from '../domain/tab-groups.js'
 import type { LocalModel } from '../ollama.js'
 import type {
   ActivityLogResult,
+  CleanupPreviewResult,
+  CleanupRunResult,
   ClearActivityResult,
   ListGroupsResult,
   ModelsResult,
   PreviewResult,
+  ProtectUpdateResult,
   RetitleGroupsResult,
   StateResult,
   TestOllamaResult,
@@ -52,6 +56,20 @@ const refreshActivity = document.querySelector<HTMLButtonElement>('#refresh-acti
 const clearActivity = document.querySelector<HTMLButtonElement>('#clear-activity')!
 const activityFilters = document.querySelector<HTMLElement>('.activity-filters')!
 const clearActivityDialog = document.querySelector<HTMLDialogElement>('#clear-activity-dialog')!
+const cleanupConfirmDialog = document.querySelector<HTMLDialogElement>('#cleanup-confirm-dialog')!
+const cleanupConfirmBody = document.querySelector<HTMLElement>('#cleanup-confirm-body')!
+const cleanupOn = document.querySelector<HTMLInputElement>('#cleanup-on')!
+const cleanupAgeDays = document.querySelector<HTMLInputElement>('#cleanup-age-days')!
+const cleanupAgePresets = document.querySelector<HTMLElement>('.cleanup-age-presets')!
+const cleanupNow = document.querySelector<HTMLButtonElement>('#cleanup-now')!
+const cleanupNote = document.querySelector<HTMLElement>('#cleanup-note')!
+const protectDomains = document.querySelector<HTMLTextAreaElement>('#protect-domains')!
+const saveProtectDomains = document.querySelector<HTMLButtonElement>('#save-protect-domains')!
+const protectActiveSite = document.querySelector<HTMLButtonElement>('#protect-active-site')!
+const protectActivePage = document.querySelector<HTMLButtonElement>('#protect-active-page')!
+const protectNote = document.querySelector<HTMLElement>('#protect-note')!
+const protectEmpty = document.querySelector<HTMLParagraphElement>('#protect-empty')!
+const protectList = document.querySelector<HTMLUListElement>('#protect-list')!
 const progressPanel = document.querySelector<HTMLElement>('#progress-panel')
 const progressBar = document.querySelector<HTMLProgressElement>('#organize-progress')
 const progressLabel = document.querySelector<HTMLElement>('#progress-label')
@@ -64,6 +82,10 @@ const healthConnected = document.querySelector<HTMLElement>('#health-connected')
 const healthModels = document.querySelector<HTMLElement>('#health-models')!
 const healthWarm = document.querySelector<HTMLElement>('#health-warm')!
 const versionLabel = document.querySelector<HTMLElement>('#version-label')
+
+let latestState: StateResult | null = null
+let pendingCleanupConfirm = false
+let groupTitleById = new Map<number, string>()
 
 const RETITLE_LABEL = 'Rename all groups with AI'
 const TEST_LABEL = 'Test connection'
@@ -309,6 +331,138 @@ const groupHandlers: GroupListHandlers = {
     }
     renderGroups()
   },
+  onToggleCleanupProtect: (group) => {
+    void (async () => {
+      groupUi = { ...groupUi, openMenuId: null }
+      const result = await send<ProtectUpdateResult>({
+        type: 'protect-group',
+        groupId: group.id,
+        protect: !group.cleanupProtected,
+      })
+      showProtectNote(result.ok ? result.summary : result.message)
+      if (result.ok) {
+        latestState = latestState
+          ? { ...latestState, protect: result.protect }
+          : latestState
+        paintProtect(result.protect)
+      }
+      await loadGroups()
+    })()
+  },
+}
+
+function showCleanupNote(text: string): void {
+  cleanupNote.textContent = text
+  cleanupNote.hidden = text === ''
+}
+
+function showProtectNote(text: string): void {
+  protectNote.textContent = text
+  protectNote.hidden = text === ''
+}
+
+function paintCleanupAge(days: number): void {
+  cleanupAgeDays.value = String(days)
+  for (const chip of Array.from(
+    cleanupAgePresets.querySelectorAll<HTMLButtonElement>('.cleanup-age-chip'),
+  )) {
+    const value = Number(chip.dataset.days)
+    chip.classList.toggle('is-active', value === days)
+  }
+}
+
+function paintProtect(protect: StateResult['protect']): void {
+  protectDomains.value = protect.domains.join('\n')
+  protectList.replaceChildren()
+  const rows: { kind: string; label: string; detail: string; remove: () => void }[] = []
+
+  for (const domain of protect.domains) {
+    rows.push({
+      kind: 'Site',
+      label: domain,
+      detail: 'Don’t auto-close tabs from this site',
+      remove: () => {
+        void (async () => {
+          const result = await send<ProtectUpdateResult>({
+            type: 'remove-protect-domain',
+            domain,
+          })
+          showProtectNote(result.ok ? result.summary : result.message)
+          if (result.ok) {
+            latestState = latestState ? { ...latestState, protect: result.protect } : latestState
+            paintProtect(result.protect)
+            await loadGroups()
+          }
+        })()
+      },
+    })
+  }
+
+  for (const groupId of protect.groupIds) {
+    const title = groupTitleById.get(groupId) || `Group #${groupId}`
+    rows.push({
+      kind: 'Group',
+      label: title,
+      detail: 'Don’t auto-close tabs in this group',
+      remove: () => {
+        void (async () => {
+          const result = await send<ProtectUpdateResult>({
+            type: 'remove-protect-group',
+            groupId,
+          })
+          showProtectNote(result.ok ? result.summary : result.message)
+          if (result.ok) {
+            latestState = latestState ? { ...latestState, protect: result.protect } : latestState
+            paintProtect(result.protect)
+            await loadGroups()
+          }
+        })()
+      },
+    })
+  }
+
+  for (const url of protect.urlPatterns) {
+    rows.push({
+      kind: 'Page',
+      label: url,
+      detail: 'Don’t auto-close this page (saved by address, not tab id)',
+      remove: () => {
+        void (async () => {
+          const result = await send<ProtectUpdateResult>({
+            type: 'remove-protect-url',
+            url,
+          })
+          showProtectNote(result.ok ? result.summary : result.message)
+          if (result.ok) {
+            latestState = latestState ? { ...latestState, protect: result.protect } : latestState
+            paintProtect(result.protect)
+          }
+        })()
+      },
+    })
+  }
+
+  protectEmpty.hidden = rows.length > 0
+  for (const row of rows) {
+    const item = document.createElement('li')
+    item.className = 'protect-row'
+    const copy = document.createElement('div')
+    copy.className = 'protect-row-copy'
+    const title = document.createElement('strong')
+    title.textContent = row.label
+    title.title = row.label
+    const meta = document.createElement('span')
+    meta.textContent = `${row.kind} · ${row.detail}`
+    copy.append(title, meta)
+    const remove = document.createElement('button')
+    remove.type = 'button'
+    remove.className = 'btn btn-ghost btn-tiny'
+    remove.textContent = 'Remove'
+    remove.setAttribute('aria-label', `Remove protection for ${row.label}`)
+    remove.addEventListener('click', row.remove)
+    item.append(copy, remove)
+    protectList.append(item)
+  }
 }
 
 function clearRetitleResults(): void {
@@ -363,10 +517,14 @@ function syncTestControls(): void {
 }
 
 function renderState(state: StateResult): void {
+  latestState = state
   llmOn = state.llmOn
   llm.checked = state.llmOn
   organizerOn = state.organizerOn
   organizer.checked = state.organizerOn
+  cleanupOn.checked = state.cleanupOn
+  paintCleanupAge(state.cleanupAgeDays)
+  paintProtect(state.protect)
   selected = state.model
   status.textContent = state.status
   renderRules(state.rules)
@@ -412,6 +570,10 @@ async function loadGroups(): Promise<void> {
       return
     }
     groups = listed.groups
+    groupTitleById = new Map(
+      listed.groups.map((group) => [group.id, group.title.trim() || 'Untitled group']),
+    )
+    if (latestState) paintProtect(latestState.protect)
     tabCountEstimate = listed.groups.reduce((sum, group) => sum + group.tabCount, 0)
     try {
       const tabs = await chrome.tabs.query({ windowId: win.id })
@@ -578,6 +740,149 @@ document.addEventListener('click', () => {
 organizer.addEventListener('change', () => {
   void (async () => {
     renderState(await send<StateResult>({ type: 'set-organizer', on: organizer.checked }))
+  })()
+})
+
+cleanupOn.addEventListener('change', () => {
+  void (async () => {
+    renderState(await send<StateResult>({ type: 'set-cleanup', on: cleanupOn.checked }))
+    showCleanupNote(
+      cleanupOn.checked
+        ? `Automatic clean-up is on · unused for ${formatCleanupAgeLabel(Number(cleanupAgeDays.value) || 30)} · all normal windows`
+        : 'Automatic clean-up is off.',
+    )
+  })()
+})
+
+cleanupAgePresets.addEventListener('click', (event) => {
+  const target = event.target
+  if (!(target instanceof HTMLElement)) return
+  const chip = target.closest<HTMLButtonElement>('.cleanup-age-chip')
+  if (!chip || !cleanupAgePresets.contains(chip)) return
+  const days = Number(chip.dataset.days)
+  if (!CLEANUP_AGE_PRESETS.includes(days as (typeof CLEANUP_AGE_PRESETS)[number])) return
+  void (async () => {
+    renderState(await send<StateResult>({ type: 'set-cleanup-age', days }))
+    showCleanupNote(`Will close tabs unused for ${formatCleanupAgeLabel(days)}.`)
+  })()
+})
+
+cleanupAgeDays.addEventListener('change', () => {
+  void (async () => {
+    const days = Number(cleanupAgeDays.value)
+    renderState(await send<StateResult>({ type: 'set-cleanup-age', days }))
+    showCleanupNote(`Will close tabs unused for ${formatCleanupAgeLabel(days)}.`)
+  })()
+})
+
+cleanupNow.addEventListener('click', () => {
+  void (async () => {
+    cleanupNow.disabled = true
+    showCleanupNote('Counting unused tabs…')
+    try {
+      const win = await browserWindow()
+      const preview = await send<CleanupPreviewResult>({
+        type: 'preview-cleanup',
+        scope: 'window',
+        windowId: win?.id,
+      })
+      if (!preview.ok) {
+        showCleanupNote(preview.message)
+        return
+      }
+      if (preview.count === 0) {
+        showCleanupNote(preview.summary)
+        return
+      }
+      const sample =
+        preview.sampleSiteKeys.length > 0
+          ? ` Includes sites like ${preview.sampleSiteKeys.join(', ')}.`
+          : ''
+      cleanupConfirmBody.textContent = `${preview.summary}${sample} Pinned, active, and protected tabs stay open.`
+      pendingCleanupConfirm = true
+      cleanupConfirmDialog.showModal()
+    } catch {
+      showCleanupNote('Could not preview clean-up.')
+    } finally {
+      cleanupNow.disabled = false
+    }
+  })()
+})
+
+cleanupConfirmDialog.addEventListener('close', () => {
+  const confirmed = pendingCleanupConfirm && cleanupConfirmDialog.returnValue === 'confirm'
+  pendingCleanupConfirm = false
+  cleanupConfirmDialog.returnValue = ''
+  if (!confirmed) return
+  void (async () => {
+    cleanupNow.disabled = true
+    showCleanupNote('Closing old tabs…')
+    try {
+      const win = await browserWindow()
+      const result = await send<CleanupRunResult>({
+        type: 'run-cleanup',
+        scope: 'window',
+        windowId: win?.id,
+        confirm: true,
+      })
+      showCleanupNote(result.ok ? result.summary : result.message)
+      if (result.ok) await loadActivity()
+    } catch {
+      showCleanupNote('Could not clean up tabs.')
+    } finally {
+      cleanupNow.disabled = false
+    }
+  })()
+})
+
+saveProtectDomains.addEventListener('click', () => {
+  void (async () => {
+    const state = await send<StateResult>({
+      type: 'set-protect-domains',
+      domains: protectDomains.value.split(/[\n,]+/).map((row) => row.trim()).filter(Boolean),
+    })
+    renderState(state)
+    showProtectNote(
+      state.protect.domains.length === 0
+        ? 'No protected sites saved.'
+        : `Protecting ${state.protect.domains.length} site${state.protect.domains.length === 1 ? '' : 's'}.`,
+    )
+  })()
+})
+
+protectActiveSite.addEventListener('click', () => {
+  void (async () => {
+    const state = await send<StateResult>({ type: 'get-state' })
+    const site = state.activeTab?.siteKey
+    if (!site) {
+      showProtectNote('Open an http(s) tab first, then try again.')
+      return
+    }
+    const result = await send<ProtectUpdateResult>({
+      type: 'protect-domain',
+      domain: site,
+      protect: true,
+    })
+    showProtectNote(result.ok ? result.summary : result.message)
+    if (result.ok) renderState({ ...state, protect: result.protect })
+  })()
+})
+
+protectActivePage.addEventListener('click', () => {
+  void (async () => {
+    const state = await send<StateResult>({ type: 'get-state' })
+    const pattern = state.activeTab?.urlPattern
+    if (!pattern) {
+      showProtectNote('Open an http(s) page first, then try again.')
+      return
+    }
+    const result = await send<ProtectUpdateResult>({
+      type: 'protect-url',
+      url: pattern,
+      protect: true,
+    })
+    showProtectNote(result.ok ? result.summary : result.message)
+    if (result.ok) renderState({ ...state, protect: result.protect })
   })()
 })
 

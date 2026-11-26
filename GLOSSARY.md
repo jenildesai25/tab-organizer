@@ -48,6 +48,14 @@ _Avoid_: Flash, highlight
 One pass over the current window that files ungrouped pages. The group the person is looking at stays open, and the other groups from that pass stay collapsed. A sweep leaves the **Organizer** off.
 _Avoid_: Scan, cleanup
 
+**Clean up old tabs**:
+Optional close of http(s) tabs unused longer than an age threshold (`lastAccessed`). Default off. Manual runs on this window with confirmation; auto uses `chrome.alarms` across normal windows.
+_Avoid_: Suspend, discard, park, never list
+
+**Protect**:
+Sites, groups, or pages that Clean up old tabs must leave alone.
+_Avoid_: Never list, whitelist, blocklist
+
 **Stickiness**:
 A tab a person dragged by hand. Watch mode leaves it where they put it. A **Sweep** still files it while it sits outside a group.
 _Avoid_: Pin, lock

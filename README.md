@@ -19,7 +19,9 @@ Local source files: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer
 - **Local model (optional)** — Turn on Ollama on your machine when a rule or tab is unclear. Nothing is sent to a Tab Organizer server.
 - **AI rename groups** — Rewrite group titles from the tabs inside them; tabs stay where they are.
 - **Dashboard Groups** — Rename, recolor, or ungroup from the Groups panel.
-- **Activity log** — Plain-language history of organizes, auto-files, AI renames, your edits, and rules. Filter and clear anytime.
+- **Clean up old tabs** — Optional (default off). Close http(s) tabs you haven’t used in 7 / 30 / 90 days (or a custom age), using Chrome `lastAccessed` and `chrome.alarms`. **Clean up now** previews a count and asks before closing (this window). Automatic clean-up checks all normal windows. Always skips pinned tabs, the active tab, non-http(s) pages, and anything you Protect.
+- **Protect** — Don’t auto-close chosen sites, groups (Groups ⋯ → “Never auto-clean this group”), or pages (saved by address, not tab id). Manage the list in Settings.
+- **Activity log** — Plain-language history of organizes, auto-files, AI renames, clean-ups, your edits, and rules. Filter and clear anytime.
 - **Theme** — Light, dark, or match the system.
 - **Privacy-first** — Feature cards stay local; activity stores site keys / domains, not full URLs. See [Privacy](#privacy).
 
@@ -57,8 +59,15 @@ Open the extension popup from the toolbar.
 | **Test connection** | Verify the extension can reach Ollama |
 | **Rename groups with AI** | Rewrite group titles from tab titles (tabs stay put) |
 | **This window** | Compact group count for the current window; open the dashboard to manage groups |
+| **Protect this site** | Keep the current tab’s site out of automatic clean-up |
 | **Rules** | Opens the dashboard Rules section |
-| **Settings** | Opens the dashboard Settings section |
+| **Settings** | Opens Clean up old tabs, Protect, models, activity & more |
+
+### Clean up & Protect (dashboard Settings)
+
+Turn on **Clean up old tabs automatically** only if you want hourly background closes of unused tabs. Prefer **Clean up now** for a one-shot pass on this window with a confirmation (“Close N tabs?”).
+
+Use **Protect** so important sites, groups, or pages are never auto-closed. Page protection stores the URL pattern (durable across restarts); Chrome tab ids are not used because they change.
 
 ### Rules (dashboard)
 

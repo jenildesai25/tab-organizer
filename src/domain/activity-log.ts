@@ -10,6 +10,7 @@ export type ActivityAction =
   | 'group.recolor'
   | 'group.ungroup'
   | 'tab.file'
+  | 'tab.close'
   | 'rename.skip'
 
 export type ActivityEntry = {
@@ -41,6 +42,7 @@ const ACTIONS = new Set<ActivityAction>([
   'group.recolor',
   'group.ungroup',
   'tab.file',
+  'tab.close',
   'rename.skip',
 ])
 
@@ -232,6 +234,13 @@ export function formatActivityBody(entry: ActivityEntry): string {
       const count = entry.tabCount ?? 1
       const noun = count === 1 ? 'a tab' : `${count} tabs`
       body = `${who} put ${noun} in ${quoteTitle(entry.groupTitle ?? entry.newTitle)}`
+      break
+    }
+    case 'tab.close': {
+      const count = entry.tabCount ?? 1
+      const noun = count === 1 ? '1 old tab' : `${count} old tabs`
+      const reason = entry.reason?.trim()
+      body = reason ? `${who} closed ${noun} (${reason})` : `${who} closed ${noun}`
       break
     }
     case 'rename.skip': {

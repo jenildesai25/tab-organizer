@@ -20,6 +20,8 @@ export type TabGroupView = {
   tabCount: number
   /** Shared groups cannot be renamed, recoloured, or ungrouped from the dashboard. */
   editable: boolean
+  /** When true, auto-clean will not close tabs in this group. */
+  cleanupProtected?: boolean
 }
 
 /** Approximate chip colours matching Chrome’s tab-group swatches. */

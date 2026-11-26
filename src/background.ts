@@ -30,13 +30,29 @@ import { isShortTitle } from './domain/words.js'
 import { marksSticky } from './domain/stickiness.js'
 import { describeSweep, sweepClaimsNothing } from './domain/summary.js'
 import { isChromeColor, tabGroupViewFromChrome, tabGroupViewsFromChrome } from './domain/tab-groups.js'
+import {
+  CLEANUP_ALARM_NAME,
+  CLEANUP_ALARM_PERIOD_MINUTES,
+  clampCleanupAgeDays,
+  formatCleanupAgeLabel,
+  normalizeProtectDomains,
+  normalizeUrlPattern,
+  selectCleanupTargets,
+  siteKeyForCleanupTab,
+  urlMatchesProtectPattern,
+  urlPatternForCleanupTab,
+  type ProtectLists,
+} from './domain/tab-cleanup.js'
 import { describeOllamaFailure, listLocalModels, ollamaChat, OLLAMA_DOWN_MESSAGE } from './ollama.js'
 import type {
   ActivityLogResult,
+  CleanupPreviewResult,
+  CleanupRunResult,
   ClearActivityResult,
   ListGroupsResult,
   ModelsResult,
   PreviewResult,
+  ProtectUpdateResult,
   RetitleGroupResult,
   RetitleGroupsResult,
   RetitleProgress,
@@ -52,6 +68,7 @@ import {
   clearActivityLog,
   loadActivityLog,
   loadSettings,
+  pruneProtectGroups,
   restoreHandRenamedIds,
   saveHandRenamedIds,
   saveSettings,
@@ -484,11 +501,184 @@ async function testOllama(): Promise<TestOllamaResult> {
   }
 }
 
+async function activeTabSnapshot(): Promise<StateResult['activeTab']> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true })
+    if (!tab?.id || tab.incognito) return null
+    const settings = await loadSettings()
+    const siteKey = siteKeyForCleanupTab(tab)
+    const urlPattern = urlPatternForCleanupTab(tab)
+    const protectedDomain = Boolean(siteKey && settings.protect.domains.includes(siteKey))
+    const protectedUrl =
+      Boolean(urlPattern) &&
+      settings.protect.urlPatterns.some((pattern) => urlMatchesProtectPattern(urlPattern, pattern))
+    return {
+      id: tab.id,
+      title: (tab.title || '').trim() || 'Untitled',
+      siteKey,
+      urlPattern,
+      protectedDomain,
+      protectedUrl,
+    }
+  } catch {
+    return null
+  }
+}
+
+async function syncCleanupAlarm(enabled: boolean): Promise<void> {
+  await chrome.alarms.clear(CLEANUP_ALARM_NAME)
+  if (!enabled) return
+  await chrome.alarms.create(CLEANUP_ALARM_NAME, {
+    periodInMinutes: CLEANUP_ALARM_PERIOD_MINUTES,
+  })
+}
+
+async function resolveCleanupWindowId(windowId?: number): Promise<number> {
+  // Prefer the exact window the UI asked for (manual clean-up is this-window scoped).
+  if (typeof windowId === 'number' && Number.isFinite(windowId) && windowId >= 0) {
+    try {
+      const win = await chrome.windows.get(windowId)
+      if (!win.incognito && (win.type === undefined || win.type === 'normal') && win.id != null) {
+        return win.id
+      }
+    } catch {
+      // Fall through to last-focused.
+    }
+  }
+  try {
+    const focused = await chrome.windows.getLastFocused({ windowTypes: ['normal'] })
+    if (focused.id != null && !focused.incognito) return focused.id
+  } catch {
+    // Fall through.
+  }
+  return resolveSweepWindowId(chrome.windows.WINDOW_ID_NONE)
+}
+
+async function collectCleanupTabs(scope: 'window' | 'all', windowId?: number): Promise<chrome.tabs.Tab[]> {
+  if (scope === 'window') {
+    const id = await resolveCleanupWindowId(windowId)
+    const win = await chrome.windows.get(id)
+    if (win.incognito || (win.type !== undefined && win.type !== 'normal')) return []
+    return chrome.tabs.query({ windowId: id })
+  }
+
+  const windows = await chrome.windows.getAll({ populate: false, windowTypes: ['normal'] })
+  const tabs: chrome.tabs.Tab[] = []
+  for (const win of windows) {
+    if (win.incognito || win.id == null) continue
+    const listed = await chrome.tabs.query({ windowId: win.id })
+    tabs.push(...listed)
+  }
+  return tabs
+}
+
+async function previewCleanup(
+  scope: 'window' | 'all' = 'window',
+  windowId?: number,
+): Promise<CleanupPreviewResult> {
+  try {
+    const settings = await loadSettings()
+    const tabs = await collectCleanupTabs(scope, windowId)
+    const targets = selectCleanupTargets(tabs, {
+      now: Date.now(),
+      ageDays: settings.cleanupAgeDays,
+      protect: settings.protect,
+    })
+    const sampleSiteKeys = [
+      ...new Set(targets.map((row) => row.siteKey).filter((key): key is string => Boolean(key))),
+    ].slice(0, 5)
+    const age = formatCleanupAgeLabel(settings.cleanupAgeDays)
+    const where = scope === 'window' ? 'this window' : 'all windows'
+    const summary =
+      targets.length === 0
+        ? `No tabs in ${where} unused for ${age}.`
+        : targets.length === 1
+          ? `Close 1 tab in ${where} unused for ${age}?`
+          : `Close ${targets.length} tabs in ${where} unused for ${age}?`
+    return {
+      ok: true,
+      count: targets.length,
+      ageDays: settings.cleanupAgeDays,
+      scope,
+      sampleSiteKeys,
+      summary,
+    }
+  } catch (error) {
+    const text = error instanceof Error && error.message ? error.message : 'Could not preview cleanup.'
+    return { ok: false, message: text }
+  }
+}
+
+async function runCleanup(options: {
+  scope: 'window' | 'all'
+  windowId?: number
+  confirm?: boolean
+  confirmedByAlarm?: boolean
+}): Promise<CleanupRunResult> {
+  if (!options.confirm && !options.confirmedByAlarm) {
+    return { ok: false, message: 'Confirm before closing tabs.' }
+  }
+
+  const settings = await loadSettings()
+  if (options.confirmedByAlarm && !settings.cleanupOn) {
+    return { ok: true, closed: 0, skipped: 0, summary: 'Clean up old tabs is off.' }
+  }
+
+  try {
+    const tabs = await collectCleanupTabs(options.scope, options.windowId)
+    const targets = selectCleanupTargets(tabs, {
+      now: Date.now(),
+      ageDays: settings.cleanupAgeDays,
+      protect: settings.protect,
+    })
+    if (targets.length === 0) {
+      return {
+        ok: true,
+        closed: 0,
+        skipped: tabs.length,
+        summary: `No tabs unused for ${formatCleanupAgeLabel(settings.cleanupAgeDays)}.`,
+      }
+    }
+
+    const ids = targets.map((row) => row.tabId)
+    await chrome.tabs.remove(ids)
+    const closed = ids.length
+    const age = formatCleanupAgeLabel(settings.cleanupAgeDays)
+    const actor = options.confirmedByAlarm ? 'system' : 'user'
+    await recordActivity({
+      actor,
+      action: 'tab.close',
+      tabCount: closed,
+      reason: `unused for ${age}`,
+      siteKey: targets[0]?.siteKey,
+    })
+    const summary =
+      closed === 1
+        ? `Closed 1 old tab (unused for ${age}).`
+        : `Closed ${closed} old tabs (unused for ${age}).`
+    return { ok: true, closed, skipped: tabs.length - closed, summary }
+  } catch (error) {
+    const text = error instanceof Error && error.message ? error.message : 'Could not clean up tabs.'
+    return { ok: false, message: text }
+  }
+}
+
+async function saveProtect(protect: ProtectLists, summary: string): Promise<ProtectUpdateResult> {
+  const settings = await loadSettings()
+  await saveSettings({ ...settings, protect })
+  return { ok: true, protect, summary }
+}
+
 async function currentState(): Promise<StateResult> {
   const settings = await loadSettings()
   organizerOn = settings.organizerOn
   llmOn = settings.llmOn
-  return { ...settings, status: statusLine(settings), retitle: retitleProgress }
+  return {
+    ...settings,
+    status: statusLine(settings),
+    retitle: retitleProgress,
+    activeTab: await activeTabSnapshot(),
+  }
 }
 
 async function previewRule(sentence: string): Promise<PreviewResult> {
@@ -643,6 +833,109 @@ async function handle(message: ToBackground): Promise<unknown> {
   if (message.type === 'clear-activity') {
     await clearActivityLog()
     return { ok: true } satisfies ClearActivityResult
+  }
+  if (message.type === 'set-cleanup') {
+    settingsEpoch += 1
+    const settings = await loadSettings()
+    await saveSettings({ ...settings, cleanupOn: message.on })
+    await syncCleanupAlarm(message.on)
+    return currentState()
+  }
+  if (message.type === 'set-cleanup-age') {
+    const settings = await loadSettings()
+    await saveSettings({ ...settings, cleanupAgeDays: clampCleanupAgeDays(message.days) })
+    return currentState()
+  }
+  if (message.type === 'set-protect-domains') {
+    const settings = await loadSettings()
+    const protect = {
+      ...settings.protect,
+      domains: normalizeProtectDomains(message.domains),
+    }
+    await saveSettings({ ...settings, protect })
+    return currentState()
+  }
+  if (message.type === 'protect-group') {
+    const settings = await loadSettings()
+    const set = new Set(settings.protect.groupIds)
+    if (message.protect) set.add(message.groupId)
+    else set.delete(message.groupId)
+    return saveProtect(
+      { ...settings.protect, groupIds: [...set] },
+      message.protect
+        ? 'This group will not be auto-closed.'
+        : 'This group can be auto-closed again.',
+    )
+  }
+  if (message.type === 'protect-domain') {
+    const settings = await loadSettings()
+    const domain = normalizeProtectDomains([message.domain])[0]
+    if (!domain) return { ok: false, message: 'Enter a site like github.com.' } satisfies ProtectUpdateResult
+    const set = new Set(settings.protect.domains)
+    if (message.protect) set.add(domain)
+    else set.delete(domain)
+    return saveProtect(
+      { ...settings.protect, domains: [...set] },
+      message.protect
+        ? `Won’t auto-close ${domain}.`
+        : `${domain} can be auto-closed again.`,
+    )
+  }
+  if (message.type === 'protect-url') {
+    const settings = await loadSettings()
+    const pattern = normalizeUrlPattern(message.url)
+    if (!pattern) return { ok: false, message: 'That page address could not be saved.' } satisfies ProtectUpdateResult
+    const set = new Set(settings.protect.urlPatterns)
+    if (message.protect) set.add(pattern)
+    else set.delete(pattern)
+    return saveProtect(
+      { ...settings.protect, urlPatterns: [...set] },
+      message.protect
+        ? 'Won’t auto-close this page.'
+        : 'This page can be auto-closed again.',
+    )
+  }
+  if (message.type === 'remove-protect-domain') {
+    const settings = await loadSettings()
+    return saveProtect(
+      {
+        ...settings.protect,
+        domains: settings.protect.domains.filter((domain) => domain !== message.domain),
+      },
+      'Removed site protection.',
+    )
+  }
+  if (message.type === 'remove-protect-group') {
+    const settings = await loadSettings()
+    return saveProtect(
+      {
+        ...settings.protect,
+        groupIds: settings.protect.groupIds.filter((id) => id !== message.groupId),
+      },
+      'Removed group protection.',
+    )
+  }
+  if (message.type === 'remove-protect-url') {
+    const settings = await loadSettings()
+    const pattern = normalizeUrlPattern(message.url) ?? message.url
+    return saveProtect(
+      {
+        ...settings.protect,
+        urlPatterns: settings.protect.urlPatterns.filter((entry) => entry !== pattern),
+      },
+      'Removed page protection.',
+    )
+  }
+  if (message.type === 'preview-cleanup') {
+    return previewCleanup(message.scope ?? 'window', message.windowId)
+  }
+  if (message.type === 'run-cleanup') {
+    return runCleanup({
+      scope: message.scope ?? 'window',
+      windowId: message.windowId,
+      confirm: message.confirm,
+      confirmedByAlarm: message.confirmedByAlarm,
+    })
   }
   return { ok: false, message: 'Unknown message.' }
 }
@@ -1018,11 +1311,17 @@ async function retitleGroups(requestedId: number): Promise<RetitleGroupsResult> 
 async function listGroups(requestedId: number): Promise<ListGroupsResult> {
   try {
     const windowId = await resolveSweepWindowId(requestedId)
-    const [groups, tabs] = await Promise.all([
+    const [groups, tabs, settings] = await Promise.all([
       chrome.tabGroups.query({ windowId }),
       chrome.tabs.query({ windowId }),
+      loadSettings(),
     ])
-    return { ok: true, windowId, groups: tabGroupViewsFromChrome(groups, tabs) }
+    const protectedIds = new Set(settings.protect.groupIds)
+    const views = tabGroupViewsFromChrome(groups, tabs).map((group) => ({
+      ...group,
+      cleanupProtected: protectedIds.has(group.id),
+    }))
+    return { ok: true, windowId, groups: views }
   } catch (error) {
     const text = error instanceof Error && error.message ? error.message : 'Could not list groups.'
     return { ok: false, message: text }
@@ -1170,6 +1469,17 @@ chrome.tabGroups.onUpdated.addListener((group) => {
 chrome.tabGroups.onRemoved.addListener((group) => {
   void forgetHandRenamed(group.id)
   groupTitles.delete(group.id)
+  void (async () => {
+    const settings = await loadSettings()
+    if (!settings.protect.groupIds.includes(group.id)) return
+    await saveSettings({
+      ...settings,
+      protect: {
+        ...settings.protect,
+        groupIds: settings.protect.groupIds.filter((id) => id !== group.id),
+      },
+    })
+  })()
 })
 
 chrome.windows.onFocusChanged.addListener((windowId) => {
@@ -1179,7 +1489,7 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
 
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area !== 'local') return
-  if (changes.organizerOn || changes.llmOn) settingsEpoch += 1
+  if (changes.organizerOn || changes.llmOn || changes.cleanupOn) settingsEpoch += 1
   if (changes.organizerOn) organizerOn = changes.organizerOn.newValue === true
   if (changes.llmOn) {
     llmOn = changes.llmOn.newValue === true
@@ -1188,6 +1498,14 @@ chrome.storage.onChanged.addListener((changes, area) => {
       advisorPending.clear()
     }
   }
+  if (changes.cleanupOn) {
+    void syncCleanupAlarm(changes.cleanupOn.newValue === true)
+  }
+})
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name !== CLEANUP_ALARM_NAME) return
+  void runCleanup({ scope: 'all', confirmedByAlarm: true }).catch(() => {})
 })
 
 async function boot(): Promise<void> {
@@ -1197,6 +1515,7 @@ async function boot(): Promise<void> {
     organizerOn = settings.organizerOn
     llmOn = settings.llmOn
   }
+  await syncCleanupAlarm(settings.cleanupOn)
   const groups = await chrome.tabGroups.query({})
   for (const group of groups) {
     if (!groupTitles.has(group.id)) groupTitles.set(group.id, group.title ?? '')
@@ -1205,6 +1524,7 @@ async function boot(): Promise<void> {
   const restored = await restoreHandRenamedIds(liveIds)
   handRenamed.clear()
   for (const id of restored) handRenamed.add(id)
+  await pruneProtectGroups(liveIds)
 }
 
 void boot()
