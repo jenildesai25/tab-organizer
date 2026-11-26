@@ -245,6 +245,26 @@
         <p class="settings-note">
           Status: <span id="status">Auto-group is off.</span>
         </p>
+        <label class="switch" for="quiet-hours-on">
+          <span class="switch-copy">
+            <span class="switch-title">Quiet hours</span>
+            <span class="switch-hint">Pause auto-group during these hours. Organize this window still works.</span>
+          </span>
+          <span class="switch-control">
+            <input id="quiet-hours-on" type="checkbox" role="switch" />
+            <span class="switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
+        <div class="quiet-hours-range" id="quiet-hours-range">
+          <label class="field" for="quiet-hours-start">
+            <span>From</span>
+            <input id="quiet-hours-start" type="number" min="0" max="23" step="1" value="23" />
+          </label>
+          <label class="field" for="quiet-hours-end">
+            <span>Until</span>
+            <input id="quiet-hours-end" type="number" min="0" max="23" step="1" value="7" />
+          </label>
+        </div>
 
         <h3 class="settings-subhead" id="cleanup-heading">Clean up old tabs</h3>
         <p class="lede">

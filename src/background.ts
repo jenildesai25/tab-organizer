@@ -47,6 +47,13 @@ import {
   formatProtectPresetSummary,
 } from './domain/protect-presets.js'
 import {
+  DEFAULT_QUIET_HOURS_END,
+  DEFAULT_QUIET_HOURS_START,
+  clampHour,
+  isQuietHour,
+  quietHoursStatusLine,
+} from './domain/quiet-hours.js'
+import {
   assignTabsToLayout,
   buildWorkspaceLayout,
   clampLayoutName,
@@ -494,6 +501,13 @@ async function run(windowId: number, mode: 'watch' | 'sweep'): Promise<string> {
   organizerOn = settings.organizerOn
   llmOn = settings.llmOn
   if (mode === 'watch' && !settings.organizerOn) return ''
+  if (
+    mode === 'watch' &&
+    settings.quietHoursOn &&
+    isQuietHour(new Date(), settings.quietHoursStart, settings.quietHoursEnd)
+  ) {
+    return ''
+  }
   const focused = (await focusedWindowId()) === windowId
   if (mode === 'watch' && !focused) return ''
   const win = await chrome.windows.get(windowId)
@@ -529,7 +543,16 @@ function schedule(windowId: number): void {
 }
 
 function statusLine(settings: Settings): string {
-  const line = settings.organizerOn ? 'Auto-grouping in this window.' : 'Auto-group is off.'
+  const quiet = quietHoursStatusLine({
+    enabled: settings.quietHoursOn,
+    startHour: settings.quietHoursStart,
+    endHour: settings.quietHoursEnd,
+  })
+  const line = quiet
+    ? quiet
+    : settings.organizerOn
+      ? 'Auto-grouping in this window.'
+      : 'Auto-group is off.'
   return statusNote ? `${line} ${statusNote}` : line
 }
 
@@ -995,6 +1018,22 @@ async function handle(message: ToBackground): Promise<unknown> {
     settingsEpoch += 1
     organizerOn = message.on
     await updateSettings((current) => ({ ...current, organizerOn: message.on }))
+    return currentState()
+  }
+  if (message.type === 'set-quiet-hours') {
+    settingsEpoch += 1
+    await updateSettings((current) => ({
+      ...current,
+      quietHoursOn: message.on,
+      quietHoursStart:
+        message.startHour === undefined
+          ? current.quietHoursStart
+          : clampHour(message.startHour, DEFAULT_QUIET_HOURS_START),
+      quietHoursEnd:
+        message.endHour === undefined
+          ? current.quietHoursEnd
+          : clampHour(message.endHour, DEFAULT_QUIET_HOURS_END),
+    }))
     return currentState()
   }
   if (message.type === 'set-llm') {

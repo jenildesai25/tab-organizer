@@ -38,6 +38,9 @@ import { bindThemeToggle } from '../ui/theme.js'
 
 const status = document.querySelector<HTMLParagraphElement>('#status')!
 const organizer = document.querySelector<HTMLInputElement>('#organizer')!
+const quietHoursOn = document.querySelector<HTMLInputElement>('#quiet-hours-on')!
+const quietHoursStart = document.querySelector<HTMLInputElement>('#quiet-hours-start')!
+const quietHoursEnd = document.querySelector<HTMLInputElement>('#quiet-hours-end')!
 const sweep = document.querySelector<HTMLButtonElement>('#sweep')!
 const resultLine = document.querySelector<HTMLParagraphElement>('#result')!
 const sentence = document.querySelector<HTMLTextAreaElement>('#sentence')!
@@ -629,6 +632,11 @@ function renderState(state: StateResult): void {
   paintCleanupAge(state.cleanupAgeDays)
   paintCleanupUndo(state.cleanupUndo ?? null)
   protectHandRenamed.checked = state.protectHandRenamed === true
+  quietHoursOn.checked = state.quietHoursOn === true
+  quietHoursStart.value = String(state.quietHoursStart ?? 23)
+  quietHoursEnd.value = String(state.quietHoursEnd ?? 7)
+  quietHoursStart.disabled = !quietHoursOn.checked
+  quietHoursEnd.disabled = !quietHoursOn.checked
   paintProtect(state.protect)
   selected = state.model
   status.textContent = state.status
@@ -846,6 +854,27 @@ organizer.addEventListener('change', () => {
   void (async () => {
     renderState(await send<StateResult>({ type: 'set-organizer', on: organizer.checked }))
   })()
+})
+
+async function persistQuietHours(): Promise<void> {
+  renderState(
+    await send<StateResult>({
+      type: 'set-quiet-hours',
+      on: quietHoursOn.checked,
+      startHour: Number(quietHoursStart.value),
+      endHour: Number(quietHoursEnd.value),
+    }),
+  )
+}
+
+quietHoursOn.addEventListener('change', () => {
+  void persistQuietHours()
+})
+quietHoursStart.addEventListener('change', () => {
+  void persistQuietHours()
+})
+quietHoursEnd.addEventListener('change', () => {
+  void persistQuietHours()
 })
 
 cleanupOn.addEventListener('change', () => {

@@ -42,6 +42,9 @@ export type StateResult = {
   cleanupAgeDays: number
   protect: ProtectLists
   protectHandRenamed: boolean
+  quietHoursOn: boolean
+  quietHoursStart: number
+  quietHoursEnd: number
   status: string
   /** Present while a retitle-groups job is running. */
   retitle?: RetitleProgress | null
@@ -177,6 +180,7 @@ export type ToBackground =
   | { type: 'set-protect-domains'; domains: string[] }
   | { type: 'apply-protect-preset'; id: string }
   | { type: 'set-protect-hand-renamed'; on: boolean }
+  | { type: 'set-quiet-hours'; on: boolean; startHour?: number; endHour?: number }
   | { type: 'protect-group'; groupId: number; protect: boolean }
   | { type: 'protect-domain'; domain: string; protect: boolean }
   | { type: 'protect-url'; url: string; protect: boolean }

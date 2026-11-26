@@ -478,6 +478,22 @@ main {
   letter-spacing: -0.02em;
 }
 
+.quiet-hours-range {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 18px;
+}
+
+.quiet-hours-range .field {
+  min-width: 7rem;
+  max-width: 9rem;
+}
+
+.quiet-hours-range input {
+  width: 100%;
+}
+
 .cleanup-age {
   margin: 12px 0 8px;
   padding: 0;
