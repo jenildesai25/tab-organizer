@@ -244,23 +244,23 @@ async function sleep(ms) {
 
 async function stagePopupCanvas(page) {
   await page.evaluate(() => {
-    document.documentElement.style.width = '100%'
-    document.documentElement.style.height = '100%'
-    document.body.style.minHeight = '100vh'
-    document.body.style.margin = '0'
-    document.body.style.display = 'flex'
-    document.body.style.justifyContent = 'center'
-    document.body.style.alignItems = 'flex-start'
-    document.body.style.padding = '48px 24px'
-    document.body.style.boxSizing = 'border-box'
-    document.body.style.background =
+    // body.popup-body IS the popup card — do not set display:flex on it
+    // (that would row-layout header/sections). Stage the html backdrop instead.
+    const html = document.documentElement
+    html.style.width = '100%'
+    html.style.minHeight = '100%'
+    html.style.background =
       'radial-gradient(ellipse at 15% 0%, #ccfbf1 0%, transparent 42%), radial-gradient(ellipse at 90% 100%, #ffedd5 0%, transparent 40%), #f1f5f9'
-    const root = document.querySelector('.popup-body') || document.body
-    root.style.width = '520px'
-    root.style.maxWidth = '520px'
-    root.style.boxShadow = '0 24px 60px rgba(15,23,42,.18)'
-    root.style.borderRadius = '16px'
-    root.style.overflow = 'hidden'
+    const body = document.body
+    body.style.width = '430px'
+    body.style.minWidth = '430px'
+    body.style.maxWidth = '430px'
+    body.style.margin = '56px auto'
+    body.style.maxHeight = 'none'
+    body.style.overflow = 'visible'
+    body.style.boxShadow = '0 24px 60px rgba(15,23,42,.18)'
+    body.style.borderRadius = '16px'
+    body.style.border = '1px solid color-mix(in oklab, #0f766e 18%, #e2e8f0)'
   })
 }
 
@@ -330,11 +330,11 @@ async function main() {
       page,
       recorder,
       'File tabs into native groups',
-      'Plain-language rules · optional local Ollama · activity stays on your device',
-      2200,
+      'Organize · File new tabs · optional local Ollama · Groups & Activity',
+      2000,
     )
 
-    // Popup tour
+    // Popup tour — Organize, toggles, model picker
     await page.goto(`chrome-extension://${id}/popup/popup.html`, {
       waitUntil: 'domcontentloaded',
       timeout: 30_000,
@@ -344,27 +344,55 @@ async function main() {
       document.querySelector('.theme-toggle [data-theme="light"]')?.click()
     })
     await stagePopupCanvas(page)
-    await recorder.hold(1800)
+    await recorder.hold(1600)
 
-    const llm = await page.$('#llm')
-    if (llm) {
-      const checked = await page.$eval('#llm', (el) => el.checked)
-      if (!checked) await llm.click()
-    }
-    await ensureModelPicker(page)
-    await stagePopupCanvas(page)
-    await recorder.hold(1200)
-
-    const trigger = await page.$('#model-trigger')
-    if (trigger) {
-      await trigger.click()
+    const sweep = await page.$('#sweep')
+    if (sweep) {
+      await sweep.hover()
+      await recorder.hold(900)
       await page.evaluate(() => {
-        const list = document.getElementById('model-list')
-        if (list) list.hidden = false
+        const panel = document.getElementById('progress-panel')
+        const label = document.getElementById('progress-label')
+        const value = document.getElementById('progress-value')
+        const bar = document.getElementById('organize-progress')
+        const result = document.getElementById('result')
+        const button = document.getElementById('sweep')
+        if (panel) panel.hidden = false
+        if (label) label.textContent = 'Filing tabs…'
+        if (value) value.textContent = '0%'
+        if (bar) bar.value = 0
+        if (button) {
+          button.disabled = true
+          button.textContent = 'Organizing…'
+        }
+        if (result) result.hidden = true
       })
-      await recorder.hold(1800)
-      await trigger.click()
-      await recorder.hold(600)
+      for (const pct of [28, 55, 82, 100]) {
+        await page.evaluate((p) => {
+          const value = document.getElementById('progress-value')
+          const bar = document.getElementById('organize-progress')
+          if (value) value.textContent = `${p}%`
+          if (bar) bar.value = p
+        }, pct)
+        await recorder.hold(350)
+      }
+      await page.evaluate(() => {
+        const panel = document.getElementById('progress-panel')
+        const result = document.getElementById('result')
+        const button = document.getElementById('sweep')
+        if (panel) panel.hidden = true
+        if (button) {
+          button.disabled = false
+          button.innerHTML =
+            '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h13" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg> Organize this window'
+        }
+        if (result) {
+          result.hidden = false
+          result.textContent = 'Filed 5 tabs into 3 groups'
+        }
+      })
+      await stagePopupCanvas(page)
+      await recorder.hold(1400)
     }
 
     const organizer = await page.$('#organizer')
@@ -375,20 +403,35 @@ async function main() {
       await recorder.hold(700)
     }
 
+    const llm = await page.$('#llm')
+    if (llm) {
+      const checked = await page.$eval('#llm', (el) => el.checked)
+      if (!checked) await llm.click()
+    }
+    await ensureModelPicker(page)
+    await stagePopupCanvas(page)
+    await recorder.hold(1000)
+
+    const trigger = await page.$('#model-trigger')
+    if (trigger) {
+      await trigger.click()
+      await page.evaluate(() => {
+        const list = document.getElementById('model-list')
+        if (list) list.hidden = false
+      })
+      await recorder.hold(1500)
+      await trigger.click()
+      await recorder.hold(500)
+    }
+
     const refresh = await page.$('#refresh-groups')
     if (refresh) {
       await refresh.click()
-      await recorder.hold(1000)
+      await recorder.hold(900)
     }
+    await recorder.hold(600)
 
-    const sweep = await page.$('#sweep')
-    if (sweep) {
-      await sweep.hover()
-      await recorder.hold(1600)
-    }
-    await recorder.hold(800)
-
-    await showTitleCard(page, recorder, 'Dashboard', 'Rules, groups, and a local activity history', 1800)
+    await showTitleCard(page, recorder, 'Dashboard', 'Groups and a local activity history', 1500)
 
     await page.goto(`chrome-extension://${id}/dashboard/index.html`, {
       waitUntil: 'domcontentloaded',
@@ -398,34 +441,29 @@ async function main() {
     await page.evaluate(() => {
       document.querySelector('.theme-toggle [data-theme="light"]')?.click()
     })
-    await recorder.hold(1000)
-
-    await page.evaluate(() => {
-      document.getElementById('rules')?.scrollIntoView({ behavior: 'instant', block: 'start' })
-    })
-    await recorder.hold(2600)
+    await recorder.hold(800)
 
     await page.evaluate(() => {
       document.getElementById('groups')?.scrollIntoView({ behavior: 'instant', block: 'start' })
     })
-    await recorder.hold(1000)
+    await recorder.hold(1200)
     const refreshGroups = await page.$('#refresh-groups')
     if (refreshGroups) {
       await refreshGroups.click()
-      await recorder.hold(1200)
+      await recorder.hold(1400)
     }
-    await recorder.hold(1200)
+    await recorder.hold(1000)
 
     await page.evaluate(() => {
       document.getElementById('activity')?.scrollIntoView({ behavior: 'instant', block: 'start' })
     })
     await recorder.hold(1600)
 
-    for (const filter of ['ai', 'rules', 'organize', 'all']) {
+    for (const filter of ['ai', 'organize', 'all']) {
       await page.evaluate((value) => {
         document.querySelector(`.activity-filter-chip[data-filter="${value}"]`)?.click()
       }, filter)
-      await recorder.hold(800)
+      await recorder.hold(750)
     }
     await recorder.hold(900)
 
@@ -434,7 +472,7 @@ async function main() {
       recorder,
       'Private by default',
       'No Tab Organizer cloud — optional Local model talks only to Ollama on localhost',
-      2800,
+      2400,
     )
 
     await page.close().catch(() => {})
@@ -448,6 +486,8 @@ async function main() {
 
   const mp4 = path.join(outDir, 'tab-organizer-demo.mp4')
   const webm = path.join(outDir, 'tab-organizer-demo.webm')
+  const gif = path.join(outDir, 'tab-organizer-demo.gif')
+  const poster = path.join(outDir, 'tab-organizer-demo-poster.jpg')
 
   await run('ffmpeg', [
     '-y',
@@ -490,13 +530,50 @@ async function main() {
     console.warn('webm encode skipped:', error instanceof Error ? error.message : error)
   }
 
+  // Poster ~ mid popup Organize beat, plus a compact GIF fallback for README.
+  const posterFrame = Math.min(frames.length - 1, Math.max(0, Math.floor(frames.length * 0.22)))
+  try {
+    await run('ffmpeg', [
+      '-y',
+      '-i',
+      mp4,
+      '-ss',
+      String((posterFrame / FPS).toFixed(2)),
+      '-frames:v',
+      '1',
+      '-q:v',
+      '3',
+      poster,
+    ])
+    console.log(`Wrote ${poster}`)
+  } catch (error) {
+    console.warn('poster skipped:', error instanceof Error ? error.message : error)
+  }
+
+  try {
+    await run('ffmpeg', [
+      '-y',
+      '-i',
+      mp4,
+      '-vf',
+      'fps=10,scale=720:-1:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=128[p];[s1][p]paletteuse=dither=bayer',
+      '-loop',
+      '0',
+      gif,
+    ])
+    console.log(`Wrote ${gif}`)
+  } catch (error) {
+    console.warn('gif encode skipped:', error instanceof Error ? error.message : error)
+  }
+
   const { readFileSync } = await import('node:fs')
+  const outputs = [mp4, webm, gif, poster].filter((f) => existsSync(f))
   const meta = {
     version: JSON.parse(readFileSync(path.join(root, 'package.json'), 'utf8')).version,
     frames: frames.length,
     fps: FPS,
     viewport: VIEWPORT,
-    files: [mp4, webm].filter((f) => existsSync(f)).map((f) => path.relative(root, f)),
+    files: outputs.map((f) => path.relative(root, f)),
     recordedAt: new Date().toISOString(),
   }
   writeFileSync(path.join(outDir, 'demo-meta.json'), JSON.stringify(meta, null, 2) + '\n')
