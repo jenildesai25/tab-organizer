@@ -443,6 +443,141 @@ export const fixtures: Fixture[] = [
     expect: { types: [] },
   },
   {
+    // Solo redirect: live dominantDomain flips to Brooks while the title still
+    // says Capitaloneshopping — must move into the existing Brooks group, not
+    // rename Capitaloneshopping or treat it as the Brooks bucket.
+    name: 'capitalone then brooks moves into an existing Brooks group',
+    input: decideInput({
+      groups: [
+        group(10, 'Capitaloneshopping', {
+          dominantDomain: 'brooksrunning.com',
+          domains: ['brooksrunning.com'],
+          size: 1,
+        }),
+        group(20, 'Brooksrunning', {
+          dominantDomain: 'brooksrunning.com',
+          domains: ['brooksrunning.com'],
+          size: 1,
+        }),
+      ],
+      tabs: [
+        tab(1, 'brooksrunning.com', 'Brooks Running', {
+          active: true,
+          groupId: 10,
+          lastFiledDomain: 'capitaloneshopping.com',
+        }),
+      ],
+    }),
+    expect: { types: ['file'], expand: true, groupId: 20, tabIds: [1] },
+  },
+  {
+    name: 'capitalone then brooks creates a Brooks group',
+    input: decideInput({
+      groups: [
+        group(10, 'Capitaloneshopping', {
+          dominantDomain: 'brooksrunning.com',
+          domains: ['brooksrunning.com'],
+          size: 1,
+        }),
+      ],
+      tabs: [
+        tab(1, 'brooksrunning.com', 'Brooks Running', {
+          active: true,
+          groupId: 10,
+          lastFiledDomain: 'capitaloneshopping.com',
+        }),
+      ],
+    }),
+    expect: {
+      types: ['file'],
+      expand: true,
+      createTitle: 'Brooksrunning',
+      aroundTabId: 1,
+      tabIds: [1],
+      groupId: null,
+    },
+  },
+  {
+    name: 'solo google then whatsapp creates WhatsApp when dominant flipped',
+    input: decideInput({
+      groups: [
+        group(10, 'Google', {
+          dominantDomain: 'whatsapp.com',
+          domains: ['whatsapp.com'],
+          size: 1,
+        }),
+      ],
+      tabs: [
+        tab(1, 'whatsapp.com', 'WhatsApp', {
+          active: true,
+          groupId: 10,
+          lastFiledDomain: 'google.com',
+        }),
+      ],
+    }),
+    expect: {
+      types: ['file'],
+      expand: true,
+      createTitle: 'Whatsapp',
+      aroundTabId: 1,
+      tabIds: [1],
+      groupId: null,
+    },
+  },
+  {
+    // New Brooks tab must not join a Capitaloneshopping-titled group whose
+    // dominantDomain flipped after a solo redirect.
+    name: 'new brooks tab does not join a flipped Capitaloneshopping group',
+    input: decideInput({
+      groups: [
+        group(10, 'Capitaloneshopping', {
+          dominantDomain: 'brooksrunning.com',
+          domains: ['brooksrunning.com'],
+          size: 1,
+        }),
+        group(20, 'Brooksrunning', {
+          dominantDomain: 'brooksrunning.com',
+          domains: ['brooksrunning.com'],
+          size: 1,
+        }),
+      ],
+      tabs: [
+        tab(2, 'brooksrunning.com', 'Brooks Running', {
+          active: true,
+          groupId: null,
+          lastFiledDomain: null,
+        }),
+      ],
+    }),
+    expect: { types: ['file'], expand: true, groupId: 20, tabIds: [2] },
+  },
+  {
+    name: 'new brooks tab opened inside Capitaloneshopping leaves for Brooks',
+    input: decideInput({
+      groups: [
+        group(10, 'Capitaloneshopping', {
+          dominantDomain: 'capitaloneshopping.com',
+          domains: ['capitaloneshopping.com'],
+          size: 2,
+        }),
+        group(20, 'Brooksrunning', {
+          dominantDomain: 'brooksrunning.com',
+          domains: ['brooksrunning.com'],
+          size: 1,
+        }),
+      ],
+      tabs: [
+        tab(2, 'brooksrunning.com', 'Brooks Running', {
+          active: true,
+          groupId: 10,
+          openedInsideGroup: true,
+          lastFiledDomain: null,
+        }),
+      ],
+    }),
+    expect: { types: ['file'], expand: true, groupId: 20, tabIds: [2] },
+  },
+  {
     name: 'an unfocused window is not watched',
     input: decideInput({
       focused: false,

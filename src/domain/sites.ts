@@ -116,6 +116,46 @@ export function titlesMatch(left: string, right: string): boolean {
 }
 
 /**
+ * Site key implied by an auto site-group title (e.g. "Capitaloneshopping" →
+ * capitaloneshopping.com, "Google" → google.com). Multi-word thematic titles
+ * return null so topic groups are not treated as site buckets.
+ *
+ * Used to detect the solo-redirect hole: after the only tab navigates away,
+ * live dominantDomain flips to the new site while the title still names the old
+ * one — filing must not treat that group as the new site.
+ */
+export function domainImpliedBySiteTitle(title: string): string | null {
+  const cleaned = title.trim()
+  if (!cleaned) return null
+  for (const [domain, label] of Object.entries(DISPLAY)) {
+    if (titlesMatch(label, cleaned)) return domain
+  }
+  if (/\s/.test(cleaned)) return null
+  if (!/^[a-z0-9][a-z0-9-]*$/i.test(cleaned)) return null
+  const label = cleaned.toLowerCase()
+  // Pure numeric leftovers ("127") are stale loopback labels, not site keys.
+  if (/^\d+$/.test(label)) return null
+  for (const tld of ['.com', '.org', '.net', '.io'] as const) {
+    const guess = `${label}${tld}`
+    if (titlesMatch(siteTitle(guess), cleaned)) return guess
+  }
+  return null
+}
+
+/**
+ * True when the group title clearly names a different site than `domain`.
+ * Stale/legacy titles for this domain (Github→GitHub Pages, 127→Local) are
+ * retitle targets, not mismatches — do not move tabs out for those.
+ */
+export function groupTitleConflictsWithDomain(title: string, domain: string): boolean {
+  if (preferredSiteGroupTitle(domain, title) !== null) return false
+  if (isLoopbackFilingKey(domain) && isStaleLoopbackGroupTitle(title)) return false
+  const implied = domainImpliedBySiteTitle(title)
+  if (!implied) return false
+  return !(domainCovered(domain, implied) || domainCovered(implied, domain))
+}
+
+/**
  * True when the filing key has a stable product/site label (DISPLAY map or loopback).
  * Homogeneous groups for these sites should stay site-named, not thematic.
  */
