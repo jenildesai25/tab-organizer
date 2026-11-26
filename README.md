@@ -25,6 +25,7 @@ Local source files: [`docs/demo/tab-organizer-demo.mp4`](docs/demo/tab-organizer
 - **Protect** — Don’t auto-close chosen sites, groups (Groups ⋯ → “Never auto-clean this group”), or pages (saved by address, not tab id). One-click presets for Mail, Calendar, Banking, and Shopping, plus an option to protect groups you rename by hand.
 - **Activity log** — Plain-language history of organizes, auto-files, AI renames, clean-ups, your edits, and rules. Filter and clear anytime.
 - **Theme** — Light, dark, or match the system.
+- **Backup** — Export or import rules, Protect lists, layouts, and settings as a local JSON file.
 - **Privacy-first** — Feature cards stay local; activity stores site keys / domains, not full URLs. See [Privacy](#privacy).
 
 ## Prerequisites

@@ -346,6 +346,15 @@
         <p class="settings-note">
           Page protection saves the address (not the temporary tab id), so it still works after Chrome restarts. Group protection ends if you ungroup or the group disappears.
         </p>
+
+        <h3 class="settings-subhead" id="backup-heading">Backup</h3>
+        <p class="lede">Export rules, Protect lists, layouts, and settings as a JSON file, or import one from another machine.</p>
+        <div class="buttons">
+          <button id="export-settings" type="button" class="btn btn-ghost">Export settings</button>
+          <button id="import-settings" type="button" class="btn btn-ghost">Import settings</button>
+          <input id="import-settings-file" type="file" accept="application/json,.json" hidden />
+        </div>
+        <p id="backup-note" class="inline-note" role="status" hidden></p>
       </section>
     </main>
 

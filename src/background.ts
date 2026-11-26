@@ -88,6 +88,8 @@ import type {
   ModelsResult,
   PreviewResult,
   ProtectUpdateResult,
+  ExportSettingsResult,
+  ImportSettingsResult,
   RuleSuggestionsResult,
   SaveLayoutResult,
   RetitleGroupResult,
@@ -105,6 +107,8 @@ import {
   clearActivityLog,
   clearCleanupUndo,
   dismissRuleSuggestion,
+  exportSettingsBackup,
+  importSettingsBackup,
   loadActivityLog,
   loadCleanupUndo,
   listReadyRuleSuggestions,
@@ -120,6 +124,7 @@ import {
   updateSettings,
   type Settings,
 } from './storage.js'
+import { formatBackupSummary } from './domain/settings-backup.js'
 
 const sticky = new Set<number>()
 const candidates = new Set<number>()
@@ -1395,6 +1400,32 @@ async function handle(message: ToBackground): Promise<unknown> {
       ok: true,
       suggestions: await dismissRuleSuggestion(message.domain, message.title),
     } satisfies RuleSuggestionsResult
+  }
+  if (message.type === 'export-settings') {
+    try {
+      const backup = await exportSettingsBackup()
+      return {
+        ok: true,
+        backup,
+        json: `${JSON.stringify(backup, null, 2)}\n`,
+      } satisfies ExportSettingsResult
+    } catch (error) {
+      const text = error instanceof Error && error.message ? error.message : 'Could not export settings.'
+      return { ok: false, message: text } satisfies ExportSettingsResult
+    }
+  }
+  if (message.type === 'import-settings') {
+    try {
+      const backup = await importSettingsBackup(message.backup)
+      settingsEpoch += 1
+      organizerOn = backup.settings.organizerOn
+      llmOn = backup.settings.llmOn
+      await syncCleanupAlarm(backup.settings.cleanupOn)
+      return { ok: true, summary: formatBackupSummary(backup) } satisfies ImportSettingsResult
+    } catch (error) {
+      const text = error instanceof Error && error.message ? error.message : 'Could not import settings.'
+      return { ok: false, message: text } satisfies ImportSettingsResult
+    }
   }
   return { ok: false, message: 'Unknown message.' }
 }

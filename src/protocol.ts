@@ -3,6 +3,7 @@ import type { SweepDiag } from './domain/sweep-diag.js'
 import type { CleanupUndoHint } from './domain/cleanup-undo.js'
 import type { ProtectLists } from './domain/tab-cleanup.js'
 import type { RuleSuggestion } from './domain/rule-suggestions.js'
+import type { SettingsBackup } from './domain/settings-backup.js'
 import type { WorkspaceLayout } from './domain/workspace-layout.js'
 import type { TabGroupView } from './domain/tab-groups.js'
 import type { ChromeColor, CompiledRule } from './domain/types.js'
@@ -103,6 +104,14 @@ export type ApplyLayoutResult =
   | { ok: false; message: string }
 
 export type RuleSuggestionsResult = { ok: true; suggestions: RuleSuggestion[] }
+
+export type ExportSettingsResult =
+  | { ok: true; backup: SettingsBackup; json: string }
+  | { ok: false; message: string }
+
+export type ImportSettingsResult =
+  | { ok: true; summary: string }
+  | { ok: false; message: string }
 
 export type ProtectUpdateResult =
   | { ok: true; protect: ProtectLists; summary: string }
@@ -212,3 +221,5 @@ export type ToBackground =
   | { type: 'delete-layout'; id: string }
   | { type: 'list-rule-suggestions' }
   | { type: 'dismiss-rule-suggestion'; domain: string; title: string }
+  | { type: 'export-settings' }
+  | { type: 'import-settings'; backup: unknown }

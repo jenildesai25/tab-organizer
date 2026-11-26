@@ -16,6 +16,8 @@ import type {
   PreviewResult,
   ProtectUpdateResult,
   RetitleGroupsResult,
+  ExportSettingsResult,
+  ImportSettingsResult,
   RuleSuggestion,
   RuleSuggestionsResult,
   SaveLayoutResult,
@@ -92,6 +94,10 @@ const protectActivePage = document.querySelector<HTMLButtonElement>('#protect-ac
 const protectNote = document.querySelector<HTMLElement>('#protect-note')!
 const protectEmpty = document.querySelector<HTMLParagraphElement>('#protect-empty')!
 const protectList = document.querySelector<HTMLUListElement>('#protect-list')!
+const exportSettings = document.querySelector<HTMLButtonElement>('#export-settings')!
+const importSettings = document.querySelector<HTMLButtonElement>('#import-settings')!
+const importSettingsFile = document.querySelector<HTMLInputElement>('#import-settings-file')!
+const backupNote = document.querySelector<HTMLElement>('#backup-note')!
 const progressPanel = document.querySelector<HTMLElement>('#progress-panel')
 const progressBar = document.querySelector<HTMLProgressElement>('#organize-progress')
 const progressLabel = document.querySelector<HTMLElement>('#progress-label')
@@ -1376,3 +1382,60 @@ void loadGroups()
 void loadActivity()
 void loadLayouts()
 void loadRuleSuggestions()
+
+function showBackupNote(text: string): void {
+  backupNote.textContent = text
+  backupNote.hidden = text === ''
+}
+
+exportSettings.addEventListener('click', () => {
+  void (async () => {
+    exportSettings.disabled = true
+    try {
+      const result = await send<ExportSettingsResult>({ type: 'export-settings' })
+      if (!result.ok) {
+        showBackupNote(result.message)
+        return
+      }
+      const blob = new Blob([result.json], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `tab-organizer-settings-${new Date().toISOString().slice(0, 10)}.json`
+      anchor.click()
+      URL.revokeObjectURL(url)
+      showBackupNote('Downloaded settings backup.')
+    } catch {
+      showBackupNote('Could not export settings.')
+    } finally {
+      exportSettings.disabled = false
+    }
+  })()
+})
+
+importSettings.addEventListener('click', () => {
+  importSettingsFile.click()
+})
+
+importSettingsFile.addEventListener('change', () => {
+  const file = importSettingsFile.files?.[0]
+  importSettingsFile.value = ''
+  if (!file) return
+  void (async () => {
+    try {
+      const text = await file.text()
+      const backup = JSON.parse(text) as unknown
+      const result = await send<ImportSettingsResult>({ type: 'import-settings', backup })
+      if (!result.ok) {
+        showBackupNote(result.message)
+        return
+      }
+      renderState(await send<StateResult>({ type: 'get-state' }))
+      await loadLayouts()
+      await loadRuleSuggestions()
+      showBackupNote(result.summary)
+    } catch {
+      showBackupNote('That file could not be read as JSON.')
+    }
+  })()
+})
