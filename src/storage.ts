@@ -31,6 +31,7 @@ import {
   pruneIgnoredWindowIds,
   setWindowIgnored,
 } from './domain/ignored-windows.js'
+import { ONBOARDING_DONE_KEY, parseOnboardingDone } from './domain/onboarding.js'
 import {
   RULE_SUGGESTIONS_KEY,
   dismissRuleSuggestionVote,
@@ -350,6 +351,15 @@ export async function pruneIgnoredWindows(liveWindowIds: ReadonlySet<number>): P
   const next = pruneIgnoredWindowIds(current, liveWindowIds)
   if (next.length === current.length && next.every((id, index) => id === current[index])) return current
   return saveIgnoredWindowIds(next)
+}
+
+export async function loadOnboardingDone(): Promise<boolean> {
+  const stored = await chrome.storage.local.get(ONBOARDING_DONE_KEY)
+  return parseOnboardingDone(stored[ONBOARDING_DONE_KEY])
+}
+
+export async function setOnboardingDone(done: boolean): Promise<void> {
+  await chrome.storage.local.set({ [ONBOARDING_DONE_KEY]: done === true })
 }
 
 const layoutsMutex = createAsyncMutex()

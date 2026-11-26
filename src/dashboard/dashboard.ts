@@ -1,4 +1,5 @@
 import type { ActivityFilter } from '../domain/activity-log.js'
+import { ONBOARDING_STEPS } from '../domain/onboarding.js'
 import { CLEANUP_AGE_PRESETS, formatCleanupAgeLabel } from '../domain/tab-cleanup.js'
 import type { ChromeColor, CompiledRule } from '../domain/types.js'
 import type { TabGroupView } from '../domain/tab-groups.js'
@@ -78,6 +79,11 @@ const refreshActivity = document.querySelector<HTMLButtonElement>('#refresh-acti
 const clearActivity = document.querySelector<HTMLButtonElement>('#clear-activity')!
 const activityFilters = document.querySelector<HTMLElement>('.activity-filters')!
 const clearActivityDialog = document.querySelector<HTMLDialogElement>('#clear-activity-dialog')!
+const onboardingDialog = document.querySelector<HTMLDialogElement>('#onboarding-dialog')!
+const onboardingStepLabel = document.querySelector<HTMLElement>('#onboarding-step-label')!
+const onboardingTitle = document.querySelector<HTMLElement>('#onboarding-title')!
+const onboardingBody = document.querySelector<HTMLElement>('#onboarding-body')!
+const onboardingNext = document.querySelector<HTMLButtonElement>('#onboarding-next')!
 const cleanupConfirmDialog = document.querySelector<HTMLDialogElement>('#cleanup-confirm-dialog')!
 const cleanupConfirmBody = document.querySelector<HTMLElement>('#cleanup-confirm-body')!
 const cleanupOn = document.querySelector<HTMLInputElement>('#cleanup-on')!
@@ -1388,6 +1394,36 @@ layoutForm.addEventListener('submit', (event) => {
   })()
 })
 
+let onboardingIndex = 0
+
+function paintOnboardingStep(): void {
+  const step = ONBOARDING_STEPS[onboardingIndex]
+  if (!step) return
+  onboardingStepLabel.textContent = `Welcome · ${onboardingIndex + 1} of ${ONBOARDING_STEPS.length}`
+  onboardingTitle.textContent = step.title
+  onboardingBody.textContent = step.body
+  onboardingNext.textContent = onboardingIndex >= ONBOARDING_STEPS.length - 1 ? 'Done' : 'Next'
+}
+
+async function finishOnboarding(): Promise<void> {
+  await send<StateResult>({ type: 'set-onboarding-done', done: true })
+  if (onboardingDialog.open) onboardingDialog.close()
+}
+
+onboardingNext.addEventListener('click', () => {
+  if (onboardingIndex >= ONBOARDING_STEPS.length - 1) {
+    void finishOnboarding()
+    return
+  }
+  onboardingIndex += 1
+  paintOnboardingStep()
+})
+
+onboardingDialog.addEventListener('close', () => {
+  if (onboardingDialog.returnValue === 'skip') void finishOnboarding()
+  onboardingDialog.returnValue = ''
+})
+
 void bindThemeToggle()
 if (versionLabel) {
   versionLabel.textContent = `v${chrome.runtime.getManifest().version}`
@@ -1396,6 +1432,11 @@ void (async () => {
   const state = await send<StateResult>({ type: 'get-state' })
   renderState(state)
   if (state.llmOn) await loadModels()
+  if (state.onboardingDone === false) {
+    onboardingIndex = 0
+    paintOnboardingStep()
+    onboardingDialog.showModal()
+  }
 })()
 void loadGroups()
 void loadActivity()

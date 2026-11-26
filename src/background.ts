@@ -112,6 +112,7 @@ import {
   loadActivityLog,
   loadCleanupUndo,
   loadIgnoredWindowIds,
+  loadOnboardingDone,
   listReadyRuleSuggestions,
   loadWorkspaceLayouts,
   forgetHandRenamedGroup,
@@ -124,6 +125,7 @@ import {
   saveCleanupUndo,
   saveWorkspaceLayout,
   setIgnoredWindow,
+  setOnboardingDone,
   updateSettings,
   type Settings,
 } from './storage.js'
@@ -971,6 +973,7 @@ async function currentState(): Promise<StateResult> {
     activeTab: await activeTabSnapshot(),
     cleanupUndo: cleanupUndoHint(undo),
     windowIgnored,
+    onboardingDone: await loadOnboardingDone(),
   }
 }
 
@@ -1136,6 +1139,10 @@ async function handle(message: ToBackground): Promise<unknown> {
   if (message.type === 'set-ignore-window') {
     const ids = await setIgnoredWindow(message.windowId, message.ignored === true)
     return { ...(await currentState()), windowIgnored: isWindowIgnored(ids, message.windowId) }
+  }
+  if (message.type === 'set-onboarding-done') {
+    await setOnboardingDone(message.done === true)
+    return currentState()
   }
   if (message.type === 'sweep-all') {
     try {

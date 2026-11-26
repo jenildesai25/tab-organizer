@@ -64,6 +64,8 @@ export type StateResult = {
   cleanupUndo?: CleanupUndoHint | null
   /** Focused window is temporarily ignored for auto-group and clean-up. */
   windowIgnored?: boolean
+  /** False until the first-run tour is dismissed. */
+  onboardingDone?: boolean
 }
 
 export type CleanupPreviewResult =
@@ -226,3 +228,4 @@ export type ToBackground =
   | { type: 'export-settings' }
   | { type: 'import-settings'; backup: unknown }
   | { type: 'set-ignore-window'; windowId: number; ignored: boolean }
+  | { type: 'set-onboarding-done'; done: boolean }
