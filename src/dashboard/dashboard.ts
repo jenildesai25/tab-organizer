@@ -38,7 +38,7 @@ import {
 import { bindModelPicker } from '../ui/model-picker.js'
 import { paintOllamaStatus } from '../ui/ollama-status.js'
 import { paintRetitleResults } from '../ui/retitle-results.js'
-import { bindSweep, bindSweepAll, browserWindow } from '../ui/sweep.js'
+import { bindSweep, browserWindow } from '../ui/sweep.js'
 import { bindThemeToggle } from '../ui/theme.js'
 
 const status = document.querySelector<HTMLParagraphElement>('#status')!
@@ -48,7 +48,6 @@ const quietHoursOn = document.querySelector<HTMLInputElement>('#quiet-hours-on')
 const quietHoursStart = document.querySelector<HTMLInputElement>('#quiet-hours-start')!
 const quietHoursEnd = document.querySelector<HTMLInputElement>('#quiet-hours-end')!
 const sweep = document.querySelector<HTMLButtonElement>('#sweep')!
-const sweepAll = document.querySelector<HTMLButtonElement>('#sweep-all')!
 const resultLine = document.querySelector<HTMLParagraphElement>('#result')!
 const sentence = document.querySelector<HTMLTextAreaElement>('#sentence')!
 const save = document.querySelector<HTMLButtonElement>('#save')!
@@ -877,23 +876,6 @@ async function loadActivity(): Promise<void> {
 
 bindSweep(
   sweep,
-  resultLine,
-  renderState,
-  (response) => {
-    if (response.ok) clearRetitleResults()
-    void loadGroups()
-    void loadActivity()
-  },
-  {
-    panel: progressPanel,
-    bar: progressBar,
-    label: progressLabel,
-    value: progressValue,
-  },
-)
-
-bindSweepAll(
-  sweepAll,
   resultLine,
   renderState,
   (response) => {
