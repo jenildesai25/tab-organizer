@@ -54,14 +54,31 @@ function domainClaimedByRules(domain: string, rules: ReadonlyArray<SiteRetitleRu
  * Decide whether a rename pass should skip the model, force the canonical site
  * title, or ask the model. Homogeneous known sites never get thematic AI names.
  * User rules that claim the domain opt out of forced site titles.
+ * Hand-renamed groups keep their custom title (e.g. "My PRs") — never force the
+ * site label and never send them to the model for thematic renaming.
  */
 export function decideSiteRetitle(
   currentTitle: string,
   cards: ReadonlyArray<Pick<FeatureCard, 'domain'>>,
-  options: { threshold?: number; rules?: ReadonlyArray<SiteRetitleRule> } = {},
+  options: {
+    threshold?: number
+    rules?: ReadonlyArray<SiteRetitleRule>
+    handRenamed?: boolean
+  } = {},
 ): SiteRetitleDecision {
   const threshold = options.threshold ?? SITE_RETITLE_DOMINANCE
   const dominant = dominantSiteFromCards(cards)
+
+  if (options.handRenamed) {
+    const domain = dominant?.domain ?? ''
+    return {
+      kind: 'skip',
+      reason: 'hand renamed',
+      domain,
+      siteTitle: domain ? siteTitle(domain) ?? '' : '',
+    }
+  }
+
   if (!dominant || dominant.share < threshold) return { kind: 'ask-model' }
 
   const canonical = siteTitle(dominant.domain)

@@ -1,0 +1,1289 @@
+/* Tab Organizer — shared design tokens (ported from .scratch/ui-mock)
+   Themes: system default via color-scheme + prefers-color-scheme;
+   optional Light/Dark override via <meta name="color-scheme">
+   Font: bundled Source Sans 3 (OFL) with system UI fallbacks — no remote fonts (MV3 CSP) */
+
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("../fonts/source-sans-3-latin-400-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("../fonts/source-sans-3-latin-500-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("../fonts/source-sans-3-latin-600-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("../fonts/source-sans-3-latin-700-normal.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Source Sans 3";
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+  src: url("../fonts/source-sans-3-latin-800-normal.woff2") format("woff2");
+}
+
+:root {
+  /* Raw pairs — light / dark */
+  --ink-light: #10231f;
+  --ink-dark: #e7f3ef;
+  --ink-soft-light: #243530;
+  --ink-soft-dark: #c5d6d0;
+  --muted-light: #3f524d;
+  --muted-dark: #a8bbb4;
+  --line-light: color-mix(in oklab, #0f766e 18%, #d7e4df);
+  --line-dark: color-mix(in oklab, #5eead4 16%, #1e2f2b);
+  --paper-light: #f4faf7;
+  --paper-dark: #0c1614;
+  --paper-raised-light: color-mix(in oklab, #ffffff 78%, #e6f4ef);
+  --paper-raised-dark: color-mix(in oklab, #152422 88%, #0c1614);
+  --surface-light: color-mix(in oklab, white 82%, transparent);
+  --surface-dark: color-mix(in oklab, #1a2c28 82%, transparent);
+  --wash-light: color-mix(in oklab, white 55%, transparent);
+  --wash-dark: color-mix(in oklab, #1f3330 55%, transparent);
+  --teal-light: #0f766e;
+  --teal-dark: #2dd4bf;
+  --teal-bright-light: #14b8a6;
+  --teal-bright-dark: #5eead4;
+  --teal-deep-light: #134e4a;
+  --teal-deep-dark: #99f6e4;
+  --signal-light: #0d9488;
+  --signal-dark: #2dd4bf;
+  --cta-light: #ea580c;
+  --cta-dark: #fb923c;
+  --cta-press-light: #c2410c;
+  --cta-press-dark: #fdba74;
+  --cta-ink-light: #1a0b04;
+  --cta-ink-dark: #1a0b04;
+  --danger-light: #b42318;
+  --danger-dark: #fca5a5;
+  --ok-light: #15803d;
+  --ok-dark: #4ade80;
+  --warn-light: #a16207;
+  --warn-dark: #fbbf24;
+  --ring-light: #0d9488;
+  --ring-dark: #5eead4;
+  --shadow-light: 0 18px 40px color-mix(in oklab, #134e4a 14%, transparent);
+  --shadow-dark: 0 18px 40px color-mix(in oklab, #000 45%, transparent);
+  --glow-teal-light: #99f6e4;
+  --glow-teal-dark: #134e4a;
+  --glow-cta-light: #fed7aa;
+  --glow-cta-dark: #7c2d12;
+  --bg-grad-a-light: #f7fcfa;
+  --bg-grad-a-dark: #0a1210;
+  --bg-grad-b-light: #eef6f2;
+  --bg-grad-b-dark: #101c19;
+  --bg-grad-c-light: #f8f4ef;
+  --bg-grad-c-dark: #141612;
+  --pill-ok-bg-light: color-mix(in oklab, #ccfbf1 55%, white);
+  --pill-ok-bg-dark: color-mix(in oklab, #134e4a 70%, #0c1614);
+  --pill-warn-bg-light: color-mix(in oklab, #ffedd5 60%, white);
+  --pill-warn-bg-dark: color-mix(in oklab, #78350f 55%, #0c1614);
+  --pill-warn-ink-light: #7c4a03;
+  --pill-warn-ink-dark: #fdba74;
+  --note-bg-light: color-mix(in oklab, #ccfbf1 45%, white);
+  --note-bg-dark: color-mix(in oklab, #134e4a 55%, #0c1614);
+  --note-warn-bg-light: color-mix(in oklab, #ffedd5 55%, white);
+  --note-warn-bg-dark: color-mix(in oklab, #7c2d12 50%, #0c1614);
+  --switch-off-light: color-mix(in oklab, #94a3b8 55%, #e2e8f0);
+  --switch-off-dark: color-mix(in oklab, #475569 60%, #1e293b);
+  --switch-off-border-light: color-mix(in oklab, #64748b 25%, transparent);
+  --switch-off-border-dark: color-mix(in oklab, #94a3b8 30%, transparent);
+  --knob-light: #ffffff;
+  --knob-dark: #f1f5f9;
+  --progress-track-light: color-mix(in oklab, #0f766e 12%, white);
+  --progress-track-dark: color-mix(in oklab, #2dd4bf 18%, #0c1614);
+  --favicon-a-light: #cbd5e1;
+  --favicon-a-dark: #475569;
+  --favicon-b-light: #94a3b8;
+  --favicon-b-dark: #64748b;
+  --ai-mark-light: #7c3aed;
+  --ai-mark-dark: #c4b5fd;
+  --mark-border-light: rgb(0 0 0 / 12%);
+  --mark-border-dark: rgb(255 255 255 / 22%);
+  --focus-ring-mix-light: white;
+  --focus-ring-mix-dark: #0c1614;
+
+  /* Resolved tokens (system-aware; override via color-scheme) */
+  --ink: light-dark(var(--ink-light), var(--ink-dark));
+  --ink-soft: light-dark(var(--ink-soft-light), var(--ink-soft-dark));
+  --muted: light-dark(var(--muted-light), var(--muted-dark));
+  --line: light-dark(var(--line-light), var(--line-dark));
+  --paper: light-dark(var(--paper-light), var(--paper-dark));
+  --paper-raised: light-dark(var(--paper-raised-light), var(--paper-raised-dark));
+  --surface: light-dark(var(--surface-light), var(--surface-dark));
+  --wash: light-dark(var(--wash-light), var(--wash-dark));
+  --teal: light-dark(var(--teal-light), var(--teal-dark));
+  --teal-bright: light-dark(var(--teal-bright-light), var(--teal-bright-dark));
+  --teal-deep: light-dark(var(--teal-deep-light), var(--teal-deep-dark));
+  --signal: light-dark(var(--signal-light), var(--signal-dark));
+  --cta: light-dark(var(--cta-light), var(--cta-dark));
+  --cta-press: light-dark(var(--cta-press-light), var(--cta-press-dark));
+  --cta-ink: light-dark(var(--cta-ink-light), var(--cta-ink-dark));
+  --danger: light-dark(var(--danger-light), var(--danger-dark));
+  --ok: light-dark(var(--ok-light), var(--ok-dark));
+  --warn: light-dark(var(--warn-light), var(--warn-dark));
+  --ring: light-dark(var(--ring-light), var(--ring-dark));
+  --shadow: light-dark(var(--shadow-light), var(--shadow-dark));
+  --glow-teal: light-dark(var(--glow-teal-light), var(--glow-teal-dark));
+  --glow-cta: light-dark(var(--glow-cta-light), var(--glow-cta-dark));
+  --bg-grad-a: light-dark(var(--bg-grad-a-light), var(--bg-grad-a-dark));
+  --bg-grad-b: light-dark(var(--bg-grad-b-light), var(--bg-grad-b-dark));
+  --bg-grad-c: light-dark(var(--bg-grad-c-light), var(--bg-grad-c-dark));
+  --pill-ok-bg: light-dark(var(--pill-ok-bg-light), var(--pill-ok-bg-dark));
+  --pill-warn-bg: light-dark(var(--pill-warn-bg-light), var(--pill-warn-bg-dark));
+  --pill-warn-ink: light-dark(var(--pill-warn-ink-light), var(--pill-warn-ink-dark));
+  --note-bg: light-dark(var(--note-bg-light), var(--note-bg-dark));
+  --note-warn-bg: light-dark(var(--note-warn-bg-light), var(--note-warn-bg-dark));
+  --switch-off: light-dark(var(--switch-off-light), var(--switch-off-dark));
+  --switch-off-border: light-dark(var(--switch-off-border-light), var(--switch-off-border-dark));
+  --knob: light-dark(var(--knob-light), var(--knob-dark));
+  --progress-track: light-dark(var(--progress-track-light), var(--progress-track-dark));
+  --favicon-a: light-dark(var(--favicon-a-light), var(--favicon-a-dark));
+  --favicon-b: light-dark(var(--favicon-b-light), var(--favicon-b-dark));
+  --ai-mark: light-dark(var(--ai-mark-light), var(--ai-mark-dark));
+  --mark-border: light-dark(var(--mark-border-light), var(--mark-border-dark));
+  --focus-ring-mix: light-dark(var(--focus-ring-mix-light), var(--focus-ring-mix-dark));
+  --primary-btn-ink: #fff8f3;
+
+  --radius: 12px;
+  --radius-sm: 8px;
+  --font-body: "Source Sans 3", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-display: var(--font-body);
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 180ms;
+
+  /* Scheme flag for non-color branches (toggle + OS) */
+  --color-scheme: light;
+  @media (prefers-color-scheme: dark) {
+    --color-scheme: dark;
+  }
+  &:has(> head > meta[name="color-scheme"][content="dark"]) {
+    --color-scheme: dark;
+  }
+  &:has(> head > meta[name="color-scheme"][content="light"]) {
+    --color-scheme: light;
+  }
+
+  /* Native controls follow OS by default; meta override remaps via :has */
+  color-scheme: light dark;
+  &:has(> head > meta[name="color-scheme"][content="dark"]) {
+    color-scheme: dark;
+  }
+  &:has(> head > meta[name="color-scheme"][content="light"]) {
+    color-scheme: light;
+  }
+
+  accent-color: var(--teal);
+  font-family: var(--font-body);
+  color: var(--ink);
+  background: var(--paper);
+}
+
+/* Fallback when light-dark() is unavailable: media + meta override */
+@supports not (color: light-dark(white, black)) {
+  :root {
+    --ink: var(--ink-light);
+    --ink-soft: var(--ink-soft-light);
+    --muted: var(--muted-light);
+    --line: var(--line-light);
+    --paper: var(--paper-light);
+    --paper-raised: var(--paper-raised-light);
+    --surface: var(--surface-light);
+    --wash: var(--wash-light);
+    --teal: var(--teal-light);
+    --teal-bright: var(--teal-bright-light);
+    --teal-deep: var(--teal-deep-light);
+    --signal: var(--signal-light);
+    --cta: var(--cta-light);
+    --cta-press: var(--cta-press-light);
+    --cta-ink: var(--cta-ink-light);
+    --danger: var(--danger-light);
+    --ok: var(--ok-light);
+    --warn: var(--warn-light);
+    --ring: var(--ring-light);
+    --shadow: var(--shadow-light);
+    --glow-teal: var(--glow-teal-light);
+    --glow-cta: var(--glow-cta-light);
+    --bg-grad-a: var(--bg-grad-a-light);
+    --bg-grad-b: var(--bg-grad-b-light);
+    --bg-grad-c: var(--bg-grad-c-light);
+    --pill-ok-bg: var(--pill-ok-bg-light);
+    --pill-warn-bg: var(--pill-warn-bg-light);
+    --pill-warn-ink: var(--pill-warn-ink-light);
+    --note-bg: var(--note-bg-light);
+    --note-warn-bg: var(--note-warn-bg-light);
+    --switch-off: var(--switch-off-light);
+    --switch-off-border: var(--switch-off-border-light);
+    --knob: var(--knob-light);
+    --progress-track: var(--progress-track-light);
+    --favicon-a: var(--favicon-a-light);
+    --favicon-b: var(--favicon-b-light);
+    --ai-mark: var(--ai-mark-light);
+    --mark-border: var(--mark-border-light);
+    --focus-ring-mix: var(--focus-ring-mix-light);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not(:has(> head > meta[name="color-scheme"][content="light"])) {
+      --ink: var(--ink-dark);
+      --ink-soft: var(--ink-soft-dark);
+      --muted: var(--muted-dark);
+      --line: var(--line-dark);
+      --paper: var(--paper-dark);
+      --paper-raised: var(--paper-raised-dark);
+      --surface: var(--surface-dark);
+      --wash: var(--wash-dark);
+      --teal: var(--teal-dark);
+      --teal-bright: var(--teal-bright-dark);
+      --teal-deep: var(--teal-deep-dark);
+      --signal: var(--signal-dark);
+      --cta: var(--cta-dark);
+      --cta-press: var(--cta-press-dark);
+      --cta-ink: var(--cta-ink-dark);
+      --danger: var(--danger-dark);
+      --ok: var(--ok-dark);
+      --warn: var(--warn-dark);
+      --ring: var(--ring-dark);
+      --shadow: var(--shadow-dark);
+      --glow-teal: var(--glow-teal-dark);
+      --glow-cta: var(--glow-cta-dark);
+      --bg-grad-a: var(--bg-grad-a-dark);
+      --bg-grad-b: var(--bg-grad-b-dark);
+      --bg-grad-c: var(--bg-grad-c-dark);
+      --pill-ok-bg: var(--pill-ok-bg-dark);
+      --pill-warn-bg: var(--pill-warn-bg-dark);
+      --pill-warn-ink: var(--pill-warn-ink-dark);
+      --note-bg: var(--note-bg-dark);
+      --note-warn-bg: var(--note-warn-bg-dark);
+      --switch-off: var(--switch-off-dark);
+      --switch-off-border: var(--switch-off-border-dark);
+      --knob: var(--knob-dark);
+      --progress-track: var(--progress-track-dark);
+      --favicon-a: var(--favicon-a-dark);
+      --favicon-b: var(--favicon-b-dark);
+      --ai-mark: var(--ai-mark-dark);
+      --mark-border: var(--mark-border-dark);
+      --focus-ring-mix: var(--focus-ring-mix-dark);
+    }
+  }
+
+  :root:has(> head > meta[name="color-scheme"][content="dark"]) {
+    --ink: var(--ink-dark);
+    --ink-soft: var(--ink-soft-dark);
+    --muted: var(--muted-dark);
+    --line: var(--line-dark);
+    --paper: var(--paper-dark);
+    --paper-raised: var(--paper-raised-dark);
+    --surface: var(--surface-dark);
+    --wash: var(--wash-dark);
+    --teal: var(--teal-dark);
+    --teal-bright: var(--teal-bright-dark);
+    --teal-deep: var(--teal-deep-dark);
+    --signal: var(--signal-dark);
+    --cta: var(--cta-dark);
+    --cta-press: var(--cta-press-dark);
+    --cta-ink: var(--cta-ink-dark);
+    --danger: var(--danger-dark);
+    --ok: var(--ok-dark);
+    --warn: var(--warn-dark);
+    --ring: var(--ring-dark);
+    --shadow: var(--shadow-dark);
+    --glow-teal: var(--glow-teal-dark);
+    --glow-cta: var(--glow-cta-dark);
+    --bg-grad-a: var(--bg-grad-a-dark);
+    --bg-grad-b: var(--bg-grad-b-dark);
+    --bg-grad-c: var(--bg-grad-c-dark);
+    --pill-ok-bg: var(--pill-ok-bg-dark);
+    --pill-warn-bg: var(--pill-warn-bg-dark);
+    --pill-warn-ink: var(--pill-warn-ink-dark);
+    --note-bg: var(--note-bg-dark);
+    --note-warn-bg: var(--note-warn-bg-dark);
+    --switch-off: var(--switch-off-dark);
+    --switch-off-border: var(--switch-off-border-dark);
+    --knob: var(--knob-dark);
+    --progress-track: var(--progress-track-dark);
+    --favicon-a: var(--favicon-a-dark);
+    --favicon-b: var(--favicon-b-dark);
+    --ai-mark: var(--ai-mark-dark);
+    --mark-border: var(--mark-border-dark);
+    --focus-ring-mix: var(--focus-ring-mix-dark);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font: 14px/1.45 var(--font-body);
+  background:
+    radial-gradient(900px 420px at 12% -8%, color-mix(in oklab, var(--glow-teal) 55%, transparent), transparent 60%),
+    radial-gradient(780px 480px at 92% 0%, color-mix(in oklab, var(--glow-cta) 42%, transparent), transparent 55%),
+    linear-gradient(165deg, var(--bg-grad-a) 0%, var(--bg-grad-b) 42%, var(--bg-grad-c) 100%);
+  color: var(--ink);
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button,
+[role="button"],
+a.btn,
+label.switch {
+  cursor: pointer;
+}
+
+a {
+  color: var(--teal-deep);
+}
+
+:focus {
+  outline: none;
+}
+
+:focus-visible {
+  outline: 3px solid color-mix(in oklab, var(--ring) 75%, var(--focus-ring-mix));
+  outline-offset: 2px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* .atmosphere marks gradient shells (popup/dashboard). No grain overlay. */
+
+/* Theme segmented control */
+.theme-toggle {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 0;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--paper-raised);
+  box-shadow: 0 1px 0 color-mix(in oklab, var(--wash) 80%, transparent);
+}
+
+.theme-toggle button {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  transition:
+    background-color var(--dur) var(--ease),
+    color var(--dur) var(--ease);
+}
+
+.theme-toggle button[aria-pressed="true"] {
+  background: color-mix(in oklab, var(--teal) 18%, var(--paper));
+  color: var(--teal-deep);
+  box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--teal) 28%, transparent);
+}
+
+.theme-toggle button:hover {
+  color: var(--ink);
+}
+
+.theme-toggle.compact button {
+  min-height: 26px;
+  padding: 0 9px;
+  font-size: 11px;
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  transition:
+    transform var(--dur) var(--ease),
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    box-shadow var(--dur) var(--ease);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--cta) 92%, white), var(--cta));
+  color: var(--primary-btn-ink);
+  border-color: color-mix(in oklab, var(--cta) 70%, #7c2d12);
+  box-shadow: 0 10px 22px color-mix(in oklab, var(--cta) 28%, transparent);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(180deg, color-mix(in oklab, var(--cta) 80%, white), var(--cta-press));
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink-soft);
+}
+
+.btn-ghost:hover {
+  background: var(--wash);
+  border-color: color-mix(in oklab, var(--teal) 35%, var(--line));
+}
+
+.btn-tiny {
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+  border-radius: 8px;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+/* Status / pills */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pill .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: 0 0 auto;
+}
+
+.pill.is-ok {
+  color: var(--teal-deep);
+  border-color: color-mix(in oklab, var(--signal) 35%, var(--line));
+  background: var(--pill-ok-bg);
+}
+
+.pill.is-ok .dot {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ok) 22%, transparent);
+}
+
+.pill.is-warn {
+  color: var(--pill-warn-ink);
+  border-color: color-mix(in oklab, #f59e0b 40%, var(--line));
+  background: var(--pill-warn-bg);
+}
+
+.pill.is-warn .dot {
+  background: var(--warn);
+}
+
+/* Switch */
+.switch {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border: 0;
+  background: transparent;
+  text-align: start;
+}
+
+.switch + .switch {
+  border-top: 1px solid color-mix(in oklab, var(--line) 80%, transparent);
+}
+
+.switch-title {
+  display: block;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.switch-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.switch-control {
+  position: relative;
+  width: 44px;
+  height: 26px;
+  flex: 0 0 auto;
+}
+
+.switch-control input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 999px;
+  background: var(--switch-off);
+  border: 1px solid var(--switch-off-border);
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.switch-track::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--knob);
+  box-shadow: 0 2px 6px color-mix(in oklab, var(--ink) 22%, transparent);
+  transition: transform var(--dur) var(--ease);
+}
+
+.switch-control input:checked + .switch-track {
+  background: linear-gradient(180deg, var(--teal-bright), var(--teal));
+  border-color: color-mix(in oklab, var(--teal-deep) 40%, transparent);
+}
+
+.switch-control input:checked + .switch-track::after {
+  transform: translateX(18px);
+}
+
+.switch-control input:focus-visible + .switch-track {
+  outline: 3px solid color-mix(in oklab, var(--ring) 75%, var(--focus-ring-mix));
+  outline-offset: 2px;
+}
+
+/* Progress */
+.progress-wrap {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+progress.organize-progress {
+  appearance: none;
+  border: 0 solid;
+  overflow: clip;
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--progress-track);
+  container-type: inline-size;
+  --progress-bar-radius: 999px;
+  --progress-bar-fill: linear-gradient(90deg, var(--cta), #fb923c 55%, var(--teal-bright));
+  --progress-bar-indeterminate-size: 34%;
+  --progress-bar-indeterminate-animation-duration: 1.25s;
+}
+
+progress.organize-progress::-webkit-progress-bar {
+  background: transparent;
+}
+
+progress.organize-progress::-webkit-progress-value {
+  background: var(--progress-bar-fill);
+  border-radius: var(--progress-bar-radius);
+  transition: inline-size 0.35s var(--ease);
+}
+
+progress.organize-progress::-moz-progress-bar {
+  background: var(--progress-bar-fill);
+  border-radius: var(--progress-bar-radius);
+  transition: inline-size 0.35s var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .btn:hover {
+    transform: none;
+  }
+}
+
+/* Group list (live extension DOM from ui/groups.ts) */
+.group-list,
+.activity-list,
+.rule-list,
+.rename-list,
+.retitle-results {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.group-item,
+.group-manage,
+li.group-row {
+  position: relative;
+  border-bottom: 1px solid color-mix(in oklab, var(--line) 85%, transparent);
+  transition: background-color var(--dur) var(--ease);
+}
+
+.group-item,
+li.group-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  padding: 10px 2px;
+}
+
+.group-item:last-child,
+.group-manage:last-child,
+li.group-row:last-child {
+  border-bottom: 0;
+}
+
+.group-item:hover,
+.group-manage:hover,
+li.group-row:hover {
+  background: var(--wash);
+}
+
+.group-row-renamed {
+  animation: reveal-in 420ms var(--ease) both;
+  background: color-mix(in oklab, var(--pill-ok-bg) 70%, transparent);
+}
+
+.group-swatch {
+  width: 10px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: var(--group-color, #3b82f6);
+  box-shadow:
+    inset 0 0 0 1px var(--mark-border),
+    0 0 0 1px color-mix(in oklab, var(--group-color, #3b82f6) 35%, transparent);
+  cursor: pointer;
+}
+
+.group-swatch:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.group-copy {
+  min-width: 0;
+}
+
+.group-name {
+  display: block;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-count {
+  min-width: 2.2rem;
+  text-align: end;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.swatch-wrap {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.swatch {
+  display: block;
+  width: 10px;
+  height: 28px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #3b82f6;
+  box-shadow:
+    inset 0 0 0 1px var(--mark-border),
+    0 0 0 1px color-mix(in oklab, currentColor 35%, transparent);
+  cursor: pointer;
+}
+
+.swatch:disabled {
+  cursor: default;
+  opacity: 0.85;
+}
+
+.swatch-picker {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 6;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--paper-raised);
+  box-shadow: var(--shadow);
+}
+
+.swatch-picker button {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.swatch-picker button[aria-pressed="true"] {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.group-main {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.group-title,
+.group-title-text {
+  margin: 0;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.group-title {
+  appearance: none;
+  width: 100%;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: max(1rem, 1em);
+  font-weight: 650;
+}
+
+.group-title:hover {
+  border-color: color-mix(in oklab, var(--line) 70%, transparent);
+  background: var(--wash);
+}
+
+.group-title:focus-visible {
+  border-color: color-mix(in oklab, var(--ring) 55%, var(--line));
+  background: var(--surface);
+}
+
+.group-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-family: var(--font-mono);
+}
+
+.group-actions {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.icon-more {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1;
+}
+
+.icon-more:hover,
+.icon-more[aria-expanded="true"] {
+  border-color: var(--line);
+  background: var(--wash);
+  color: var(--ink);
+}
+
+.row-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 6;
+  min-width: 9rem;
+  padding: 4px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--paper-raised);
+  box-shadow: var(--shadow);
+}
+
+.row-menu-item {
+  display: block;
+  width: 100%;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  text-align: start;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+}
+
+.row-menu-item:hover {
+  background: var(--wash);
+}
+
+.row-menu-item.danger,
+.confirm-delete {
+  color: var(--danger);
+}
+
+.confirm-delete,
+.ghost {
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.confirm-delete {
+  border-color: color-mix(in oklab, var(--danger) 35%, var(--line));
+  background: color-mix(in oklab, var(--danger) 10%, var(--paper));
+}
+
+.ghost:hover,
+.confirm-delete:hover {
+  background: var(--wash);
+}
+
+.status-body {
+  margin: 0;
+}
+
+.status-actions {
+  margin-top: 8px;
+}
+
+.retitle-results {
+  margin-top: 8px;
+  max-height: 9rem;
+  overflow: auto;
+}
+
+.retitle-result {
+  padding: 4px 0;
+  border-bottom: 1px dashed color-mix(in oklab, var(--line) 75%, transparent);
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.retitle-result:last-child {
+  border-bottom: 0;
+}
+
+.retitle-result-renamed {
+  color: var(--teal-deep);
+  font-weight: 600;
+}
+
+/* Activity */
+.activity-item {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 8px 0;
+  border-bottom: 1px solid color-mix(in oklab, var(--line) 70%, transparent);
+  animation: reveal-in 320ms var(--ease) both;
+}
+
+.activity-item:nth-child(2) {
+  animation-delay: 40ms;
+}
+
+.activity-item:nth-child(3) {
+  animation-delay: 80ms;
+}
+
+.activity-item:nth-child(4) {
+  animation-delay: 120ms;
+}
+
+.activity-item:last-child {
+  border-bottom: 0;
+}
+
+.activity-mark {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--signal);
+}
+
+.activity-mark[data-actor="ai"] {
+  background: var(--ai-mark);
+}
+
+.activity-mark[data-actor="user"] {
+  background: var(--cta);
+}
+
+.activity-mark[data-actor="sweep"] {
+  background: var(--teal);
+}
+
+.activity-copy {
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--ink-soft);
+}
+
+.activity-copy strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.activity-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Section chrome */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.section-head h2,
+.panel h2 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--teal-deep);
+}
+
+.lede {
+  margin: 4px 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty {
+  margin: 8px 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.field > span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.field textarea {
+  min-height: 72px;
+  resize: vertical;
+  line-height: 1.4;
+}
+
+.field input:focus-visible,
+.field select:focus-visible,
+.field textarea:focus-visible {
+  border-color: color-mix(in oklab, var(--ring) 55%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 22%, transparent);
+}
+
+/* Model picker — custom listbox so MV3 popups don't mis-place the native <select> menu */
+.model-picker {
+  position: relative;
+  width: 100%;
+  overflow: visible;
+}
+
+.model-picker-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 40px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+.model-picker-trigger:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.model-picker-trigger:focus-visible {
+  border-color: color-mix(in oklab, var(--ring) 55%, var(--line));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--ring) 22%, transparent);
+}
+
+.model-picker.is-open .model-picker-trigger {
+  border-color: color-mix(in oklab, var(--ring) 55%, var(--line));
+}
+
+.model-picker-value {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.model-picker-chevron {
+  flex: 0 0 auto;
+  width: 0.55em;
+  height: 0.55em;
+  border-inline-end: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg) translateY(-1px);
+}
+
+.model-picker-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 40;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper-raised);
+  box-shadow: var(--shadow);
+  max-height: min(220px, 45vh);
+  overflow: auto;
+}
+
+.model-picker-menu.is-above {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.model-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.model-picker-option:hover,
+.model-picker-option:focus-visible {
+  background: var(--wash);
+  outline: none;
+}
+
+.model-picker-option[aria-selected='true']::before {
+  content: '✓';
+  flex: 0 0 auto;
+  color: var(--teal-deep);
+  font-weight: 700;
+}
+
+.model-picker-option:not([aria-selected='true'])::before {
+  content: '';
+  flex: 0 0 0.85em;
+}
+
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.inline-note {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--note-bg);
+  color: var(--teal-deep);
+  font-size: 12.5px;
+}
+
+.inline-note.is-warn {
+  background: var(--note-warn-bg);
+  color: var(--pill-warn-ink);
+}

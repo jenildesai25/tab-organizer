@@ -2,22 +2,60 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="color-scheme" content="light dark" />
+    <script src="../ui/theme-boot.js"></script>
     <title>Tab Organizer</title>
+    <link rel="stylesheet" href="../ui/shared.css" />
     <link rel="stylesheet" href="popup.css" />
   </head>
-  <body>
-    <header class="header">
-      <h1>Tab Organizer</h1>
-      <p id="status" role="status">Organizer is off.</p>
+  <body class="atmosphere popup-body">
+    <header class="popup-header">
+      <div class="brand-lockup">
+        <span class="brand-mark" aria-hidden="true">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+            <rect x="3" y="4" width="7" height="16" rx="2" fill="#0f766e" />
+            <rect x="12" y="4" width="9" height="7" rx="2" fill="#14b8a6" />
+            <rect x="12" y="13" width="9" height="7" rx="2" fill="#ea580c" />
+          </svg>
+        </span>
+        <div class="brand-copy">
+          <h1>Tab Organizer</h1>
+          <p id="status" role="status">Organizer is off.</p>
+        </div>
+      </div>
+      <div class="popup-header-aside">
+        <div class="theme-toggle compact" role="group" aria-label="Color theme">
+          <button type="button" data-theme="light" aria-pressed="false">Light</button>
+          <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+          <button type="button" data-theme="system" aria-pressed="true">Sys</button>
+        </div>
+        <span id="ollama-pill" class="pill ollama-pill" title="Local model off">
+          <span class="dot" aria-hidden="true"></span>
+          <span id="ollama-pill-label">Local model off</span>
+        </span>
+      </div>
     </header>
 
-    <section class="organize" aria-label="Organize">
-      <button id="sweep" type="button">Organize this window</button>
-      <p id="result" class="result" aria-live="polite" hidden></p>
+    <section class="organize" aria-label="Organize this window">
+      <button id="sweep" class="btn btn-primary btn-block" type="button">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M4 7h16M4 12h10M4 17h13" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        </svg>
+        Organize this window
+      </button>
+      <div id="progress-panel" class="progress-wrap" hidden>
+        <div class="progress-meta">
+          <span id="progress-label">Filing tabs…</span>
+          <span id="progress-value">…</span>
+        </div>
+        <label class="sr-only" for="organize-progress">Organize progress</label>
+        <progress id="organize-progress" class="organize-progress" max="100"></progress>
+      </div>
+      <p id="result" class="inline-note" role="status" hidden></p>
     </section>
 
-    <section class="settings" aria-label="Settings">
-      <label class="switch">
+    <section class="settings" aria-label="Quick settings">
+      <label class="switch" for="organizer">
         <span class="switch-copy">
           <span class="switch-title">File new tabs</span>
           <span class="switch-hint">Only in the window you are using</span>
@@ -28,7 +66,7 @@
         </span>
       </label>
 
-      <label class="switch">
+      <label class="switch" for="llm">
         <span class="switch-copy">
           <span class="switch-title">Local model</span>
           <span class="switch-hint">Ask Ollama when a rule or tab is unclear</span>
@@ -40,13 +78,27 @@
       </label>
 
       <div id="llm-controls" class="llm-controls" hidden>
-        <label class="field compact" for="model">
-          <span>Model</span>
-          <select id="model"></select>
-        </label>
+        <div class="field compact">
+          <span id="model-label">Model</span>
+          <div id="model-picker" class="model-picker">
+            <button
+              type="button"
+              id="model-trigger"
+              class="model-picker-trigger"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="model-list"
+              aria-labelledby="model-label model-value"
+            >
+              <span id="model-value" class="model-picker-value">Choose a model</span>
+              <span class="model-picker-chevron" aria-hidden="true"></span>
+            </button>
+            <div id="model-list" class="model-picker-menu" role="listbox" aria-labelledby="model-label" hidden></div>
+          </div>
+        </div>
         <div class="buttons compact">
-          <button id="test-ollama" type="button" class="ghost" disabled>Test connection</button>
-          <button id="retitle-groups" type="button" class="ghost" disabled>Rename groups with AI</button>
+          <button id="test-ollama" type="button" class="btn btn-ghost btn-tiny" disabled>Test connection</button>
+          <button id="retitle-groups" type="button" class="btn btn-ghost btn-tiny" disabled>AI rename</button>
         </div>
         <div id="model-status" class="inline-note" role="status" hidden></div>
       </div>
@@ -55,23 +107,31 @@
     <section class="groups-section" aria-labelledby="groups-heading">
       <div class="section-head">
         <h2 id="groups-heading">This window</h2>
-        <button id="refresh-groups" type="button" class="ghost tiny">Refresh</button>
+        <button id="refresh-groups" type="button" class="btn btn-ghost btn-tiny">Refresh</button>
       </div>
-      <p id="groups-empty" class="empty" hidden>No groups yet.</p>
+      <p id="groups-summary" class="groups-summary" role="status">Counting groups…</p>
       <p id="groups-error" class="inline-note" role="status" hidden></p>
-      <ul id="groups" class="group-list"></ul>
+      <button id="manage-groups" type="button" class="btn btn-ghost btn-tiny manage-groups">
+        Manage in dashboard
+      </button>
     </section>
 
-    <section class="activity-section" aria-labelledby="activity-heading">
-      <div class="section-head">
-        <h2 id="activity-heading">Recent activity</h2>
-        <button id="refresh-activity" type="button" class="ghost tiny">Refresh</button>
-      </div>
-      <p id="activity-empty" class="empty" hidden>No activity yet.</p>
-      <ul id="activity" class="activity-list" aria-label="Recent activity"></ul>
-    </section>
-
-    <button id="open-dashboard" type="button" class="linkish">Rules &amp; more</button>
+    <nav class="popup-nav" aria-label="Rules and settings">
+      <button id="open-rules" type="button" class="popup-nav-link">
+        <span class="popup-nav-copy">
+          <span class="popup-nav-title">Rules</span>
+          <span class="popup-nav-hint">Teach how groups should be named</span>
+        </span>
+        <span class="popup-nav-arrow" aria-hidden="true">→</span>
+      </button>
+      <button id="open-settings" type="button" class="popup-nav-link">
+        <span class="popup-nav-copy">
+          <span class="popup-nav-title">Settings</span>
+          <span class="popup-nav-hint">Models, activity log &amp; more</span>
+        </span>
+        <span class="popup-nav-arrow" aria-hidden="true">→</span>
+      </button>
+    </nav>
     <script type="module" src="popup.js"></script>
   </body>
 </html>

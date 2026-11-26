@@ -35,9 +35,9 @@ Open the extension popup from the toolbar.
 | **Model** dropdown | Pick an installed Ollama model |
 | **Test connection** | Verify the extension can reach Ollama |
 | **Rename groups with AI** | Rewrite group titles from tab titles (tabs stay put) |
-| **This window** | Live groups in the current window (refresh as needed) |
-| **Recent activity** | Short log of recent group changes |
-| **Rules & more** | Opens the dashboard |
+| **This window** | Compact group count for the current window; open the dashboard to manage groups |
+| **Rules** | Opens the dashboard Rules section |
+| **Settings** | Opens the dashboard Settings section |
 
 ### Rules (dashboard)
 
@@ -47,7 +47,11 @@ In the dashboard, add short English rules, then **Check** and **Save**. Examples
 - `call linear Work`
 - `put github and gitlab in Code`
 
-Rules map domains (and subdomains) into a short group title. You can also rename, recolor, or ungroup from the dashboard **Groups** panel, and filter/clear the **Activity** log.
+Rules map domains (and subdomains) into a short group title. You can also rename, recolor, or ungroup from the dashboard **Groups** panel.
+
+### Activity (dashboard)
+
+The **Activity** section is the full plain-language history of what the extension did (organize, auto-file, AI renames, your edits, rules). Filter by All / AI / You / Organize / Rules, scroll the full list, and clear it with confirmation when you want a fresh start.
 
 ## Ollama setup (optional)
 

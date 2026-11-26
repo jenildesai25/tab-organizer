@@ -1,0 +1,49 @@
+{
+  "version": "0.3.19",
+  "popup": {
+    "rootWidth": 430,
+    "cssWidth": "430px",
+    "hasActivityHeading": false,
+    "hasActivityList": false,
+    "hasOpenRules": true,
+    "hasOpenSettings": true,
+    "ollamaPill": "llama3.2",
+    "groupsSummary": "No groups in this window"
+  },
+  "dashboard": {
+    "itemCount": 6,
+    "firstCopy": "Organize put 3 tabs in \"GitHub\"",
+    "firstTime": "Just now",
+    "chips": [
+      {
+        "label": "All",
+        "active": true
+      },
+      {
+        "label": "AI",
+        "active": false
+      },
+      {
+        "label": "You",
+        "active": false
+      },
+      {
+        "label": "Organize",
+        "active": false
+      },
+      {
+        "label": "Rules",
+        "active": false
+      }
+    ],
+    "hasHelp": true,
+    "hasClearDialog": true,
+    "emptyHidden": true
+  },
+  "shots": {
+    "popupClean": "/Users/jenil/Desktop/Development/tab-organizer/.scratch/ui-mock/shots/popup-no-activity-clean.png",
+    "popupAnnotated": "/Users/jenil/Desktop/Development/tab-organizer/.scratch/ui-mock/shots/popup-no-activity-annotated.png",
+    "dashClean": "/Users/jenil/Desktop/Development/tab-organizer/.scratch/ui-mock/shots/dashboard-activity-sample-clean.png",
+    "dashAnnotated": "/Users/jenil/Desktop/Development/tab-organizer/.scratch/ui-mock/shots/dashboard-activity-sample-annotated.png"
+  }
+}

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        document.querySelector('meta[name="color-scheme"]').content =
+          localStorage.getItem("tab-organizer-mock-color-scheme") ?? "light dark";
+      } catch (_) {}
+    </script>
+    <title>Tab Organizer — UI mock review</title>
+    <link rel="stylesheet" href="shared.css" />
+    <style>
+      .hub {
+        max-width: 1180px;
+        margin: 0 auto;
+        padding: 40px 24px 64px;
+      }
+      .hub-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+      }
+      .hub h1 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: clamp(2rem, 4vw, 3rem);
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: var(--teal-deep);
+      }
+      .hub .intro {
+        margin: 10px 0 28px;
+        max-width: 40rem;
+        color: var(--ink-soft);
+      }
+      .hub-grid {
+        display: grid;
+        grid-template-columns: 420px minmax(0, 1fr);
+        gap: 28px;
+        align-items: start;
+      }
+      .frame {
+        border: 1px solid color-mix(in oklab, var(--teal) 18%, var(--line));
+        border-radius: 16px;
+        overflow: hidden;
+        background: #0b1c19;
+        box-shadow: var(--shadow);
+        color-scheme: dark;
+      }
+      .frame-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        color: #d7e4df;
+        font-family: var(--font-mono);
+        font-size: 11px;
+      }
+      .frame-bar i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #14b8a6;
+        display: inline-block;
+      }
+      .frame iframe {
+        display: block;
+        width: 100%;
+        height: 640px;
+        border: 0;
+        background: var(--paper);
+      }
+      .frame.dash iframe {
+        height: 720px;
+      }
+      .notes {
+        margin-top: 28px;
+        display: grid;
+        gap: 10px;
+        max-width: 52rem;
+      }
+      .notes h2 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: 13px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--teal-deep);
+      }
+      .notes ul {
+        margin: 0;
+        padding-left: 1.1rem;
+        color: var(--ink-soft);
+      }
+      .await {
+        margin-top: 18px;
+        padding: 12px 14px;
+        border-radius: 10px;
+        background: var(--note-warn-bg);
+        color: var(--pill-warn-ink);
+        font-weight: 650;
+      }
+      @media (max-width: 960px) {
+        .hub-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body class="atmosphere">
+    <div class="hub">
+      <div class="hub-head">
+        <h1>Tab Organizer UI mocks</h1>
+        <div class="theme-toggle" role="group" aria-label="Color theme">
+          <button type="button" data-theme="light" aria-pressed="false">Light</button>
+          <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+          <button type="button" data-theme="system" aria-pressed="true">System</button>
+        </div>
+      </div>
+      <p class="intro">
+        Review surfaces only — popup (~400px) and full dashboard. Interactive: toggles, Organize progress, expandable groups,
+        Light / Dark / System theme (defaults to OS). Extension source is untouched.
+      </p>
+
+      <div class="hub-grid">
+        <div>
+          <div class="frame">
+            <div class="frame-bar"><i aria-hidden="true"></i> popup.html · 400×~600</div>
+            <iframe title="Popup mock" src="popup.html"></iframe>
+          </div>
+          <p style="margin: 10px 0 0; font-size: 13px">
+            <a href="popup.html">Open popup full page</a>
+          </p>
+        </div>
+        <div>
+          <div class="frame dash">
+            <div class="frame-bar"><i aria-hidden="true"></i> dashboard.html · full page</div>
+            <iframe title="Dashboard mock" src="dashboard.html"></iframe>
+          </div>
+          <p style="margin: 10px 0 0; font-size: 13px">
+            <a href="dashboard.html">Open dashboard full page</a>
+          </p>
+        </div>
+      </div>
+
+      <div class="notes">
+        <h2>Blasting features shown</h2>
+        <ul>
+          <li>Organize with live progress + completion note</li>
+          <li>Group list with color swatches, counts, expandable tabs</li>
+          <li>AI rename results (Misc → Research, Untitled → Local)</li>
+          <li>Activity stream with actor marks (sweep / AI / you)</li>
+          <li>Ollama connection health + model picker</li>
+          <li>File new tabs / Local model toggles</li>
+          <li>Deep link between popup and dashboard</li>
+          <li>Light / Dark / System theme (OS default; override persists in <code>localStorage</code> for this mock only)</li>
+        </ul>
+        <p class="await">Awaiting your approval before implementing into the Chrome extension.</p>
+      </div>
+    </div>
+    <script src="mock.js" defer></script>
+  </body>
+</html>

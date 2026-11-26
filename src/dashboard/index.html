@@ -3,85 +3,114 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <script src="../ui/theme-boot.js"></script>
     <title>Tab Organizer</title>
+    <link rel="stylesheet" href="../ui/shared.css" />
     <link rel="stylesheet" href="dashboard.css" />
   </head>
-  <body>
-    <main>
-      <header class="page-header">
-        <div class="page-header-copy">
-          <h1>Tab Organizer</h1>
-          <p id="status" role="status">Organizer is off.</p>
-        </div>
-        <div class="page-header-actions">
-          <button id="sweep" type="button" class="primary">Organize this window</button>
-        </div>
-      </header>
-      <p id="result" class="result-line" aria-live="polite" hidden></p>
+  <body class="atmosphere dashboard-body">
+    <a class="skip-link" href="#main">Skip to content</a>
 
-      <section class="panel panel-primary" aria-labelledby="rules-heading">
+    <header class="hero" aria-label="Tab Organizer">
+      <div class="hero-top">
+        <p class="hero-kicker">Chrome · local-first · MV3</p>
+        <div class="theme-toggle" role="group" aria-label="Color theme">
+          <button type="button" data-theme="light" aria-pressed="false">Light</button>
+          <button type="button" data-theme="dark" aria-pressed="false">Dark</button>
+          <button type="button" data-theme="system" aria-pressed="true">System</button>
+        </div>
+      </div>
+      <div class="hero-main">
+        <div class="hero-copy">
+          <div class="hero-brand-row">
+            <span class="brand-mark-inline" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="4" width="7" height="16" rx="2" fill="#0f766e" />
+                <rect x="12" y="4" width="9" height="7" rx="2" fill="#14b8a6" />
+                <rect x="12" y="13" width="9" height="7" rx="2" fill="#ea580c" />
+              </svg>
+            </span>
+            <h1 class="hero-brand">Tab Organizer</h1>
+          </div>
+          <p class="hero-lede">
+            File tabs into native Chrome groups — with plain-language rules and an optional local Ollama model.
+          </p>
+          <div class="hero-actions">
+            <button id="sweep" class="btn btn-primary" type="button">Organize this window</button>
+          </div>
+          <div id="progress-panel" class="progress-wrap hero-progress" hidden>
+            <div class="progress-meta">
+              <span id="progress-label">Filing tabs…</span>
+              <span id="progress-value">…</span>
+            </div>
+            <label class="sr-only" for="organize-progress">Organize progress</label>
+            <progress id="organize-progress" class="organize-progress" max="100"></progress>
+          </div>
+          <p id="result" class="inline-note hero-result" role="status" hidden></p>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+      <div class="snapshot" role="status" aria-label="Window snapshot">
+        <div><strong id="snap-tabs">—</strong><span>tabs</span></div>
+        <div><strong id="snap-groups">—</strong><span>groups</span></div>
+        <div><strong id="snap-filing" class="ok-text">Off</strong><span>filing</span></div>
+        <div><strong id="snap-model">Off</strong><span>local model</span></div>
+      </div>
+
+      <nav class="section-nav" aria-label="Dashboard sections">
+        <a href="#rules">Rules</a>
+        <a href="#groups">Groups</a>
+        <a href="#models">Models</a>
+        <a href="#activity">Activity</a>
+        <a href="#settings">Settings</a>
+      </nav>
+
+      <section id="rules" class="panel" aria-labelledby="rules-heading">
         <h2 id="rules-heading">Rules</h2>
-        <p class="lede">A short sentence, such as “use gb for github”.</p>
-        <form id="rule-form">
+        <p class="lede">One job: teach the organizer how to name groups in plain English.</p>
+        <form id="rule-form" class="rule-form">
           <label class="field" for="sentence">
             <span>Rule</span>
             <textarea id="sentence" rows="2" placeholder="use gb for github"></textarea>
           </label>
           <div class="buttons">
-            <button id="preview" type="submit">Check</button>
-            <button id="save" type="button" class="quiet" disabled>Save</button>
+            <button id="preview" class="btn btn-primary" type="submit">Check</button>
+            <button id="save" class="btn btn-ghost" type="button" disabled>Save</button>
           </div>
-          <p id="confirmation" class="inline-note" hidden></p>
+          <p id="confirmation" class="inline-note" role="status" hidden></p>
         </form>
-        <ul id="rules" class="rule-list"></ul>
+        <ul id="rule-list" class="rule-list" aria-label="Saved rules"></ul>
       </section>
 
-      <section class="panel panel-secondary" aria-labelledby="groups-heading">
+      <section id="groups" class="panel" aria-labelledby="groups-heading">
         <div class="panel-head">
           <div>
             <h2 id="groups-heading">Groups</h2>
             <p class="lede">Rename, recolor, or ungroup. Tabs stay open.</p>
           </div>
-          <button id="refresh-groups" type="button" class="ghost">Refresh</button>
+          <button type="button" class="btn btn-ghost" id="refresh-groups">Refresh</button>
         </div>
         <p id="groups-empty" class="empty" hidden>
           No groups in this window yet. Organize this window to create some.
         </p>
         <p id="groups-error" class="inline-note" role="status" hidden></p>
-        <ul id="groups" class="group-list"></ul>
+        <ul id="groups-list" class="group-list dashboard-groups" aria-label="Groups in this window"></ul>
       </section>
 
-      <section class="panel panel-secondary" aria-labelledby="activity-heading">
-        <div class="panel-head">
-          <div>
-            <h2 id="activity-heading">Activity</h2>
-            <p class="lede">Every extension-driven group change, with who did it.</p>
-          </div>
-          <div class="panel-head-actions">
-            <button id="refresh-activity" type="button" class="ghost">Refresh</button>
-            <button id="clear-activity" type="button" class="ghost">Clear log</button>
-          </div>
-        </div>
-        <label class="field activity-filter" for="activity-actor">
-          <span>Show</span>
-          <select id="activity-actor">
-            <option value="all">All</option>
-            <option value="ai">AI</option>
-            <option value="user">You</option>
-            <option value="sweep">Sweep</option>
-            <option value="organizer">Organizer</option>
-            <option value="rule">Rule</option>
-            <option value="system">System</option>
-          </select>
-        </label>
-        <p id="activity-empty" class="empty" hidden>No activity yet.</p>
-        <ul id="activity" class="activity-list" aria-label="Activity log"></ul>
-      </section>
-
-      <section class="panel panel-secondary panel-advanced" aria-labelledby="models-heading">
+      <section id="models" class="panel" aria-labelledby="models-heading">
         <h2 id="models-heading">Local models</h2>
-        <p class="lede">Advanced. Ollama on this machine. Nothing is sent away.</p>
-        <label class="switch">
+        <p class="lede">Ollama on this machine. Nothing is sent away.</p>
+
+        <div id="health-strip" class="health-strip" role="status">
+          <span id="health-connected" class="pill"><span class="dot" aria-hidden="true"></span> Not checked</span>
+          <span id="health-models" class="pill" hidden></span>
+          <span id="health-warm" class="pill" hidden></span>
+        </div>
+
+        <label class="switch" for="llm">
           <span class="switch-copy">
             <span class="switch-title">Local model</span>
             <span class="switch-hint">Ask Ollama when a rule or a tab is unclear</span>
@@ -91,23 +120,107 @@
             <span class="switch-track" aria-hidden="true"></span>
           </span>
         </label>
-        <label class="field" for="model">
-          <span>Installed models</span>
-          <select id="model"></select>
-        </label>
-        <div class="buttons">
-          <button id="refresh-models" type="button" class="ghost">Refresh</button>
-          <button id="test-ollama" type="button" class="ghost" disabled>Test connection</button>
-        </div>
-        <div id="retitle-block" class="retitle-block" hidden>
-          <p class="retitle-hint">Rewrites group names from tab titles. Tabs stay where they are.</p>
-          <div class="buttons">
-            <button id="retitle-groups" type="button" disabled>Rename all groups with AI</button>
+
+        <div class="field">
+          <span id="model-label">Installed models</span>
+          <div id="model-picker" class="model-picker">
+            <button
+              type="button"
+              id="model-trigger"
+              class="model-picker-trigger"
+              aria-haspopup="listbox"
+              aria-expanded="false"
+              aria-controls="model-list"
+              aria-labelledby="model-label model-value"
+            >
+              <span id="model-value" class="model-picker-value">Choose a model</span>
+              <span class="model-picker-chevron" aria-hidden="true"></span>
+            </button>
+            <div id="model-list" class="model-picker-menu" role="listbox" aria-labelledby="model-label" hidden></div>
           </div>
         </div>
+
+        <div class="buttons">
+          <button type="button" class="btn btn-ghost" id="refresh-models">Refresh</button>
+          <button type="button" class="btn btn-ghost" id="test-ollama" disabled>Test connection</button>
+          <button type="button" class="btn btn-primary" id="retitle-groups" disabled>Rename all groups with AI</button>
+        </div>
+
         <div id="model-status" class="inline-note" role="status" hidden></div>
       </section>
+
+      <section id="activity" class="panel" aria-labelledby="activity-heading">
+        <div class="panel-head">
+          <div>
+            <h2 id="activity-heading">Activity</h2>
+            <p class="lede activity-help">
+              What is this? A plain-language history of everything Tab Organizer did — so you can check what changed without reading technical log files.
+            </p>
+          </div>
+          <div class="panel-head-actions">
+            <button type="button" class="btn btn-ghost" id="refresh-activity">Refresh</button>
+            <button type="button" class="btn btn-ghost" id="clear-activity">Clear log</button>
+          </div>
+        </div>
+        <div
+          class="activity-filters"
+          role="toolbar"
+          aria-label="Filter activity"
+          aria-controls="activity-list"
+        >
+          <button type="button" class="activity-filter-chip is-active" data-filter="all" aria-pressed="true">
+            All
+          </button>
+          <button type="button" class="activity-filter-chip" data-filter="ai" aria-pressed="false">AI</button>
+          <button type="button" class="activity-filter-chip" data-filter="you" aria-pressed="false">You</button>
+          <button type="button" class="activity-filter-chip" data-filter="organize" aria-pressed="false">
+            Organize
+          </button>
+          <button type="button" class="activity-filter-chip" data-filter="rules" aria-pressed="false">
+            Rules
+          </button>
+        </div>
+        <p id="activity-empty" class="empty activity-empty" hidden>
+          Nothing here yet. When you organize tabs, rename groups, or save a rule that fires, those steps will show up in this list.
+        </p>
+        <ul id="activity-list" class="activity-list full" aria-label="Activity log"></ul>
+      </section>
+
+      <dialog id="clear-activity-dialog" class="confirm-dialog" aria-labelledby="clear-activity-title">
+        <form method="dialog">
+          <h3 id="clear-activity-title">Clear the activity log?</h3>
+          <p>This removes the history of what Tab Organizer did. It does not change your tabs or groups.</p>
+          <div class="confirm-actions">
+            <button type="submit" value="cancel" class="btn btn-ghost" autofocus>Keep log</button>
+            <button type="submit" value="confirm" class="btn btn-primary">Clear log</button>
+          </div>
+        </form>
+      </dialog>
+
+      <section id="settings" class="panel" aria-labelledby="settings-heading">
+        <h2 id="settings-heading">Settings</h2>
+        <p class="lede">Window-scoped filing and appearance.</p>
+        <label class="switch" for="organizer">
+          <span class="switch-copy">
+            <span class="switch-title">File new tabs</span>
+            <span class="switch-hint">Only in the window you are using</span>
+          </span>
+          <span class="switch-control">
+            <input id="organizer" type="checkbox" role="switch" />
+            <span class="switch-track" aria-hidden="true"></span>
+          </span>
+        </label>
+        <p class="settings-note">
+          Status: <span id="status">Organizer is off.</span>
+        </p>
+      </section>
     </main>
+
+    <footer class="dash-footer">
+      <span>Local-first · tabs stay on this machine</span>
+      <span id="version-label"></span>
+    </footer>
+
     <script type="module" src="dashboard.js"></script>
   </body>
 </html>

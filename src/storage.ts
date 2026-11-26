@@ -5,6 +5,12 @@ import {
   type ActivityDraft,
   type ActivityEntry,
 } from './domain/activity-log.js'
+import { createAsyncMutex } from './domain/concurrency.js'
+import {
+  HAND_RENAMED_KEY,
+  parseHandRenamedIds,
+  pruneHandRenamedIds,
+} from './domain/hand-renamed.js'
 import type { CompiledRule } from './domain/types.js'
 
 export type Settings = {
@@ -40,14 +46,37 @@ export async function loadActivityLog(): Promise<ActivityEntry[]> {
   return parseStoredActivityLog(stored[ACTIVITY_LOG_KEY])
 }
 
-/** Single write path for activity entries (newest first ring buffer). */
+const activityMutex = createAsyncMutex()
+
+/** Single write path for activity entries (newest first ring buffer), serialized. */
 export async function appendActivity(draft: ActivityDraft): Promise<ActivityEntry[]> {
-  const existing = await loadActivityLog()
-  const next = appendActivityEntry(existing, draft)
-  await chrome.storage.local.set({ [ACTIVITY_LOG_KEY]: next })
-  return next
+  return activityMutex.run(async () => {
+    const existing = await loadActivityLog()
+    const next = appendActivityEntry(existing, draft)
+    await chrome.storage.local.set({ [ACTIVITY_LOG_KEY]: next })
+    return next
+  })
 }
 
 export async function clearActivityLog(): Promise<void> {
-  await chrome.storage.local.set({ [ACTIVITY_LOG_KEY]: [] })
+  await activityMutex.run(async () => {
+    await chrome.storage.local.set({ [ACTIVITY_LOG_KEY]: [] })
+  })
+}
+
+export async function loadHandRenamedIds(): Promise<number[]> {
+  const stored = await chrome.storage.local.get(HAND_RENAMED_KEY)
+  return parseHandRenamedIds(stored[HAND_RENAMED_KEY])
+}
+
+export async function saveHandRenamedIds(ids: Iterable<number>): Promise<void> {
+  await chrome.storage.local.set({ [HAND_RENAMED_KEY]: [...ids] })
+}
+
+/** Load persisted hand-renames and drop IDs for groups that no longer exist. */
+export async function restoreHandRenamedIds(liveGroupIds: ReadonlySet<number>): Promise<number[]> {
+  const stored = await loadHandRenamedIds()
+  const pruned = pruneHandRenamedIds(stored, liveGroupIds)
+  if (pruned.length !== stored.length) await saveHandRenamedIds(pruned)
+  return pruned
 }

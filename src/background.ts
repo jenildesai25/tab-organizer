@@ -2,6 +2,7 @@ import { fileTabs, retitleGroup } from './apply.js'
 import { cancelAdvisor, enqueueAdvisor, RETITLE_TIMEOUT_MS } from './advisor.js'
 import {
   filterActivityByActor,
+  filterActivityByFilter,
   type ActivityActor,
   type ActivityDraft,
 } from './domain/activity-log.js'
@@ -17,6 +18,7 @@ import {
   retitleGroupMessages,
   ruleMessages,
 } from './domain/prompts.js'
+import { createSingleFlightGate } from './domain/concurrency.js'
 import { claimRule, compileSentence, deleteRule, retitlesForSavedRule } from './domain/rules.js'
 import { decideSiteRetitle, rejectRetitleSuggestion } from './domain/site-retitle.js'
 import { canonicalSite, titlesMatch } from './domain/sites.js'
@@ -50,6 +52,8 @@ import {
   clearActivityLog,
   loadActivityLog,
   loadSettings,
+  restoreHandRenamedIds,
+  saveHandRenamedIds,
   saveSettings,
   type Settings,
 } from './storage.js'
@@ -65,13 +69,28 @@ const groupTitles = new Map<number, string>()
 const stability = new Map<number, { domain: string; title: string; since: number }>()
 const settleTimers = new Map<number, ReturnType<typeof setTimeout>>()
 const scheduled = new Map<number, ReturnType<typeof setTimeout>>()
+const retitleGate = createSingleFlightGate()
 
 let organizerOn = false
 let llmOn = false
 let statusNote = ''
 let settingsEpoch = 0
 let retitleProgress: RetitleProgress | null = null
-let retitleRunning = false
+
+async function persistHandRenamed(): Promise<void> {
+  await saveHandRenamedIds(handRenamed)
+}
+
+async function rememberHandRenamed(groupId: number): Promise<void> {
+  if (handRenamed.has(groupId)) return
+  handRenamed.add(groupId)
+  await persistHandRenamed()
+}
+
+async function forgetHandRenamed(groupId: number): Promise<void> {
+  if (!handRenamed.delete(groupId)) return
+  await persistHandRenamed()
+}
 
 function markTabs(ids: number[]): void {
   for (const id of ids) {
@@ -207,6 +226,7 @@ async function apply(
   settings: Settings,
   domains: Map<number, string>,
   mode: 'watch' | 'sweep',
+  tabUrls?: Map<number, string>,
 ): Promise<void> {
   let failed = false
   const actor = filingActor(mode)
@@ -232,6 +252,8 @@ async function apply(
           advisorPending.delete(id)
         }
         if (groupId != null) {
+          const firstTabId = action.tabIds[0]
+          const tabUrl = firstTabId != null ? tabUrls?.get(firstTabId) : undefined
           if (action.create) {
             await recordActivity({
               actor,
@@ -239,8 +261,9 @@ async function apply(
               groupId,
               groupTitle: action.create.title,
               newTitle: action.create.title,
-              tabId: action.tabIds[0],
-              siteKey: domains.get(action.tabIds[0] ?? -1),
+              tabId: firstTabId,
+              tabUrl,
+              siteKey: domains.get(firstTabId ?? -1),
               tabCount: action.tabIds.length,
             })
           } else {
@@ -256,8 +279,9 @@ async function apply(
               action: 'tab.file',
               groupId,
               groupTitle,
-              tabId: action.tabIds[0],
-              siteKey: domains.get(action.tabIds[0] ?? -1),
+              tabId: firstTabId,
+              tabUrl,
+              siteKey: domains.get(firstTabId ?? -1),
               tabCount: action.tabIds.length,
             })
           }
@@ -302,9 +326,14 @@ function queueAdvice(
       for (const tab of input.tabs) tab.candidate = tab.id === action.tabId
       input.suggestion = { tabId: action.tabId, title: parsed.title, confidence: parsed.confidence }
       const domains = new Map(input.tabs.map((tab) => [tab.id, tab.card.domain]))
+      const tabUrls = new Map(
+        built.chromeTabs.flatMap((tab) =>
+          tab.id == null ? [] : ([[tab.id, resolveTabUrl(tab)] as const]),
+        ),
+      )
       const next = decide(input).filter((item) => item.type !== 'ask-advisor')
       try {
-        await apply(windowId, next, fresh, domains, 'watch')
+        await apply(windowId, next, fresh, domains, 'watch', tabUrls)
       } catch {
         return null
       }
@@ -384,8 +413,13 @@ async function run(windowId: number, mode: 'watch' | 'sweep'): Promise<string> {
   const built = await buildInput(windowId, settings, mode, mode === 'sweep' ? true : focused)
   const { chromeTabs, ...input } = built
   const domains = new Map(input.tabs.map((tab) => [tab.id, tab.card.domain]))
+  const tabUrls = new Map(
+    chromeTabs.flatMap((tab) =>
+      tab.id == null ? [] : ([[tab.id, resolveTabUrl(tab)] as const]),
+    ),
+  )
   const actions = decide(input)
-  await apply(windowId, actions, settings, domains, mode)
+  await apply(windowId, actions, settings, domains, mode, tabUrls)
   if (mode !== 'sweep') return ''
   if (sweepClaimsNothing(input.tabs, actions, input.groups)) {
     throw new Error('Could not group this window.')
@@ -613,7 +647,9 @@ async function handle(message: ToBackground): Promise<unknown> {
   if (message.type === 'retitle-groups') return retitleGroups(message.windowId)
   if (message.type === 'get-activity') {
     const entries = await loadActivityLog()
-    const filtered = filterActivityByActor(entries, message.actor ?? 'all')
+    const filtered = message.filter
+      ? filterActivityByFilter(entries, message.filter)
+      : filterActivityByActor(entries, message.actor ?? 'all')
     const limit = message.limit && message.limit > 0 ? message.limit : filtered.length
     return { ok: true, entries: filtered.slice(0, limit) } satisfies ActivityLogResult
   }
@@ -625,77 +661,79 @@ async function handle(message: ToBackground): Promise<unknown> {
 }
 
 async function retitleGroups(requestedId: number): Promise<RetitleGroupsResult> {
-  if (retitleRunning) return { ok: false, message: 'A rename is already running.' }
-  const settings = await loadSettings()
-  llmOn = settings.llmOn
-  if (!settings.llmOn) return { ok: false, message: 'Turn on the local model.' }
-  if (!settings.model.trim()) return { ok: false, message: 'Choose a local model.' }
+  // Single-flight before model checks / window queries so popup+dashboard can't both enter.
+  if (!retitleGate.tryEnter()) return { ok: false, message: 'A rename is already running.' }
+  retitleProgress = null
 
-  const model = settings.model.trim()
   try {
-    const available = await listLocalModels(AbortSignal.timeout(5000))
-    if (!available.some((entry) => entry.name === model)) {
-      return { ok: false, message: `Model "${model}" is not installed in Ollama.` }
+    const settings = await loadSettings()
+    llmOn = settings.llmOn
+    if (!settings.llmOn) return { ok: false, message: 'Turn on the local model.' }
+    if (!settings.model.trim()) return { ok: false, message: 'Choose a local model.' }
+
+    const model = settings.model.trim()
+    try {
+      const available = await listLocalModels(AbortSignal.timeout(5000))
+      if (!available.some((entry) => entry.name === model)) {
+        return { ok: false, message: `Model "${model}" is not installed in Ollama.` }
+      }
+    } catch (error) {
+      return { ok: false, message: describeOllamaFailure(error) }
     }
-  } catch (error) {
-    return { ok: false, message: describeOllamaFailure(error) }
-  }
 
-  let windowId: number
-  try {
-    windowId = await resolveSweepWindowId(requestedId)
-  } catch (error) {
-    const text = error instanceof Error && error.message ? error.message : 'Could not find a window to rename.'
-    return { ok: false, message: text }
-  }
-
-  const [groups, queried] = await Promise.all([
-    chrome.tabGroups.query({ windowId }),
-    chrome.tabs.query({ windowId }),
-  ])
-  const tabs = await hydrateTabs(queried)
-  const results: RetitleGroupResult[] = []
-  let updated = 0
-  let skipped = 0
-  let failed = 0
-
-  for (const group of groups) {
-    if (group.shared === true) {
-      skipped += 1
-      results.push({
-        groupId: group.id,
-        oldTitle: group.title ?? '',
-        status: 'skipped',
-        reason: 'Shared',
-      })
-      await recordActivity({
-        actor: 'ai',
-        action: 'rename.skip',
-        groupId: group.id,
-        oldTitle: group.title ?? '',
-        groupTitle: group.title ?? '',
-        reason: 'Shared',
-        model,
-      })
+    let windowId: number
+    try {
+      windowId = await resolveSweepWindowId(requestedId)
+    } catch (error) {
+      const text = error instanceof Error && error.message ? error.message : 'Could not find a window to rename.'
+      return { ok: false, message: text }
     }
-  }
 
-  const targets = groups.filter((group) => group.shared !== true)
-  if (targets.length === 0) {
-    const summary =
-      results.length === 0
-        ? 'No groups to rename in this window.'
-        : skipped === 1
-          ? 'Skipped 1 shared group.'
-          : `Skipped ${skipped} shared groups.`
-    return { ok: true, updated: 0, skipped, failed: 0, summary, results }
-  }
+    const [groups, queried] = await Promise.all([
+      chrome.tabGroups.query({ windowId }),
+      chrome.tabs.query({ windowId }),
+    ])
+    const tabs = await hydrateTabs(queried)
+    const results: RetitleGroupResult[] = []
+    let updated = 0
+    let skipped = 0
+    let failed = 0
 
-  retitleRunning = true
-  retitleProgress = { current: 0, total: targets.length, results: [...results] }
-  let cancelled = false
+    for (const group of groups) {
+      if (group.shared === true) {
+        skipped += 1
+        results.push({
+          groupId: group.id,
+          oldTitle: group.title ?? '',
+          status: 'skipped',
+          reason: 'Shared',
+        })
+        await recordActivity({
+          actor: 'ai',
+          action: 'rename.skip',
+          groupId: group.id,
+          oldTitle: group.title ?? '',
+          groupTitle: group.title ?? '',
+          reason: 'Shared',
+          model,
+        })
+      }
+    }
 
-  try {
+    const targets = groups.filter((group) => group.shared !== true)
+    if (targets.length === 0) {
+      const summary =
+        results.length === 0
+          ? 'No groups to rename in this window.'
+          : skipped === 1
+            ? 'Skipped 1 shared group.'
+            : `Skipped ${skipped} shared groups.`
+      return { ok: true, updated: 0, skipped, failed: 0, summary, results }
+    }
+
+    retitleProgress = { current: 0, total: targets.length, results: [...results] }
+    let cancelled = false
+
     for (let index = 0; index < targets.length; index += 1) {
       if (!llmOn) break
       const group = targets[index]!
@@ -706,10 +744,12 @@ async function retitleGroups(requestedId: number): Promise<RetitleGroupsResult> 
         .filter((tab) => tab.groupId === group.id)
         .map((tab) => buildFeatureCard({ url: resolveTabUrl(tab), title: tab.title || '' }))
 
-      // Manual renames keep their label; do not force GitHub/Local over them.
-      const siteDecision = handRenamed.has(group.id)
-        ? ({ kind: 'ask-model' } as const)
-        : decideSiteRetitle(currentTitle, memberCards, { rules: settings.rules })
+      // Hand-renamed titles (e.g. "My PRs") skip AI and site-title force; reject still
+      // guards any non-hand-renamed homogeneous site that reaches the model.
+      const siteDecision = decideSiteRetitle(currentTitle, memberCards, {
+        rules: settings.rules,
+        handRenamed: handRenamed.has(group.id),
+      })
       if (siteDecision.kind === 'skip') {
         skipped += 1
         results.push({
@@ -724,7 +764,7 @@ async function retitleGroups(requestedId: number): Promise<RetitleGroupsResult> 
           groupId: group.id,
           oldTitle: currentTitle,
           groupTitle: currentTitle,
-          siteKey: siteDecision.domain,
+          siteKey: siteDecision.domain || undefined,
           reason: siteDecision.reason,
           model,
         })
@@ -811,11 +851,21 @@ async function retitleGroups(requestedId: number): Promise<RetitleGroupsResult> 
       } catch (error) {
         if (!llmOn) break
         failed += 1
+        const reason = describeOllamaFailure(error)
         results.push({
           groupId: group.id,
           oldTitle: currentTitle,
           status: 'failed',
-          reason: describeOllamaFailure(error),
+          reason,
+        })
+        await recordActivity({
+          actor: 'ai',
+          action: 'rename.skip',
+          groupId: group.id,
+          oldTitle: currentTitle,
+          groupTitle: currentTitle,
+          reason,
+          model,
         })
         retitleProgress = { current: index + 1, total: targets.length, results: [...results] }
         continue
@@ -881,11 +931,9 @@ async function retitleGroups(requestedId: number): Promise<RetitleGroupsResult> 
         continue
       }
 
-      const rejected = handRenamed.has(group.id)
-        ? null
-        : rejectRetitleSuggestion(currentTitle, parsed.title, memberCards, {
-            rules: settings.rules,
-          })
+      const rejected = rejectRetitleSuggestion(currentTitle, parsed.title, memberCards, {
+        rules: settings.rules,
+      })
       if (rejected) {
         skipped += 1
         results.push({
@@ -950,29 +998,33 @@ async function retitleGroups(requestedId: number): Promise<RetitleGroupsResult> 
       }
       retitleProgress = { current: index + 1, total: targets.length, results: [...results] }
     }
+
+    const aiSkipped = results.filter((r) => r.status === 'skipped' && r.reason !== 'Shared').length
+    if ((!llmOn || cancelled) && updated === 0 && aiSkipped === 0 && failed <= 1) {
+      return { ok: false, message: 'Rename cancelled.' }
+    }
+
+    const order = new Map(groups.map((group, index) => [group.id, index]))
+    results.sort((left, right) => (order.get(left.groupId) ?? 0) - (order.get(right.groupId) ?? 0))
+
+    const parts = [`Renamed ${updated}`]
+    if (skipped > 0) parts.push(`skipped ${skipped}`)
+    if (failed > 0) parts.push(`failed ${failed}`)
+    return {
+      ok: true,
+      updated,
+      skipped,
+      failed,
+      summary: `${parts.join(', ')}.`,
+      results,
+    }
   } finally {
-    retitleProgress = null
-    retitleRunning = false
-  }
-
-  const aiSkipped = results.filter((r) => r.status === 'skipped' && r.reason !== 'Shared').length
-  if ((!llmOn || cancelled) && updated === 0 && aiSkipped === 0 && failed <= 1) {
-    return { ok: false, message: 'Rename cancelled.' }
-  }
-
-  const order = new Map(groups.map((group, index) => [group.id, index]))
-  results.sort((left, right) => (order.get(left.groupId) ?? 0) - (order.get(right.groupId) ?? 0))
-
-  const parts = [`Renamed ${updated}`]
-  if (skipped > 0) parts.push(`skipped ${skipped}`)
-  if (failed > 0) parts.push(`failed ${failed}`)
-  return {
-    ok: true,
-    updated,
-    skipped,
-    failed,
-    summary: `${parts.join(', ')}.`,
-    results,
+    retitleGate.exit()
+    // Keep the last progress snapshot until after this turn so concurrent get-state
+    // polls don't blank the UI before the final message payload paints.
+    queueMicrotask(() => {
+      if (!retitleGate.running) retitleProgress = null
+    })
   }
 }
 
@@ -1013,6 +1065,8 @@ async function updateGroup(
     markGroup(groupId)
     const updated = (await chrome.tabGroups.update(groupId, update)) ?? (await chrome.tabGroups.get(groupId))
     if (patch.title !== undefined && patch.title !== oldTitle) {
+      // markGroup suppresses onUpdated hand-rename detection — record it here.
+      await rememberHandRenamed(groupId)
       await recordActivity({
         actor: 'user',
         action: 'group.rename',
@@ -1121,11 +1175,11 @@ chrome.tabGroups.onUpdated.addListener((group) => {
     ownGroups.delete(group.id)
     return
   }
-  if (previous !== undefined && previous !== title) handRenamed.add(group.id)
+  if (previous !== undefined && previous !== title) void rememberHandRenamed(group.id)
 })
 
 chrome.tabGroups.onRemoved.addListener((group) => {
-  handRenamed.delete(group.id)
+  void forgetHandRenamed(group.id)
   groupTitles.delete(group.id)
 })
 
@@ -1158,6 +1212,10 @@ async function boot(): Promise<void> {
   for (const group of groups) {
     if (!groupTitles.has(group.id)) groupTitles.set(group.id, group.title ?? '')
   }
+  const liveIds = new Set(groups.map((group) => group.id))
+  const restored = await restoreHandRenamedIds(liveIds)
+  handRenamed.clear()
+  for (const id of restored) handRenamed.add(id)
 }
 
 void boot()

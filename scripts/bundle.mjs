@@ -4,6 +4,7 @@ import * as esbuild from 'esbuild'
 rmSync('dist', { recursive: true, force: true })
 mkdirSync('dist/popup', { recursive: true })
 mkdirSync('dist/dashboard', { recursive: true })
+mkdirSync('dist/ui', { recursive: true })
 
 await esbuild.build({
   entryPoints: ['src/background.ts', 'src/popup/popup.ts', 'src/dashboard/dashboard.ts'],
@@ -16,6 +17,10 @@ await esbuild.build({
 })
 
 cpSync('manifest.json', 'dist/manifest.json')
+cpSync('icons', 'dist/icons', { recursive: true })
+cpSync('fonts', 'dist/fonts', { recursive: true })
+cpSync('src/ui/shared.css', 'dist/ui/shared.css')
+cpSync('src/ui/theme-boot.js', 'dist/ui/theme-boot.js')
 cpSync('src/popup/popup.html', 'dist/popup/popup.html')
 cpSync('src/popup/popup.css', 'dist/popup/popup.css')
 cpSync('src/dashboard/index.html', 'dist/dashboard/index.html')

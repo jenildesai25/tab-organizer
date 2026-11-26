@@ -1,11 +1,12 @@
 {
   "name": "tab-organizer",
   "private": true,
-  "version": "0.3.10",
+  "version": "0.3.20",
   "type": "module",
   "scripts": {
     "test": "vitest run",
     "test:browser": "node scripts/browser-smoke.mjs",
+    "test:popup-ui": "node scripts/popup-ui-smoke.mjs",
     "eval:advisor": "tsx scripts/eval-advisor.ts",
     "build": "tsc --noEmit && node scripts/bundle.mjs",
     "check": "tsc --noEmit"

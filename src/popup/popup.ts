@@ -1,62 +1,52 @@
-import type { TabGroupView } from '../domain/tab-groups.js'
 import type { LocalModel } from '../ollama.js'
 import type {
-  ActivityLogResult,
   ListGroupsResult,
   ModelsResult,
   RetitleGroupsResult,
   StateResult,
-  TestOllamaResult,
   ToBackground,
-  UngroupResult,
+  TestOllamaResult,
 } from '../protocol.js'
-import { paintActivityList } from '../ui/activity.js'
-import {
-  renderGroupList,
-  type GroupListController,
-  type GroupListHandlers,
-} from '../ui/groups.js'
+import { bindModelPicker } from '../ui/model-picker.js'
 import { paintOllamaStatus } from '../ui/ollama-status.js'
 import { paintRetitleResults } from '../ui/retitle-results.js'
 import { bindSweep, browserWindow } from '../ui/sweep.js'
+import { bindThemeToggle } from '../ui/theme.js'
 
 const organizer = document.querySelector<HTMLInputElement>('#organizer')!
 const llm = document.querySelector<HTMLInputElement>('#llm')!
 const llmControls = document.querySelector<HTMLDivElement>('#llm-controls')!
-const modelSelect = document.querySelector<HTMLSelectElement>('#model')!
+const modelPickerRoot = document.querySelector<HTMLElement>('#model-picker')!
 const testOllama = document.querySelector<HTMLButtonElement>('#test-ollama')!
 const retitleButton = document.querySelector<HTMLButtonElement>('#retitle-groups')!
 const modelStatus = document.querySelector<HTMLElement>('#model-status')!
 const sweep = document.querySelector<HTMLButtonElement>('#sweep')!
 const resultLine = document.querySelector<HTMLParagraphElement>('#result')!
 const status = document.querySelector<HTMLParagraphElement>('#status')!
-const openDashboard = document.querySelector<HTMLButtonElement>('#open-dashboard')!
-const groupsList = document.querySelector<HTMLUListElement>('#groups')!
-const groupsEmpty = document.querySelector<HTMLParagraphElement>('#groups-empty')!
+const openRules = document.querySelector<HTMLButtonElement>('#open-rules')!
+const openSettings = document.querySelector<HTMLButtonElement>('#open-settings')!
+const manageGroups = document.querySelector<HTMLButtonElement>('#manage-groups')!
+const groupsSummary = document.querySelector<HTMLParagraphElement>('#groups-summary')!
 const groupsError = document.querySelector<HTMLParagraphElement>('#groups-error')!
 const refreshGroups = document.querySelector<HTMLButtonElement>('#refresh-groups')!
-const activityList = document.querySelector<HTMLUListElement>('#activity')!
-const activityEmpty = document.querySelector<HTMLParagraphElement>('#activity-empty')!
-const refreshActivity = document.querySelector<HTMLButtonElement>('#refresh-activity')!
+const progressPanel = document.querySelector<HTMLElement>('#progress-panel')
+const progressBar = document.querySelector<HTMLProgressElement>('#organize-progress')
+const progressLabel = document.querySelector<HTMLElement>('#progress-label')
+const progressValue = document.querySelector<HTMLElement>('#progress-value')
+const ollamaPill = document.querySelector<HTMLElement>('#ollama-pill')!
+const ollamaPillLabel = document.querySelector<HTMLElement>('#ollama-pill-label')!
 
 const TEST_LABEL = 'Test connection'
-const RETITLE_LABEL = 'Rename groups with AI'
+const RETITLE_LABEL = 'AI rename'
 
 let models: LocalModel[] = []
 let selected = ''
 let listedOnce = false
-let groups: TabGroupView[] = []
-let groupUi: GroupListController = {
-  openPickerId: null,
-  pendingDeleteId: null,
-  openMenuId: null,
-}
+let groupCount = 0
 let llmOn = false
 let testBusy = false
 let retitleBusy = false
 let retitlePoll: ReturnType<typeof setInterval> | null = null
-let renamedFlashIds: Set<number> = new Set()
-let renamedFlashTimer: ReturnType<typeof setTimeout> | null = null
 
 async function send<T>(message: ToBackground): Promise<T> {
   return chrome.runtime.sendMessage(message) as Promise<T>
@@ -75,26 +65,43 @@ function optionLabel(model: LocalModel): string {
   return model.parameterSize ? `${model.name} · ${model.parameterSize}` : model.name
 }
 
+function paintOllamaPill(ok: boolean | null, label: string, title: string): void {
+  if (!label) {
+    ollamaPill.hidden = true
+    return
+  }
+  ollamaPill.hidden = false
+  ollamaPill.classList.toggle('is-ok', ok === true)
+  ollamaPill.classList.toggle('is-warn', ok === false)
+  ollamaPill.title = title
+  ollamaPillLabel.textContent = label
+}
+
+const modelPicker = bindModelPicker(modelPickerRoot, {
+  onChange: (name) => {
+    selected = name
+    syncLlmControls()
+    if (!name) return
+    void (async () => {
+      renderState(await send<StateResult>({ type: 'set-model', model: name }))
+    })()
+  },
+})
+
 function renderModels(): void {
   const match = models.some((model) => model.name === selected)
-  modelSelect.replaceChildren()
-  if (models.length === 0 || !match) {
-    const placeholder = document.createElement('option')
-    placeholder.value = ''
-    placeholder.textContent = listedOnce && models.length === 0 ? 'No models' : 'Choose a model'
-    modelSelect.append(placeholder)
-  }
-  for (const model of models) {
-    const option = document.createElement('option')
-    option.value = model.name
-    option.textContent = optionLabel(model)
-    modelSelect.append(option)
-  }
-  modelSelect.value = match ? selected : ''
+  const emptyLabel = listedOnce && models.length === 0 ? 'No models' : 'Choose a model'
+  modelPicker.setOptions(
+    models.map((model) => ({ value: model.name, label: optionLabel(model) })),
+    match ? selected : '',
+    emptyLabel,
+  )
 }
 
 function syncLlmControls(): void {
   llmControls.hidden = !llmOn
+  llmControls.classList.toggle('is-collapsed', !llmOn)
+  if (!llmOn) modelPicker.close()
   const ready = llmOn && selected !== ''
   if (testBusy) {
     testOllama.disabled = true
@@ -110,6 +117,15 @@ function syncLlmControls(): void {
     retitleButton.textContent = RETITLE_LABEL
     retitleButton.disabled = !ready
   }
+  if (!llmOn) {
+    paintOllamaPill(null, 'Local model off', 'Turn on Local model to use Ollama')
+  } else if (selected) {
+    paintOllamaPill(true, selected, `Local model · ${selected}`)
+  } else if (listedOnce && models.length === 0) {
+    paintOllamaPill(false, 'no models', "Ollama has no models yet")
+  } else {
+    paintOllamaPill(false, 'pick model', 'Choose a local model')
+  }
 }
 
 function applyRetitleProgress(state: StateResult): void {
@@ -121,77 +137,17 @@ function applyRetitleProgress(state: StateResult): void {
   }
 }
 
-async function confirmUngroup(groupId: number): Promise<void> {
-  const result = await send<UngroupResult>({ type: 'ungroup', groupId })
-  groupUi = { ...groupUi, pendingDeleteId: null, openMenuId: null }
-  if (!result.ok) {
-    showGroupsError(result.message)
-    renderGroups()
-    return
-  }
-  showGroupsError('')
-  await loadGroups()
-  await loadActivity()
-}
-
-const groupHandlers: GroupListHandlers = {
-  onColor: () => {
-    // Compact popup rows are read-mostly; recolor lives on the dashboard.
-  },
-  onTitleCommit: () => {
-    // Compact popup rows are read-mostly; rename lives on the dashboard.
-  },
-  onRequestUngroup: (groupId) => {
-    groupUi = { ...groupUi, pendingDeleteId: groupId, openMenuId: null }
-    renderGroups()
-  },
-  onConfirmUngroup: (groupId) => {
-    void confirmUngroup(groupId)
-  },
-  onCancelUngroup: () => {
-    groupUi = { ...groupUi, pendingDeleteId: null }
-    renderGroups()
-  },
-  onTogglePicker: () => {
-    // no-op in compact mode
-  },
-  onToggleMenu: (groupId) => {
-    groupUi = {
-      ...groupUi,
-      openMenuId: groupId,
-      pendingDeleteId: groupId == null ? groupUi.pendingDeleteId : null,
-    }
-    renderGroups()
-  },
-}
-
 function clearRetitleResults(): void {
   paintOllamaStatus(modelStatus, '')
 }
 
-function flashRenamed(ids: Iterable<number>): void {
-  if (renamedFlashTimer) {
-    clearTimeout(renamedFlashTimer)
-    renamedFlashTimer = null
-  }
-  renamedFlashIds = new Set(ids)
-  renderGroups()
-  if (renamedFlashIds.size === 0) return
-  renamedFlashTimer = setTimeout(() => {
-    renamedFlashIds = new Set()
-    renamedFlashTimer = null
-    renderGroups()
-  }, 1800)
-}
-
-function renderGroups(): void {
-  const empty = groups.length === 0
-  groupsEmpty.hidden = !empty || !groupsError.hidden
-  if (empty) {
-    groupsList.replaceChildren()
+function renderGroupsSummary(): void {
+  if (groupCount === 0) {
+    groupsSummary.textContent = 'No groups in this window'
     return
   }
-  renderGroupList(groupsList, groups, 'compact', groupUi, groupHandlers, renamedFlashIds)
+  groupsSummary.textContent =
+    groupCount === 1 ? '1 group in this window' : `${groupCount} groups in this window`
 }
 
 function renderState(state: StateResult): void {
@@ -209,42 +165,27 @@ async function loadGroups(): Promise<void> {
   try {
     const win = await browserWindow()
     if (win?.id == null) {
-      groups = []
+      groupCount = 0
       showGroupsError('This window has no tab strip to inspect.')
-      renderGroups()
+      renderGroupsSummary()
       return
     }
     const listed = await send<ListGroupsResult>({ type: 'list-groups', windowId: win.id })
     if (!listed.ok) {
-      groups = []
+      groupCount = 0
       showGroupsError(listed.message)
-      renderGroups()
+      renderGroupsSummary()
       return
     }
-    groups = listed.groups
+    groupCount = listed.groups.length
     showGroupsError('')
-    renderGroups()
+    renderGroupsSummary()
   } catch {
-    groups = []
+    groupCount = 0
     showGroupsError('Could not list groups.')
-    renderGroups()
+    renderGroupsSummary()
   } finally {
     refreshGroups.disabled = false
-  }
-}
-
-async function loadActivity(): Promise<void> {
-  refreshActivity.disabled = true
-  try {
-    const result = await send<ActivityLogResult>({ type: 'get-activity', limit: 15 })
-    paintActivityList(activityList, activityEmpty, result.ok ? result.entries : [], {
-      limit: 15,
-      emptyText: 'No activity yet.',
-    })
-  } catch {
-    paintActivityList(activityList, activityEmpty, [], { emptyText: 'Could not load activity.' })
-  } finally {
-    refreshActivity.disabled = false
   }
 }
 
@@ -259,6 +200,7 @@ async function loadModels(): Promise<void> {
         listed.message ??
           "Ollama isn't running. Start it with `ollama serve`, then try again.",
       )
+      paintOllamaPill(false, 'offline', listed.message ?? "Ollama isn't running")
       renderModels()
       syncLlmControls()
       return
@@ -271,9 +213,15 @@ async function loadModels(): Promise<void> {
     listedOnce = true
     if (!hadModels) models = []
     showModelStatus("Ollama isn't running. Start it with `ollama serve`, then try again.")
+    paintOllamaPill(false, 'offline', "Ollama isn't running")
     renderModels()
     syncLlmControls()
   }
+}
+
+function openDashboardPage(hash = ''): void {
+  const path = hash ? `dashboard/index.html${hash}` : 'dashboard/index.html'
+  void chrome.tabs.create({ url: chrome.runtime.getURL(path) })
 }
 
 organizer.addEventListener('change', () => {
@@ -288,16 +236,6 @@ llm.addEventListener('change', () => {
     renderState(state)
     if (state.llmOn) await loadModels()
     else showModelStatus('')
-  })()
-})
-
-modelSelect.addEventListener('change', () => {
-  const name = modelSelect.value
-  selected = name
-  syncLlmControls()
-  if (!name) return
-  void (async () => {
-    renderState(await send<StateResult>({ type: 'set-model', model: name }))
   })()
 })
 
@@ -319,8 +257,10 @@ testOllama.addEventListener('click', () => {
     try {
       const result = await send<TestOllamaResult>({ type: 'test-ollama' })
       showModelStatus(result.message)
+      paintOllamaPill(result.ok, selected, result.message)
     } catch {
       showModelStatus('Could not reach Ollama.')
+      paintOllamaPill(false, 'offline', 'Could not reach Ollama.')
     } finally {
       testBusy = false
       syncLlmControls()
@@ -344,7 +284,6 @@ retitleButton.addEventListener('click', () => {
     retitleButton.textContent = 'Renaming…'
     syncLlmControls()
     clearRetitleResults()
-    flashRenamed([])
     retitlePoll = setInterval(() => {
       void (async () => {
         if (!retitleBusy) return
@@ -365,11 +304,7 @@ retitleButton.addEventListener('click', () => {
         return
       }
       paintRetitleResults(modelStatus, result.summary, result.results)
-      flashRenamed(
-        result.results.filter((entry) => entry.status === 'renamed').map((entry) => entry.groupId),
-      )
       await loadGroups()
-      await loadActivity()
     } catch {
       showModelStatus('Could not rename groups.')
     } finally {
@@ -385,35 +320,40 @@ retitleButton.addEventListener('click', () => {
   })()
 })
 
-bindSweep(sweep, resultLine, renderState, (response) => {
-  if (response.ok) clearRetitleResults()
-  void loadGroups()
-  void loadActivity()
-})
+bindSweep(
+  sweep,
+  resultLine,
+  renderState,
+  (response) => {
+    if (response.ok) clearRetitleResults()
+    void loadGroups()
+  },
+  {
+    panel: progressPanel,
+    bar: progressBar,
+    label: progressLabel,
+    value: progressValue,
+  },
+)
 
 refreshGroups.addEventListener('click', () => {
-  groupUi = { openPickerId: null, pendingDeleteId: null, openMenuId: null }
   void loadGroups()
 })
 
-refreshActivity.addEventListener('click', () => {
-  void loadActivity()
+openRules.addEventListener('click', () => {
+  openDashboardPage('#rules')
+})
+openSettings.addEventListener('click', () => {
+  openDashboardPage('#settings')
+})
+manageGroups.addEventListener('click', () => {
+  openDashboardPage('#groups')
 })
 
-document.addEventListener('click', () => {
-  if (groupUi.openMenuId == null) return
-  groupUi = { ...groupUi, openMenuId: null }
-  renderGroups()
-})
-
-openDashboard.addEventListener('click', () => {
-  void chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/index.html') })
-})
-
+void bindThemeToggle()
 void (async () => {
   const state = await send<StateResult>({ type: 'get-state' })
   renderState(state)
   if (state.llmOn) await loadModels()
 })()
 void loadGroups()
-void loadActivity()
