@@ -1,10 +1,10 @@
-import type { ActivityActor, ActivityEntry } from './domain/activity-log.js'
+import type { ActivityActor, ActivityEntry, ActivityFilter } from './domain/activity-log.js'
 import type { SweepDiag } from './domain/sweep-diag.js'
 import type { TabGroupView } from './domain/tab-groups.js'
 import type { ChromeColor, CompiledRule } from './domain/types.js'
 import type { LocalModel } from './ollama.js'
 
-export type { ActivityActor, ActivityAction, ActivityEntry } from './domain/activity-log.js'
+export type { ActivityActor, ActivityAction, ActivityEntry, ActivityFilter } from './domain/activity-log.js'
 export type { SweepDiag, SweepDiagSample } from './domain/sweep-diag.js'
 export type { TabGroupView } from './domain/tab-groups.js'
 
@@ -101,5 +101,10 @@ export type ToBackground =
     }
   | { type: 'ungroup'; groupId: number }
   | { type: 'retitle-groups'; windowId: number }
-  | { type: 'get-activity'; limit?: number; actor?: ActivityActor | 'all' }
+  | {
+      type: 'get-activity'
+      limit?: number
+      actor?: ActivityActor | 'all'
+      filter?: ActivityFilter
+    }
   | { type: 'clear-activity' }

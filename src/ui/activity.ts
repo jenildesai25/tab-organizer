@@ -1,13 +1,16 @@
 import {
+  ACTIVITY_FILTERS,
   formatActivityBody,
   formatActivityTime,
   type ActivityActor,
   type ActivityEntry,
+  type ActivityFilter,
 } from '../domain/activity-log.js'
 
 export type ActivityListOptions = {
   emptyText?: string
   limit?: number
+  now?: number
 }
 
 function markActor(actor: ActivityActor): ActivityActor | '' {
@@ -30,11 +33,14 @@ export function paintActivityList(
   if (limited.length === 0) {
     if (empty) {
       empty.hidden = false
-      empty.textContent = options.emptyText ?? 'No activity yet.'
+      empty.textContent =
+        options.emptyText ??
+        'Nothing here yet. When Tab Organizer groups tabs, renames groups, or follows a rule, those steps show up in this list.'
     }
     return
   }
   if (empty) empty.hidden = true
+  const now = options.now ?? Date.now()
   for (const entry of limited) {
     const item = document.createElement('li')
     item.className = `activity-item activity-actor-${entry.actor} activity-action-${entry.action.replace('.', '-')}`
@@ -55,19 +61,24 @@ export function paintActivityList(
     const time = document.createElement('time')
     time.className = 'activity-time'
     time.dateTime = new Date(entry.ts).toISOString()
-    time.textContent = formatActivityTime(entry)
+    time.title = new Date(entry.ts).toLocaleString()
+    time.textContent = formatActivityTime(entry, now)
 
     item.append(mark, copy, time)
     list.append(item)
   }
 }
 
+export { ACTIVITY_FILTERS }
+export type { ActivityFilter }
+
+/** @deprecated Prefer ACTIVITY_FILTERS / ActivityFilter for the dashboard. */
 export const ACTIVITY_ACTOR_FILTERS: { value: ActivityActor | 'all'; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: 'ai', label: 'AI' },
   { value: 'user', label: 'You' },
-  { value: 'sweep', label: 'Sweep' },
-  { value: 'organizer', label: 'Organizer' },
-  { value: 'rule', label: 'Rule' },
+  { value: 'sweep', label: 'Organize' },
+  { value: 'organizer', label: 'Auto-file' },
+  { value: 'rule', label: 'Rules' },
   { value: 'system', label: 'System' },
 ]

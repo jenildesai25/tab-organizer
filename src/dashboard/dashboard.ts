@@ -1,4 +1,4 @@
-import type { ActivityActor } from '../domain/activity-log.js'
+import type { ActivityFilter } from '../domain/activity-log.js'
 import type { ChromeColor, CompiledRule } from '../domain/types.js'
 import type { TabGroupView } from '../domain/tab-groups.js'
 import type { LocalModel } from '../ollama.js'
@@ -49,7 +49,8 @@ const activityList = document.querySelector<HTMLUListElement>('#activity-list')!
 const activityEmpty = document.querySelector<HTMLParagraphElement>('#activity-empty')!
 const refreshActivity = document.querySelector<HTMLButtonElement>('#refresh-activity')!
 const clearActivity = document.querySelector<HTMLButtonElement>('#clear-activity')!
-const activityActor = document.querySelector<HTMLSelectElement>('#activity-actor')!
+const activityFilters = document.querySelector<HTMLElement>('.activity-filters')!
+const clearActivityDialog = document.querySelector<HTMLDialogElement>('#clear-activity-dialog')!
 const progressPanel = document.querySelector<HTMLElement>('#progress-panel')
 const progressBar = document.querySelector<HTMLProgressElement>('#organize-progress')
 const progressLabel = document.querySelector<HTMLElement>('#progress-label')
@@ -460,30 +461,38 @@ async function loadModels(): Promise<void> {
   }
 }
 
-function selectedActivityActor(): ActivityActor | 'all' {
-  const value = activityActor.value
-  if (
-    value === 'ai' ||
-    value === 'rule' ||
-    value === 'sweep' ||
-    value === 'organizer' ||
-    value === 'user' ||
-    value === 'system'
-  ) {
-    return value
+let activityFilter: ActivityFilter = 'all'
+
+const ACTIVITY_EMPTY =
+  'Nothing here yet. When you organize tabs, rename groups, or save a rule that fires, those steps will show up in this list.'
+const ACTIVITY_EMPTY_FILTERED =
+  'No matching activity for this filter. Try All, or organize a window to create new entries.'
+
+function selectedActivityFilter(): ActivityFilter {
+  return activityFilter
+}
+
+function setActivityFilter(next: ActivityFilter): void {
+  activityFilter = next
+  for (const chip of Array.from(
+    activityFilters.querySelectorAll<HTMLButtonElement>('.activity-filter-chip'),
+  )) {
+    const active = chip.dataset.filter === next
+    chip.classList.toggle('is-active', active)
+    chip.setAttribute('aria-pressed', active ? 'true' : 'false')
   }
-  return 'all'
 }
 
 async function loadActivity(): Promise<void> {
   refreshActivity.disabled = true
   try {
+    const filter = selectedActivityFilter()
     const result = await send<ActivityLogResult>({
       type: 'get-activity',
-      actor: selectedActivityActor(),
+      filter,
     })
     paintActivityList(activityList, activityEmpty, result.ok ? result.entries : [], {
-      emptyText: 'No activity yet.',
+      emptyText: filter === 'all' ? ACTIVITY_EMPTY : ACTIVITY_EMPTY_FILTERED,
     })
   } catch {
     paintActivityList(activityList, activityEmpty, [], { emptyText: 'Could not load activity.' })
@@ -518,11 +527,30 @@ refreshActivity.addEventListener('click', () => {
   void loadActivity()
 })
 
-activityActor.addEventListener('change', () => {
+activityFilters.addEventListener('click', (event) => {
+  const target = event.target
+  if (!(target instanceof HTMLElement)) return
+  const chip = target.closest<HTMLButtonElement>('.activity-filter-chip')
+  if (!chip || !activityFilters.contains(chip)) return
+  const value = chip.dataset.filter
+  if (value !== 'all' && value !== 'ai' && value !== 'you' && value !== 'organize' && value !== 'rules') {
+    return
+  }
+  if (value === activityFilter) return
+  setActivityFilter(value)
   void loadActivity()
 })
 
 clearActivity.addEventListener('click', () => {
+  clearActivityDialog.showModal()
+})
+
+clearActivityDialog.addEventListener('close', () => {
+  if (clearActivityDialog.returnValue !== 'confirm') {
+    clearActivityDialog.returnValue = ''
+    return
+  }
+  clearActivityDialog.returnValue = ''
   void (async () => {
     clearActivity.disabled = true
     try {

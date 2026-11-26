@@ -2,6 +2,7 @@ import { fileTabs, retitleGroup } from './apply.js'
 import { cancelAdvisor, enqueueAdvisor, RETITLE_TIMEOUT_MS } from './advisor.js'
 import {
   filterActivityByActor,
+  filterActivityByFilter,
   type ActivityActor,
   type ActivityDraft,
 } from './domain/activity-log.js'
@@ -646,7 +647,9 @@ async function handle(message: ToBackground): Promise<unknown> {
   if (message.type === 'retitle-groups') return retitleGroups(message.windowId)
   if (message.type === 'get-activity') {
     const entries = await loadActivityLog()
-    const filtered = filterActivityByActor(entries, message.actor ?? 'all')
+    const filtered = message.filter
+      ? filterActivityByFilter(entries, message.filter)
+      : filterActivityByActor(entries, message.actor ?? 'all')
     const limit = message.limit && message.limit > 0 ? message.limit : filtered.length
     return { ok: true, entries: filtered.slice(0, limit) } satisfies ActivityLogResult
   }

@@ -358,12 +358,112 @@ main {
   font-weight: 700;
 }
 
-.activity-filter {
-  max-width: 16rem;
+.activity-help {
+  max-width: 42rem;
+}
+
+.activity-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 12px;
+}
+
+.activity-filter-chip {
+  appearance: none;
+  margin: 0;
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid color-mix(in oklab, var(--line) 90%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--paper-raised) 88%, transparent);
+  color: var(--ink-soft);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.activity-filter-chip:hover {
+  border-color: color-mix(in oklab, var(--teal) 35%, var(--line));
+  color: var(--ink);
+}
+
+.activity-filter-chip.is-active,
+.activity-filter-chip[aria-pressed='true'] {
+  border-color: color-mix(in oklab, var(--teal) 45%, var(--line));
+  background: color-mix(in oklab, var(--pill-ok-bg) 80%, var(--paper-raised));
+  color: var(--teal-deep);
+}
+
+.activity-filter-chip:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.activity-empty {
+  max-width: 36rem;
+  line-height: 1.45;
+}
+
+.activity-list.full {
+  max-height: min(62vh, 560px);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding-inline-end: 4px;
 }
 
 .activity-list.full .activity-item {
   padding: 10px 0;
+}
+
+.confirm-dialog {
+  width: min(92vw, 26rem);
+  padding: 0;
+  border: 1px solid color-mix(in oklab, var(--line) 85%, transparent);
+  border-radius: 14px;
+  background: var(--paper-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+}
+
+.confirm-dialog::backdrop {
+  background: color-mix(in oklab, #0f172a 42%, transparent);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.confirm-dialog:modal {
+  overscroll-behavior: contain;
+}
+
+.confirm-dialog form {
+  margin: 0;
+  padding: 20px 22px 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.confirm-dialog h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.confirm-dialog p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .settings-note {

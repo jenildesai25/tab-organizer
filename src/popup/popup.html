@@ -102,16 +102,22 @@
       </button>
     </section>
 
-    <section class="activity-section" aria-labelledby="activity-heading">
-      <div class="section-head">
-        <h2 id="activity-heading">Recent activity</h2>
-        <button id="refresh-activity" type="button" class="btn btn-ghost btn-tiny">Refresh</button>
-      </div>
-      <p id="activity-empty" class="empty" hidden>No activity yet.</p>
-      <ul id="activity" class="activity-list" aria-label="Recent activity"></ul>
-    </section>
-
-    <button id="open-dashboard" type="button" class="dashboard-link">Rules, models &amp; settings →</button>
+    <nav class="popup-nav" aria-label="Rules and settings">
+      <button id="open-rules" type="button" class="popup-nav-link">
+        <span class="popup-nav-copy">
+          <span class="popup-nav-title">Rules</span>
+          <span class="popup-nav-hint">Teach how groups should be named</span>
+        </span>
+        <span class="popup-nav-arrow" aria-hidden="true">→</span>
+      </button>
+      <button id="open-settings" type="button" class="popup-nav-link">
+        <span class="popup-nav-copy">
+          <span class="popup-nav-title">Settings</span>
+          <span class="popup-nav-hint">Models, activity log &amp; more</span>
+        </span>
+        <span class="popup-nav-arrow" aria-hidden="true">→</span>
+      </button>
+    </nav>
     <script type="module" src="popup.js"></script>
   </body>
 </html>

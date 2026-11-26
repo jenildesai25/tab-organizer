@@ -196,7 +196,7 @@ async function openAndProbe(browser, extensionId, pagePath, criticalIds) {
     }
 
     // Trigger refresh buttons if present (exercises list paint).
-    for (const id of ['refresh-groups', 'refresh-activity']) {
+    for (const id of ['refresh-groups', 'refresh-activity', 'open-rules', 'open-settings']) {
       const btn = document.getElementById(id)
       if (btn) btn.click()
     }
@@ -333,7 +333,8 @@ async function main() {
     'progress-panel',
     'organize-progress',
     'refresh-groups',
-    'open-dashboard',
+    'open-rules',
+    'open-settings',
     'status',
     'ollama-pill',
     'ollama-pill-label',
@@ -346,6 +347,10 @@ async function main() {
     'progress-panel',
     'organize-progress',
     'rule-list',
+    'activity-list',
+    'activity-empty',
+    'clear-activity',
+    'clear-activity-dialog',
     'theme-toggle-proxy-skip',
   ].filter((x) => x !== 'theme-toggle-proxy-skip')
 

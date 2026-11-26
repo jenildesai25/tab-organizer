@@ -1,6 +1,9 @@
 /** Who caused an extension-driven tab/group mutation. */
 export type ActivityActor = 'ai' | 'rule' | 'sweep' | 'organizer' | 'user' | 'system'
 
+/** Friendly filter buckets for the dashboard Activity screen. */
+export type ActivityFilter = 'all' | 'ai' | 'you' | 'organize' | 'rules'
+
 export type ActivityAction =
   | 'group.create'
   | 'group.rename'
@@ -29,7 +32,7 @@ export type ActivityEntry = {
 }
 
 export const ACTIVITY_LOG_KEY = 'activityLog'
-export const ACTIVITY_LOG_CAP = 300
+export const ACTIVITY_LOG_CAP = 500
 
 const ACTORS = new Set<ActivityActor>(['ai', 'rule', 'sweep', 'organizer', 'user', 'system'])
 const ACTIONS = new Set<ActivityAction>([
@@ -40,6 +43,14 @@ const ACTIONS = new Set<ActivityAction>([
   'tab.file',
   'rename.skip',
 ])
+
+export const ACTIVITY_FILTERS: { value: ActivityFilter; label: string }[] = [
+  { value: 'all', label: 'All' },
+  { value: 'ai', label: 'AI' },
+  { value: 'you', label: 'You' },
+  { value: 'organize', label: 'Organize' },
+  { value: 'rules', label: 'Rules' },
+]
 
 export type ActivityDraft = Omit<ActivityEntry, 'id' | 'ts'> & Partial<Pick<ActivityEntry, 'id' | 'ts'>>
 
@@ -106,6 +117,31 @@ export function filterActivityByActor(
   return entries.filter((entry) => entry.actor === actor)
 }
 
+/** Map a dashboard filter chip to the actors it includes. */
+export function actorsForFilter(filter: ActivityFilter): ReadonlySet<ActivityActor> | 'all' {
+  switch (filter) {
+    case 'all':
+      return 'all'
+    case 'ai':
+      return new Set<ActivityActor>(['ai'])
+    case 'you':
+      return new Set<ActivityActor>(['user'])
+    case 'organize':
+      return new Set<ActivityActor>(['sweep', 'organizer'])
+    case 'rules':
+      return new Set<ActivityActor>(['rule'])
+  }
+}
+
+export function filterActivityByFilter(
+  entries: readonly ActivityEntry[],
+  filter: ActivityFilter,
+): ActivityEntry[] {
+  const actors = actorsForFilter(filter)
+  if (actors === 'all') return [...entries]
+  return entries.filter((entry) => actors.has(entry.actor))
+}
+
 function quoteTitle(title: string | undefined): string {
   const trimmed = (title ?? '').trim()
   return `"${trimmed === '' ? 'Untitled' : trimmed}"`
@@ -116,16 +152,21 @@ function actorLabel(actor: ActivityActor): string {
     case 'ai':
       return 'AI'
     case 'rule':
-      return 'Rule'
+      return 'A rule'
     case 'sweep':
-      return 'Sweep'
+      return 'Organize'
     case 'organizer':
-      return 'Organizer'
+      return 'Auto-file'
     case 'user':
       return 'You'
     case 'system':
-      return 'System'
+      return 'Tab Organizer'
   }
+}
+
+function startOfLocalDay(ts: number): number {
+  const date = new Date(ts)
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime()
 }
 
 function formatClock(ts: number): string {
@@ -135,7 +176,41 @@ function formatClock(ts: number): string {
   })
 }
 
-/** Body only (no clock), e.g. `AI renamed "Cloud" → "Bug Reports" (deepseek-r1:14b)`. */
+/** Human-readable time for non-experts (relative when recent, dated otherwise). */
+export function formatActivityTime(entry: ActivityEntry, now = Date.now()): string {
+  const delta = Math.max(0, now - entry.ts)
+  const minute = 60_000
+  const hour = 60 * minute
+  const day = 24 * hour
+
+  if (delta < 45_000) return 'Just now'
+  if (delta < hour) {
+    const mins = Math.max(1, Math.round(delta / minute))
+    return mins === 1 ? '1 min ago' : `${mins} min ago`
+  }
+  if (delta < day) {
+    const hours = Math.max(1, Math.round(delta / hour))
+    return hours === 1 ? '1 hour ago' : `${hours} hours ago`
+  }
+
+  const today = startOfLocalDay(now)
+  const entryDay = startOfLocalDay(entry.ts)
+  const dayDiff = Math.round((today - entryDay) / day)
+  if (dayDiff === 1) return `Yesterday ${formatClock(entry.ts)}`
+  if (dayDiff > 1 && dayDiff < 7) {
+    const weekday = new Date(entry.ts).toLocaleDateString(undefined, { weekday: 'short' })
+    return `${weekday} ${formatClock(entry.ts)}`
+  }
+
+  return new Date(entry.ts).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
+/** Body only (no clock), e.g. `AI renamed "Cloud" → "Bug Reports"`. */
 export function formatActivityBody(entry: ActivityEntry): string {
   const who = actorLabel(entry.actor)
   let body = ''
@@ -145,41 +220,37 @@ export function formatActivityBody(entry: ActivityEntry): string {
       body = `${who} renamed ${quoteTitle(entry.oldTitle)} → ${quoteTitle(entry.newTitle ?? entry.groupTitle)}`
       break
     case 'group.create':
-      body = `${who} created ${quoteTitle(entry.groupTitle ?? entry.newTitle)}`
+      body = `${who} created group ${quoteTitle(entry.groupTitle ?? entry.newTitle)}`
       break
     case 'group.recolor':
-      body = `${who} recolored ${quoteTitle(entry.groupTitle ?? entry.newTitle)}`
-      if (entry.color) body += ` (${entry.color})`
+      body = `${who} changed the color of ${quoteTitle(entry.groupTitle ?? entry.newTitle)}`
+      if (entry.color) body += ` to ${entry.color}`
       break
     case 'group.ungroup':
       body = `${who} ungrouped ${quoteTitle(entry.groupTitle ?? entry.oldTitle)}`
       break
     case 'tab.file': {
       const count = entry.tabCount ?? 1
-      const noun = count === 1 ? 'tab' : `${count} tabs`
-      body = `${who} filed ${noun} into ${quoteTitle(entry.groupTitle ?? entry.newTitle)}`
+      const noun = count === 1 ? 'a tab' : `${count} tabs`
+      body = `${who} put ${noun} in ${quoteTitle(entry.groupTitle ?? entry.newTitle)}`
       break
     }
     case 'rename.skip': {
       const title = quoteTitle(entry.oldTitle ?? entry.groupTitle)
       const reason = entry.reason?.trim()
-      body = reason ? `${who} skipped ${title} (${reason})` : `${who} skipped ${title}`
+      body = reason ? `${who} left ${title} as-is (${reason})` : `${who} left ${title} as-is`
       break
     }
   }
 
   if (entry.model?.trim() && (entry.action === 'group.rename' || entry.action === 'rename.skip')) {
-    body += ` (${entry.model.trim()})`
+    body += ` · ${entry.model.trim()}`
   }
 
   return body
 }
 
-export function formatActivityTime(entry: ActivityEntry): string {
-  return formatClock(entry.ts)
-}
-
-/** One scannable audit line, e.g. `8:41 PM · AI renamed "Cloud" → "Bug Reports" (deepseek-r1:14b)`. */
-export function formatActivityLine(entry: ActivityEntry): string {
-  return `${formatActivityTime(entry)} · ${formatActivityBody(entry)}`
+/** One scannable audit line, e.g. `Just now · AI renamed "Cloud" → "Bug Reports"`. */
+export function formatActivityLine(entry: ActivityEntry, now = Date.now()): string {
+  return `${formatActivityTime(entry, now)} · ${formatActivityBody(entry)}`
 }

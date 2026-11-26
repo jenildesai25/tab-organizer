@@ -1,6 +1,5 @@
 import type { LocalModel } from '../ollama.js'
 import type {
-  ActivityLogResult,
   ListGroupsResult,
   ModelsResult,
   RetitleGroupsResult,
@@ -8,7 +7,6 @@ import type {
   ToBackground,
   TestOllamaResult,
 } from '../protocol.js'
-import { paintActivityList } from '../ui/activity.js'
 import { paintOllamaStatus } from '../ui/ollama-status.js'
 import { paintRetitleResults } from '../ui/retitle-results.js'
 import { bindSweep, browserWindow } from '../ui/sweep.js'
@@ -24,14 +22,12 @@ const modelStatus = document.querySelector<HTMLElement>('#model-status')!
 const sweep = document.querySelector<HTMLButtonElement>('#sweep')!
 const resultLine = document.querySelector<HTMLParagraphElement>('#result')!
 const status = document.querySelector<HTMLParagraphElement>('#status')!
-const openDashboard = document.querySelector<HTMLButtonElement>('#open-dashboard')!
+const openRules = document.querySelector<HTMLButtonElement>('#open-rules')!
+const openSettings = document.querySelector<HTMLButtonElement>('#open-settings')!
 const manageGroups = document.querySelector<HTMLButtonElement>('#manage-groups')!
 const groupsSummary = document.querySelector<HTMLParagraphElement>('#groups-summary')!
 const groupsError = document.querySelector<HTMLParagraphElement>('#groups-error')!
 const refreshGroups = document.querySelector<HTMLButtonElement>('#refresh-groups')!
-const activityList = document.querySelector<HTMLUListElement>('#activity')!
-const activityEmpty = document.querySelector<HTMLParagraphElement>('#activity-empty')!
-const refreshActivity = document.querySelector<HTMLButtonElement>('#refresh-activity')!
 const progressPanel = document.querySelector<HTMLElement>('#progress-panel')
 const progressBar = document.querySelector<HTMLProgressElement>('#organize-progress')
 const progressLabel = document.querySelector<HTMLElement>('#progress-label')
@@ -188,21 +184,6 @@ async function loadGroups(): Promise<void> {
   }
 }
 
-async function loadActivity(): Promise<void> {
-  refreshActivity.disabled = true
-  try {
-    const result = await send<ActivityLogResult>({ type: 'get-activity', limit: 3 })
-    paintActivityList(activityList, activityEmpty, result.ok ? result.entries : [], {
-      limit: 3,
-      emptyText: 'No activity yet.',
-    })
-  } catch {
-    paintActivityList(activityList, activityEmpty, [], { emptyText: 'Could not load activity.' })
-  } finally {
-    refreshActivity.disabled = false
-  }
-}
-
 async function loadModels(): Promise<void> {
   const hadModels = models.length > 0
   try {
@@ -233,8 +214,9 @@ async function loadModels(): Promise<void> {
   }
 }
 
-function openDashboardPage(): void {
-  void chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/index.html') })
+function openDashboardPage(hash = ''): void {
+  const path = hash ? `dashboard/index.html${hash}` : 'dashboard/index.html'
+  void chrome.tabs.create({ url: chrome.runtime.getURL(path) })
 }
 
 organizer.addEventListener('change', () => {
@@ -328,7 +310,6 @@ retitleButton.addEventListener('click', () => {
       }
       paintRetitleResults(modelStatus, result.summary, result.results)
       await loadGroups()
-      await loadActivity()
     } catch {
       showModelStatus('Could not rename groups.')
     } finally {
@@ -351,7 +332,6 @@ bindSweep(
   (response) => {
     if (response.ok) clearRetitleResults()
     void loadGroups()
-    void loadActivity()
   },
   {
     panel: progressPanel,
@@ -365,12 +345,15 @@ refreshGroups.addEventListener('click', () => {
   void loadGroups()
 })
 
-refreshActivity.addEventListener('click', () => {
-  void loadActivity()
+openRules.addEventListener('click', () => {
+  openDashboardPage('#rules')
 })
-
-openDashboard.addEventListener('click', openDashboardPage)
-manageGroups.addEventListener('click', openDashboardPage)
+openSettings.addEventListener('click', () => {
+  openDashboardPage('#settings')
+})
+manageGroups.addEventListener('click', () => {
+  openDashboardPage('#groups')
+})
 
 void bindThemeToggle()
 void (async () => {
@@ -379,4 +362,3 @@ void (async () => {
   if (state.llmOn) await loadModels()
 })()
 void loadGroups()
-void loadActivity()

@@ -139,28 +139,49 @@
         <div class="panel-head">
           <div>
             <h2 id="activity-heading">Activity</h2>
-            <p class="lede">Every extension-driven group change, with who did it.</p>
+            <p class="lede activity-help">
+              What is this? A plain-language history of everything Tab Organizer did — so you can check what changed without reading technical log files.
+            </p>
           </div>
           <div class="panel-head-actions">
             <button type="button" class="btn btn-ghost" id="refresh-activity">Refresh</button>
             <button type="button" class="btn btn-ghost" id="clear-activity">Clear log</button>
           </div>
         </div>
-        <label class="field activity-filter" for="activity-actor">
-          <span>Show</span>
-          <select id="activity-actor">
-            <option value="all">All</option>
-            <option value="ai">AI</option>
-            <option value="user">You</option>
-            <option value="sweep">Sweep</option>
-            <option value="organizer">Organizer</option>
-            <option value="rule">Rule</option>
-            <option value="system">System</option>
-          </select>
-        </label>
-        <p id="activity-empty" class="empty" hidden>No activity yet.</p>
+        <div
+          class="activity-filters"
+          role="toolbar"
+          aria-label="Filter activity"
+          aria-controls="activity-list"
+        >
+          <button type="button" class="activity-filter-chip is-active" data-filter="all" aria-pressed="true">
+            All
+          </button>
+          <button type="button" class="activity-filter-chip" data-filter="ai" aria-pressed="false">AI</button>
+          <button type="button" class="activity-filter-chip" data-filter="you" aria-pressed="false">You</button>
+          <button type="button" class="activity-filter-chip" data-filter="organize" aria-pressed="false">
+            Organize
+          </button>
+          <button type="button" class="activity-filter-chip" data-filter="rules" aria-pressed="false">
+            Rules
+          </button>
+        </div>
+        <p id="activity-empty" class="empty activity-empty" hidden>
+          Nothing here yet. When you organize tabs, rename groups, or save a rule that fires, those steps will show up in this list.
+        </p>
         <ul id="activity-list" class="activity-list full" aria-label="Activity log"></ul>
       </section>
+
+      <dialog id="clear-activity-dialog" class="confirm-dialog" aria-labelledby="clear-activity-title">
+        <form method="dialog">
+          <h3 id="clear-activity-title">Clear the activity log?</h3>
+          <p>This removes the history of what Tab Organizer did. It does not change your tabs or groups.</p>
+          <div class="confirm-actions">
+            <button type="submit" value="cancel" class="btn btn-ghost" autofocus>Keep log</button>
+            <button type="submit" value="confirm" class="btn btn-primary">Clear log</button>
+          </div>
+        </form>
+      </dialog>
 
       <section id="settings" class="panel" aria-labelledby="settings-heading">
         <h2 id="settings-heading">Settings</h2>

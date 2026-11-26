@@ -4,7 +4,9 @@ import {
   appendActivityEntry,
   createActivityEntry,
   filterActivityByActor,
+  filterActivityByFilter,
   formatActivityLine,
+  formatActivityTime,
   parseStoredActivityLog,
   trimActivityLog,
   type ActivityEntry,
@@ -50,6 +52,7 @@ describe('appendActivityEntry', () => {
       { actor: 'ai', action: 'group.rename', oldTitle: 'Cloud', newTitle: 'Bug Reports' },
       { id: 'fresh', now: 99 },
     )
+    expect(ACTIVITY_LOG_CAP).toBe(500)
     expect(next).toHaveLength(ACTIVITY_LOG_CAP)
     expect(next[0]?.id).toBe('fresh')
     expect(next.at(-1)?.id).toBe(`old-${ACTIVITY_LOG_CAP - 2}`)
@@ -113,8 +116,40 @@ describe('filterActivityByActor', () => {
   })
 })
 
+describe('filterActivityByFilter', () => {
+  it('groups organize actors and rules', () => {
+    const rows = [
+      entry({ id: 'a', actor: 'ai', action: 'group.rename' }),
+      entry({ id: 'b', actor: 'user', action: 'group.rename' }),
+      entry({ id: 'c', actor: 'sweep', action: 'tab.file' }),
+      entry({ id: 'd', actor: 'organizer', action: 'tab.file' }),
+      entry({ id: 'e', actor: 'rule', action: 'group.create' }),
+    ]
+    expect(filterActivityByFilter(rows, 'organize').map((row) => row.id)).toEqual(['c', 'd'])
+    expect(filterActivityByFilter(rows, 'rules').map((row) => row.id)).toEqual(['e'])
+    expect(filterActivityByFilter(rows, 'you').map((row) => row.id)).toEqual(['b'])
+    expect(filterActivityByFilter(rows, 'all')).toHaveLength(5)
+  })
+})
+
+describe('formatActivityTime', () => {
+  it('uses relative and dated labels', () => {
+    const now = Date.parse('2026-11-25T20:41:00')
+    expect(formatActivityTime(entry({ action: 'group.rename', actor: 'ai', ts: now - 10_000 }), now)).toBe(
+      'Just now',
+    )
+    expect(formatActivityTime(entry({ action: 'group.rename', actor: 'ai', ts: now - 3 * 60_000 }), now)).toBe(
+      '3 min ago',
+    )
+    expect(
+      formatActivityTime(entry({ action: 'group.rename', actor: 'ai', ts: now - 26 * 60 * 60_000 }), now),
+    ).toMatch(/^Yesterday /)
+  })
+})
+
 describe('formatActivityLine', () => {
   it('formats an AI rename to Bug Reports with the model', () => {
+    const now = Date.parse('2026-11-25T20:41:00')
     const line = formatActivityLine(
       entry({
         actor: 'ai',
@@ -122,14 +157,15 @@ describe('formatActivityLine', () => {
         oldTitle: 'Cloud',
         newTitle: 'Bug Reports',
         model: 'deepseek-r1:14b',
-        ts: Date.parse('2026-11-25T20:41:00'),
+        ts: now,
       }),
+      now,
     )
-    expect(line).toContain('AI renamed "Cloud" → "Bug Reports" (deepseek-r1:14b)')
-    expect(line).toMatch(/· AI renamed/)
+    expect(line).toContain('AI renamed "Cloud" → "Bug Reports" · deepseek-r1:14b')
+    expect(line).toMatch(/Just now · AI renamed/)
   })
 
-  it('formats sweep file, user rename, and AI skip lines', () => {
+  it('formats organize file, user rename, and AI skip lines in plain English', () => {
     expect(
       formatActivityLine(
         entry({
@@ -139,7 +175,7 @@ describe('formatActivityLine', () => {
           tabCount: 1,
         }),
       ),
-    ).toContain('Sweep filed tab into "Local"')
+    ).toContain('Organize put a tab in "Local"')
 
     expect(
       formatActivityLine(
@@ -162,6 +198,6 @@ describe('formatActivityLine', () => {
           model: 'deepseek-r1:14b',
         }),
       ),
-    ).toContain('AI skipped "Cloud" (Low confidence) (deepseek-r1:14b)')
+    ).toContain('AI left "Cloud" as-is (Low confidence) · deepseek-r1:14b')
   })
 })
