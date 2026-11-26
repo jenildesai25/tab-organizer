@@ -76,6 +76,12 @@ describe('decideSiteRetitle', () => {
       decideSiteRetitle('Research', cards('github.com', 'amazon.com', 'nytimes.com')),
     ).toEqual({ kind: 'ask-model' })
   })
+
+  it('skips hand-renamed homogeneous site titles instead of forcing GitHub', () => {
+    expect(
+      decideSiteRetitle('My PRs', cards('github.com', 'github.com'), { handRenamed: true }),
+    ).toMatchObject({ kind: 'skip', reason: 'hand renamed' })
+  })
 })
 
 describe('rejectRetitleSuggestion', () => {

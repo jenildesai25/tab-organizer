@@ -54,6 +54,23 @@ describe('appendActivityEntry', () => {
     expect(next[0]?.id).toBe('fresh')
     expect(next.at(-1)?.id).toBe(`old-${ACTIVITY_LOG_CAP - 2}`)
   })
+
+  it('preserves tabUrl on file entries', () => {
+    const next = appendActivityEntry([], {
+      actor: 'sweep',
+      action: 'tab.file',
+      groupTitle: 'GitHub',
+      tabId: 9,
+      tabUrl: 'https://github.com/acme/pr',
+      siteKey: 'github.com',
+      tabCount: 1,
+    }, { id: 'file-1', now: 1 })
+    expect(next[0]).toMatchObject({
+      id: 'file-1',
+      tabUrl: 'https://github.com/acme/pr',
+      siteKey: 'github.com',
+    })
+  })
 })
 
 describe('parseStoredActivityLog', () => {
