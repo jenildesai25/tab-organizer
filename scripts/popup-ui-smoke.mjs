@@ -239,6 +239,20 @@ async function openAndProbe(browser, extensionId, pagePath, criticalIds) {
       getComputedStyle(document.querySelector('main') || document.body).maxWidth || ''
     const hasFloatingStack = !!document.querySelector('.hero-visual, .stack-card')
 
+    const ollamaPill = document.getElementById('ollama-pill')
+    const ollamaPillLabel = document.getElementById('ollama-pill-label')
+    const pillRect = ollamaPill?.getBoundingClientRect()
+    const aside = document.querySelector('.popup-header-aside')
+    const asideStyle = aside ? getComputedStyle(aside) : null
+    const statusInBrand = !!(statusEl && statusEl.closest('.brand-lockup, .brand-copy'))
+    let pillBesideBrand = false
+    if (pillRect && brandRect && !ollamaPill?.hidden) {
+      pillBesideBrand =
+        pillRect.left >= brandRect.right - 4 &&
+        pillRect.width > 40 &&
+        Math.abs(pillRect.top - brandRect.top) < 48
+    }
+
     return {
       found,
       themeButtons,
@@ -257,6 +271,11 @@ async function openAndProbe(browser, extensionId, pagePath, criticalIds) {
       brandMarkVisible: !!(brandMarkRect && brandMarkRect.width > 10 && brandMarkRect.height > 10),
       hasFloatingStack,
       pathname: location.pathname,
+      statusInBrand,
+      ollamaPillVisible: !!(ollamaPill && !ollamaPill.hidden && pillRect && pillRect.width > 40),
+      ollamaPillLabel: ollamaPillLabel?.textContent?.trim() || '',
+      asideColumn: asideStyle?.flexDirection === 'column',
+      pillBesideBrand,
     }
   }, criticalIds)
 
@@ -316,6 +335,8 @@ async function main() {
     'refresh-groups',
     'open-dashboard',
     'status',
+    'ollama-pill',
+    'ollama-pill-label',
   ]
   const dashCritical = [
     'sweep',
@@ -365,6 +386,28 @@ async function main() {
         themeOverlapsBrand: popup.probe.themeOverlapsBrand,
         themeOverlapsStatus: popup.probe.themeOverlapsStatus,
         rootWidth: popup.probe.rootWidth,
+      })
+    }
+    if (!popup.probe.statusInBrand) {
+      fail('Popup status should sit inside the brand lockup (mock header)', {
+        statusInBrand: popup.probe.statusInBrand,
+      })
+    }
+    if (!popup.probe.asideColumn) {
+      fail('Popup header aside should stack theme + model pill (column)', {
+        asideColumn: popup.probe.asideColumn,
+      })
+    }
+    if (!popup.probe.ollamaPillVisible || !popup.probe.pillBesideBrand) {
+      fail('Popup model pill missing or not beside brand/status', {
+        ollamaPillVisible: popup.probe.ollamaPillVisible,
+        pillBesideBrand: popup.probe.pillBesideBrand,
+        ollamaPillLabel: popup.probe.ollamaPillLabel,
+      })
+    }
+    if (!/Local model off/i.test(popup.probe.ollamaPillLabel || '')) {
+      fail('Popup should show muted Local model off pill when LLM is off', {
+        ollamaPillLabel: popup.probe.ollamaPillLabel,
       })
     }
     // Filter noisy extension chrome errors that aren't our null DOM bugs

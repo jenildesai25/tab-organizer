@@ -28,26 +28,18 @@ body.popup-body {
 
 .popup-header {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
   position: relative;
   overflow: visible;
 }
 
-.popup-header-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-}
-
 .popup-header-aside {
   display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-end;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 8px;
   flex: 0 0 auto;
   position: relative;
@@ -60,6 +52,12 @@ body.popup-body {
   align-items: center;
   min-width: 0;
   flex: 1 1 auto;
+}
+
+.brand-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
 }
 
 .brand-mark {
@@ -86,7 +84,6 @@ body.popup-body {
 
 #status {
   margin: 0;
-  padding-inline-start: 44px;
   color: var(--ink-soft);
   font-size: 12px;
   line-height: 1.35;
@@ -294,7 +291,26 @@ button:disabled {
 }
 
 .ollama-pill {
-  max-width: 9rem;
+  max-width: min(16rem, 100%);
+  min-height: 26px;
+  padding-inline: 11px;
+  font-size: 12px;
+  letter-spacing: -0.01em;
+}
+
+.ollama-pill[hidden] {
+  display: none;
+}
+
+.ollama-pill:not(.is-ok):not(.is-warn) {
+  color: var(--muted);
+  background: color-mix(in oklab, var(--surface) 88%, var(--paper-raised));
+  border-color: color-mix(in oklab, var(--line) 90%, transparent);
+}
+
+.ollama-pill:not(.is-ok):not(.is-warn) .dot {
+  background: color-mix(in oklab, var(--muted) 70%, transparent);
+  box-shadow: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

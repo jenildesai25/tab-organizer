@@ -68,14 +68,14 @@ function optionLabel(model: LocalModel): string {
   return model.parameterSize ? `${model.name} · ${model.parameterSize}` : model.name
 }
 
-function paintOllamaPill(ok: boolean, label: string, title: string): void {
+function paintOllamaPill(ok: boolean | null, label: string, title: string): void {
   if (!label) {
     ollamaPill.hidden = true
     return
   }
   ollamaPill.hidden = false
-  ollamaPill.classList.toggle('is-ok', ok)
-  ollamaPill.classList.toggle('is-warn', !ok)
+  ollamaPill.classList.toggle('is-ok', ok === true)
+  ollamaPill.classList.toggle('is-warn', ok === false)
   ollamaPill.title = title
   ollamaPillLabel.textContent = label
 }
@@ -117,7 +117,7 @@ function syncLlmControls(): void {
     retitleButton.disabled = !ready
   }
   if (!llmOn) {
-    ollamaPill.hidden = true
+    paintOllamaPill(null, 'Local model off', 'Turn on Local model to use Ollama')
   } else if (selected) {
     paintOllamaPill(true, selected, `Local model · ${selected}`)
   } else if (listedOnce && models.length === 0) {
@@ -248,10 +248,7 @@ llm.addEventListener('change', () => {
     const state = await send<StateResult>({ type: 'set-llm', on: llm.checked })
     renderState(state)
     if (state.llmOn) await loadModels()
-    else {
-      showModelStatus('')
-      ollamaPill.hidden = true
-    }
+    else showModelStatus('')
   })()
 })
 
