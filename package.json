@@ -11,7 +11,8 @@
     "build": "tsc --noEmit && node scripts/bundle.mjs",
     "check": "tsc --noEmit",
     "package:cws": "bash scripts/package-cws.sh",
-    "publish:wizard": "bash scripts/publish-cws-wizard.sh"
+    "publish:wizard": "bash scripts/publish-cws-wizard.sh",
+    "record:demo": "node scripts/record-demo.mjs"
   },
   "dependencies": {
     "tldts": "^7.0.19"

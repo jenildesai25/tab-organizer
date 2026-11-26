@@ -75,6 +75,7 @@ English
 | Screenshot 1 [REQUIRED] | 1280×800 or 640×400 | ⬜ Not created | Capture popup: Organize + File new tabs |
 | Screenshot 2 [RECOMMENDED] | 1280×800 or 640×400 | ⬜ Not created | Dashboard Rules with example rules |
 | Screenshot 3 [RECOMMENDED] | 1280×800 or 640×400 | ⬜ Not created | Groups panel or Activity history |
+| Promotional video [OPTIONAL] | YouTube URL | ✅ Clip ready | `docs/demo/tab-organizer-demo.mp4` (~30s) — **upload to YouTube**, paste URL in CWS (CWS does not accept a video file) |
 | Small Promo Tile [RECOMMENDED] | 440×280 | ⬜ Not created | |
 | Marquee Promo Tile | 1400×560 | ⬜ Not created | |
 
@@ -252,10 +253,12 @@ See also: `scripts/publish-cws-wizard.sh` (`npm run publish:wizard`).
 
 1. **Chrome Web Store developer account** — [https://chrome.google.com/webstore/devconsole](https://chrome.google.com/webstore/devconsole) → one-time **$5** registration fee (Google payments).
 2. **Enable 2-Step Verification** on the Google account used for the developer console (required).
-3. **Host privacy policy** — publish `docs/privacy-policy.md` and keep the URL.
-4. **Screenshots** — at least one 1280×800 or 640×400 showing the extension in use.
-5. **New item** → Upload `release/tab-organizer-v0.3.21.zip`.
-6. **Store listing** — paste Short / Detailed descriptions and category from this file.
-7. **Privacy practices** — single purpose + data use as above; link privacy policy.
-8. **Permission justifications** — paste the copy-paste blocks above.
-9. **Submit for review** when listing, screenshots, and privacy URL are complete.
+3. **Host privacy policy** — publish `docs/privacy-policy.md` (GitHub Pages or equivalent) and keep the live URL.
+4. **Screenshots** — at least one **1280×800** or **640×400** PNG showing the extension in use (popup and/or dashboard). Still required even if you add a video.
+5. **(Optional) Promotional video** — upload `docs/demo/tab-organizer-demo.mp4` to **YouTube**, then paste the **YouTube URL** into the CWS listing (the store does not accept a video file upload).
+6. **New item** → Upload package `release/tab-organizer-v0.3.21.zip` (regenerate with `npm run package:cws` if needed).
+7. **Store listing** — paste Short / Detailed descriptions, category **Productivity**, and single purpose from this file.
+8. **Privacy practices** — single purpose + data use as above; link the live privacy policy URL.
+9. **Permission justifications** — paste the copy-paste blocks above for `tabs`, `tabGroups`, `storage`, and the two localhost Ollama host permissions.
+10. **Manual smoke** — load the ZIP unpacked (or `dist/`), run Organize this window, open Rules, toggle Local model off/on.
+11. **Submit for review** when listing, screenshots, and privacy URL are complete.

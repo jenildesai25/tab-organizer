@@ -2,6 +2,18 @@
 
 Chrome extension (Manifest V3) that files tabs into **native Chrome tab groups** from the site, the title, and rules you write in plain language. Optionally asks a **local Ollama** model when a rule or tab is unclear.
 
+## Demo
+
+Short walkthrough (~30s): popup (Organize, File new tabs, Local model + model picker) then dashboard Rules, Groups, and Activity.
+
+https://github.com/jenildesai25/tab-organizer/raw/main/docs/demo/tab-organizer-demo.mp4
+
+<video src="docs/demo/tab-organizer-demo.mp4" controls width="720"></video>
+
+[Download MP4](docs/demo/tab-organizer-demo.mp4) · [WebM](docs/demo/tab-organizer-demo.webm)
+
+> **Chrome Web Store tip:** the store listing’s promotional video field expects a **YouTube URL**, not a file upload. Upload this same clip to YouTube (unlisted or public) and paste that URL into the developer dashboard. Screenshots are still required separately.
+
 ## Prerequisites
 
 - **Chrome** or Chromium (extension APIs: tabs, tabGroups, storage)
@@ -81,4 +93,10 @@ npm test              # unit tests (vitest)
 npm run build         # typecheck + bundle into dist/
 npm run test:browser  # Puppeteer smoke against a built extension
 npm run check         # TypeScript only
+npm run package:cws   # zip dist/ → release/tab-organizer-v*.zip
+node scripts/record-demo.mjs  # regenerate docs/demo video (needs build)
 ```
+
+## Chrome Web Store
+
+Listing copy, permission justifications, and the human registration checklist live in [`CHROMEWEBSTORE.md`](CHROMEWEBSTORE.md). Package for upload: `release/tab-organizer-v0.3.21.zip` (from `npm run package:cws`).

@@ -1,0 +1,15 @@
+{
+  "version": "0.3.21",
+  "frames": 363,
+  "fps": 12,
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 1
+  },
+  "files": [
+    "docs/demo/tab-organizer-demo.mp4",
+    "docs/demo/tab-organizer-demo.webm"
+  ],
+  "recordedAt": "2026-11-26T05:08:32.830Z"
+}
