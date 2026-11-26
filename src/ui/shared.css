@@ -45,8 +45,8 @@
   --ink-dark: #e7f3ef;
   --ink-soft-light: #243530;
   --ink-soft-dark: #c5d6d0;
-  --muted-light: #5a6b66;
-  --muted-dark: #8fa39c;
+  --muted-light: #3f524d;
+  --muted-dark: #a8bbb4;
   --line-light: color-mix(in oklab, #0f766e 18%, #d7e4df);
   --line-dark: color-mix(in oklab, #5eead4 16%, #1e2f2b);
   --paper-light: #f4faf7;
@@ -117,8 +117,6 @@
   --ai-mark-dark: #c4b5fd;
   --mark-border-light: rgb(0 0 0 / 12%);
   --mark-border-dark: rgb(255 255 255 / 22%);
-  --grain-opacity-light: 0.045;
-  --grain-opacity-dark: 0.07;
   --focus-ring-mix-light: white;
   --focus-ring-mix-dark: #0c1614;
 
@@ -161,7 +159,6 @@
   --favicon-b: light-dark(var(--favicon-b-light), var(--favicon-b-dark));
   --ai-mark: light-dark(var(--ai-mark-light), var(--ai-mark-dark));
   --mark-border: light-dark(var(--mark-border-light), var(--mark-border-dark));
-  --grain-opacity: light-dark(var(--grain-opacity-light), var(--grain-opacity-dark));
   --focus-ring-mix: light-dark(var(--focus-ring-mix-light), var(--focus-ring-mix-dark));
   --primary-btn-ink: #fff8f3;
 
@@ -247,7 +244,6 @@
     --favicon-b: var(--favicon-b-light);
     --ai-mark: var(--ai-mark-light);
     --mark-border: var(--mark-border-light);
-    --grain-opacity: var(--grain-opacity-light);
     --focus-ring-mix: var(--focus-ring-mix-light);
   }
 
@@ -291,7 +287,6 @@
       --favicon-b: var(--favicon-b-dark);
       --ai-mark: var(--ai-mark-dark);
       --mark-border: var(--mark-border-dark);
-      --grain-opacity: var(--grain-opacity-dark);
       --focus-ring-mix: var(--focus-ring-mix-dark);
     }
   }
@@ -335,7 +330,6 @@
     --favicon-b: var(--favicon-b-dark);
     --ai-mark: var(--ai-mark-dark);
     --mark-border: var(--mark-border-dark);
-    --grain-opacity: var(--grain-opacity-dark);
     --focus-ring-mix: var(--focus-ring-mix-dark);
   }
 }
@@ -411,17 +405,7 @@ a {
   border: 0;
 }
 
-/* Atmosphere grain */
-.atmosphere::before {
-  content: "";
-  pointer-events: none;
-  position: fixed;
-  inset: 0;
-  opacity: var(--grain-opacity);
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  z-index: 0;
-}
-
+/* Atmosphere class kept for gradient shells; grain overlay removed for contrast. */
 .atmosphere > * {
   position: relative;
   z-index: 1;

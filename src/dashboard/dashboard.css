@@ -290,10 +290,11 @@ main {
 
 .gm-main {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 10px 12px;
   min-width: 0;
+  width: 100%;
 }
 
 .gm-main > .group-swatch {
@@ -304,7 +305,9 @@ main {
 
 .gm-copy {
   flex: 1 1 12rem;
-  min-width: 0;
+  /* Prevent flex shrink from collapsing titles to "Y…" / "A…" */
+  min-inline-size: min(100%, 10rem);
+  min-width: min(100%, 10rem);
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -313,6 +316,7 @@ main {
 .gm-copy input {
   appearance: none;
   width: 100%;
+  min-inline-size: 0;
   margin: 0;
   padding: 2px 8px;
   border: 1px solid transparent;
@@ -324,9 +328,6 @@ main {
   font-weight: 650;
   letter-spacing: -0.015em;
   color: var(--ink);
-  field-sizing: content;
-  min-inline-size: 8ch;
-  max-inline-size: 100%;
 }
 
 .gm-copy input:hover {
@@ -642,6 +643,7 @@ button:disabled {
 .gm-copy input.group-title {
   appearance: none;
   width: 100%;
+  min-inline-size: 0;
   margin: 0;
   padding: 2px 8px;
   border: 1px solid transparent;
@@ -653,9 +655,6 @@ button:disabled {
   font-weight: 650;
   letter-spacing: -0.015em;
   color: var(--ink);
-  field-sizing: content;
-  min-inline-size: 8ch;
-  max-inline-size: 100%;
 }
 
 .gm-copy .group-title:hover:not(:disabled) {

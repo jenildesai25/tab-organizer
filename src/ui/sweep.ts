@@ -1,8 +1,8 @@
 import type { StateResult, SweepResult, ToBackground } from '../protocol.js'
 
 export type SweepProgressEls = {
-  panel: HTMLElement
-  bar: HTMLProgressElement
+  panel: HTMLElement | null
+  bar: HTMLProgressElement | null
   label?: HTMLElement | null
   value?: HTMLElement | null
 }
@@ -33,6 +33,8 @@ function setProgress(
 ): void {
   if (!progress) return
   const { panel, bar, label, value } = progress
+  // Markup must include #progress-panel / #organize-progress; skip if absent.
+  if (!panel || !bar) return
   if (state === 'idle') {
     panel.hidden = true
     bar.removeAttribute('value')

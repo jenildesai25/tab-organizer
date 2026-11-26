@@ -124,7 +124,9 @@ function paintCompactRow(
   copy.className = 'group-copy'
   const name = document.createElement('span')
   name.className = 'group-name'
-  name.textContent = group.title || 'Untitled group'
+  const label = group.title || 'Untitled group'
+  name.textContent = label
+  name.title = label
   const meta = document.createElement('span')
   meta.className = 'group-meta'
   meta.textContent = metaLine(group, 'compact')
@@ -210,6 +212,7 @@ function paintManageRow(
     title.type = 'text'
     title.value = group.title
     title.placeholder = 'Untitled group'
+    title.title = group.title || 'Untitled group'
     title.autocomplete = 'off'
     title.spellcheck = false
     title.setAttribute('autocorrect', 'off')
@@ -233,7 +236,9 @@ function paintManageRow(
   } else {
     const title = document.createElement('p')
     title.className = 'group-title-text'
-    title.textContent = group.title || 'Untitled group'
+    const label = group.title || 'Untitled group'
+    title.textContent = label
+    title.title = label
     copy.append(title)
   }
 

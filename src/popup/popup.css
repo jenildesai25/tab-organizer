@@ -277,6 +277,7 @@ button:disabled {
 
 .group-item .group-copy {
   min-width: 0;
+  min-inline-size: 0;
 }
 
 .group-item .group-name {
@@ -286,6 +287,8 @@ button:disabled {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Keep at least a readable run of characters before ellipsis */
+  min-inline-size: 4ch;
 }
 
 .group-item .group-meta {
