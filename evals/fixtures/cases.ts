@@ -345,6 +345,104 @@ export const fixtures: Fixture[] = [
     expect: { types: [] },
   },
   {
+    name: 'google then whatsapp moves into an existing WhatsApp group',
+    input: decideInput({
+      groups: [
+        group(10, 'Google', {
+          dominantDomain: 'google.com',
+          domains: ['google.com'],
+          size: 2,
+        }),
+        group(20, 'Whatsapp', {
+          dominantDomain: 'whatsapp.com',
+          domains: ['whatsapp.com'],
+          size: 1,
+        }),
+      ],
+      tabs: [
+        tab(1, 'whatsapp.com', 'WhatsApp', {
+          active: true,
+          groupId: 10,
+          lastFiledDomain: 'google.com',
+        }),
+      ],
+    }),
+    expect: { types: ['file'], expand: true, groupId: 20, tabIds: [1] },
+  },
+  {
+    name: 'google then whatsapp creates a WhatsApp group',
+    input: decideInput({
+      groups: [
+        group(10, 'Google', {
+          dominantDomain: 'google.com',
+          domains: ['google.com'],
+          size: 2,
+        }),
+      ],
+      tabs: [
+        tab(1, 'whatsapp.com', 'WhatsApp', {
+          active: true,
+          groupId: 10,
+          lastFiledDomain: 'google.com',
+        }),
+      ],
+    }),
+    expect: {
+      types: ['file'],
+      expand: true,
+      createTitle: 'Whatsapp',
+      aroundTabId: 1,
+      tabIds: [1],
+      groupId: null,
+    },
+  },
+  {
+    name: 'opened-inside-group still refiles after the site changes',
+    input: decideInput({
+      groups: [
+        group(10, 'Google', {
+          dominantDomain: 'google.com',
+          domains: ['google.com'],
+          size: 2,
+        }),
+        group(20, 'Whatsapp', {
+          dominantDomain: 'whatsapp.com',
+          domains: ['whatsapp.com'],
+          size: 1,
+        }),
+      ],
+      tabs: [
+        tab(1, 'whatsapp.com', 'WhatsApp', {
+          active: true,
+          groupId: 10,
+          openedInsideGroup: true,
+          lastFiledDomain: 'google.com',
+        }),
+      ],
+    }),
+    expect: { types: ['file'], expand: true, groupId: 20, tabIds: [1] },
+  },
+  {
+    name: 'already filed for the current site stays put',
+    input: decideInput({
+      groups: [
+        group(20, 'Whatsapp', {
+          dominantDomain: 'whatsapp.com',
+          domains: ['whatsapp.com'],
+          size: 1,
+        }),
+      ],
+      tabs: [
+        tab(1, 'whatsapp.com', 'WhatsApp', {
+          active: true,
+          groupId: 20,
+          lastFiledDomain: 'whatsapp.com',
+        }),
+      ],
+    }),
+    expect: { types: [] },
+  },
+  {
     name: 'an unfocused window is not watched',
     input: decideInput({
       focused: false,

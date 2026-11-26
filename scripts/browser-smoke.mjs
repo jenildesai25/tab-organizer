@@ -16,7 +16,7 @@ import puppeteer from 'puppeteer'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const dist = path.resolve(root, 'dist')
-const TIMEOUT_MS = Number(process.env.BROWSER_SMOKE_TIMEOUT_MS || 90_000)
+const TIMEOUT_MS = Number(process.env.BROWSER_SMOKE_TIMEOUT_MS || 120_000)
 
 function fail(message, detail) {
   console.error(`\nFAIL: ${message}`)
@@ -326,6 +326,128 @@ function assertOrganize(outcome) {
   return true
 }
 
+/**
+ * Watch-mode refile: land on Google inside a Google group, navigate to
+ * whatsapp.com, and assert the tab leaves Google for a WhatsApp group.
+ *
+ * Avoid google.com/search in headless (bot interstitial). Prefer homepage.
+ * Do not manually chrome.tabs.group the traveler — that marks it sticky via
+ * onMoved and watch mode would leave it put.
+ */
+async function runRefileOnSiteChangeFlow(dashboard) {
+  return dashboard.evaluate(async () => {
+    const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+    await chrome.runtime.sendMessage({ type: 'set-organizer', on: true })
+
+    const win = await chrome.windows.create({
+      url: ['https://www.google.com/', 'https://www.google.com/'],
+      focused: true,
+      type: 'normal',
+    })
+    if (win?.id == null) throw new Error('windows.create returned no id')
+    const windowId = win.id
+    await chrome.windows.update(windowId, { focused: true })
+
+    // Let the organizer create the Google site group from the two seeds.
+    await sleep(4500)
+    let groups = await chrome.tabGroups.query({})
+    let googleGroup = groups.find((group) => (group.title || '').toLowerCase() === 'google')
+    if (!googleGroup) {
+      throw new Error(
+        `Expected organizer to create a Google group, got ${JSON.stringify(
+          groups.map((group) => group.title || group.id),
+        )}`,
+      )
+    }
+    const googleGroupId = googleGroup.id
+
+    // Traveler lands on Google and is filed into Google (extension-owned, not sticky).
+    const created = await chrome.tabs.create({
+      windowId,
+      url: 'https://www.google.com/',
+      active: true,
+    })
+    if (created.id == null) throw new Error('tabs.create returned no id')
+    const tabId = created.id
+
+    await sleep(4500)
+    let afterGoogle = await chrome.tabs.get(tabId)
+    if (afterGoogle.groupId !== googleGroupId) {
+      throw new Error(
+        `Expected traveler in Google group ${googleGroupId}, got ${afterGoogle.groupId}`,
+      )
+    }
+    const groupAfterGoogle = afterGoogle.groupId
+
+    await chrome.tabs.update(tabId, { url: 'https://www.whatsapp.com/' })
+
+    let afterWhatsapp = afterGoogle
+    let whatsappGroup = null
+    for (let i = 0; i < 12; i += 1) {
+      await sleep(1000)
+      afterWhatsapp = await chrome.tabs.get(tabId)
+      groups = await chrome.tabGroups.query({})
+      whatsappGroup = groups.find((group) => (group.title || '').toLowerCase().includes('whatsapp'))
+      if (whatsappGroup && afterWhatsapp.groupId === whatsappGroup.id) break
+    }
+
+    googleGroup = groups.find((group) => group.id === googleGroupId) ?? googleGroup
+
+    return {
+      windowId,
+      tabId,
+      groupAfterGoogle,
+      groupAfterWhatsapp: afterWhatsapp.groupId,
+      googleGroupId,
+      googleTitle: googleGroup?.title || '',
+      whatsappGroupId: whatsappGroup?.id ?? null,
+      whatsappTitle: whatsappGroup?.title || '',
+      groups: groups.map((group) => ({ id: group.id, title: group.title || '' })),
+      finalUrl: afterWhatsapp.url || afterWhatsapp.pendingUrl || '',
+    }
+  })
+}
+
+function assertRefile(outcome) {
+  console.log('\n--- Refile-on-site-change outcome ---')
+  console.log(JSON.stringify(outcome, null, 2))
+
+  if (!outcome || typeof outcome !== 'object') {
+    fail('Refile flow returned nothing', outcome)
+    return false
+  }
+
+  if (!(outcome.finalUrl || '').includes('whatsapp')) {
+    fail('Expected tab URL to be whatsapp.com after navigation', outcome)
+    return false
+  }
+
+  if (outcome.groupAfterWhatsapp == null || outcome.groupAfterWhatsapp < 0) {
+    fail('Expected tab to be in a group after navigating to WhatsApp', outcome)
+    return false
+  }
+
+  if (outcome.groupAfterWhatsapp === outcome.googleGroupId) {
+    fail('Tab stayed in the Google group after navigating to WhatsApp', outcome)
+    return false
+  }
+
+  const title = String(outcome.whatsappTitle || '').toLowerCase()
+  if (!title.includes('whatsapp')) {
+    fail('Expected a WhatsApp-titled group after refile', outcome)
+    return false
+  }
+
+  if (outcome.whatsappGroupId != null && outcome.groupAfterWhatsapp !== outcome.whatsappGroupId) {
+    fail('Tab group id does not match the WhatsApp group', outcome)
+    return false
+  }
+
+  console.log('\nPASS: google→whatsapp refiled out of Google into WhatsApp.')
+  return true
+}
+
 async function main() {
   requireDist()
   console.log(`Loading extension from ${dist}`)
@@ -342,6 +464,15 @@ async function main() {
       ),
     ])
     assertOrganize(outcome)
+
+    const refile = await Promise.race([
+      runRefileOnSiteChangeFlow(dashboard),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Refile flow timed out after ${TIMEOUT_MS}ms`)), TIMEOUT_MS),
+      ),
+    ])
+    assertRefile(refile)
+
     console.log(`\nBrowser mode used: ${mode}`)
     console.log(`Elapsed: ${((Date.now() - started) / 1000).toFixed(1)}s`)
   } catch (error) {
